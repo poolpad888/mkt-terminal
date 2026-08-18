@@ -186,6 +186,8 @@ async function build() {
       .catch(e => { health[n] = { ok: false, err: e.message }; return []; })),
   ];
   const all = (await Promise.all(jobs)).flat();
+  const bad = Object.entries(health).filter(([,v]) => !v.ok).map(([k,v]) => k + '(' + v.err + ')');
+  console.log('BUILD: items=' + all.length + ' okSources=' + Object.values(health).filter(v=>v.ok).length + '/' + Object.keys(health).length + (bad.length ? ' fail: ' + bad.join(', ') : ''));
 
   const cutoff = Date.now() - KEEP_HOURS * 3600 * 1000;
   const fresh = all.filter(x => new Date(x.time).getTime() > cutoff);
