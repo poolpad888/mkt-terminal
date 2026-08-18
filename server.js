@@ -36,6 +36,7 @@ const TG = [
   ['spydell_finance',    'Spydell Finance'],
   ['cbonds',             'Cbonds'],
   ['oil_capital',        'Нефть и Капитал'],
+  ['stocksi',            'STOCKSI'],
 ];
 const RSS = [
   ['https://www.finam.ru/analysis/conews/rsspoint/', 'Финам'],
