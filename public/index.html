@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MKT·TERMINAL — лента финансовых новостей</title>
+<meta name="description" content="Оперативные новости финансов и рынков из 20 источников. Без VPN.">
+<style>
+:root{
+  --bg:#07090c; --panel:#0d1117; --line:#1b232e;
+  --amber:#ffb000; --red:#ff5252; --green:#2ee06f; --blue:#4db8ff; --violet:#b48cff;
+  --tx:#c9d4e0; --dim:#5b6b7c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--tx);font:14px/1.45 "SF Mono","Cascadia Mono",Consolas,Menlo,monospace}
+a{color:inherit;text-decoration:none}
+
+/* ── шапка ── */
+header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:12px;padding:9px 14px}
+.logo{color:var(--amber);font-weight:700;letter-spacing:.08em;white-space:nowrap}
+.live{display:flex;align-items:center;gap:6px;color:var(--green);font-size:11px;letter-spacing:.12em}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:bl 1.6s infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.25}}
+.sp{flex:1}
+.hbtn{background:none;border:1px solid var(--line);color:var(--dim);font:inherit;font-size:11px;
+  padding:4px 9px;border-radius:4px;cursor:pointer;white-space:nowrap}
+.hbtn.on{color:var(--amber);border-color:var(--amber)}
+#clock{color:var(--dim);font-size:12px;min-width:62px;text-align:right}
+
+/* ── фильтры ── */
+nav{position:sticky;top:41px;z-index:19;background:var(--bg);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:6px;padding:7px 14px;overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+.chip{flex:none;background:var(--panel);border:1px solid var(--line);color:var(--dim);font:inherit;
+  font-size:11.5px;padding:4px 10px;border-radius:20px;cursor:pointer}
+.chip.on{color:#0b0d10;background:var(--amber);border-color:var(--amber);font-weight:700}
+.chip.imp.on{background:var(--red);border-color:var(--red);color:#fff}
+.vr{flex:none;width:1px;height:18px;background:var(--line);margin:0 4px}
+
+/* ── лента ── */
+main{max-width:860px;margin:0 auto;padding:8px 0 60px}
+.row{display:grid;grid-template-columns:52px 1fr;gap:0 12px;padding:11px 14px;border-bottom:1px solid var(--line);
+  position:relative;transition:background .3s}
+.row .time{color:var(--dim);font-size:12px;padding-top:2px}
+.row .src{color:var(--blue);font-size:10.5px;letter-spacing:.04em;margin-bottom:3px}
+.row .txt{white-space:pre-wrap;word-break:break-word}
+.row .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;align-items:center}
+.tag{font-size:10.5px;color:var(--violet);border:1px solid #2a2440;background:#161226;
+  padding:1px 8px;border-radius:10px;cursor:pointer}
+.tk{font-size:10.5px;color:var(--green);border:1px solid #14361f;background:#0b1a10;padding:1px 8px;border-radius:10px}
+.srcs{font-size:10.5px;color:var(--green)}
+.lnk{font-size:10.5px;color:var(--dim)}
+.lnk:hover{color:var(--blue)}
+.share{background:none;border:none;color:var(--dim);cursor:pointer;font:inherit;font-size:10.5px;padding:0}
+.share:hover{color:var(--blue)}
+
+/* важные */
+.row.lvl2{grid-template-columns:24px 52px 1fr;border:1px solid var(--red);border-left:none;
+  background:rgba(255,82,82,.13);margin:8px 10px;padding:12px 14px 12px 0;border-radius:0 4px 4px 0}
+.fband{background:var(--red);display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:6px 0;border-radius:3px 0 0 3px}
+.vtxt{writing-mode:vertical-rl;transform:rotate(180deg);color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.18em}
+.ico{font-size:11px}
+.row.lvl2 .time{color:var(--red);font-weight:600}
+.row.fresh{animation:fr 2.4s ease both}
+@keyframes fr{0%{background:rgba(255,176,0,.25)}100%{background:transparent}}
+.row.lvl2.fresh{animation:fr2 2.4s ease both}
+@keyframes fr2{0%{background:rgba(255,82,82,.35)}100%{background:rgba(255,82,82,.13)}}
+.row.mark{outline:2px solid var(--amber);outline-offset:-2px}
+
+/* компактный режим */
+body.compact .row{padding:5px 14px}
+body.compact .row .meta{margin-top:3px}
+body.compact .row .txt{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+body.compact .row.lvl2{padding:6px 10px 6px 0;margin:4px 10px}
+
+.note{color:var(--dim);text-align:center;padding:40px 20px;font-size:12.5px}
+footer{color:var(--dim);font-size:11px;text-align:center;padding:20px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">MKT·TERMINAL</span>
+  <span class="live"><span class="dot"></span>LIVE</span>
+  <span class="sp"></span>
+  <button class="hbtn" id="sndBtn" title="звук важных новостей">🔇</button>
+  <button class="hbtn" id="denBtn">плотно</button>
+  <span id="clock">--:--:--</span>
+</header>
+<nav id="nav"></nav>
+<main id="feed"><div class="note">Загружаю ленту…</div></main>
+<footer>MKT·TERMINAL · агрегатор открытых источников · под каждой новостью — ссылка на первоисточник</footer>
+
+<script>
+'use strict';
+// ── состояние ──
+let ITEMS = [];
+let filterTag = 'all';      // all | imp | тег
+let filterDay = '24h';      // 24h | morning | day | evening
+let sound = false;
+const knownIds = new Set();
+let firstLoad = true;
+
+// сохранённые настройки
+try{
+  const p = JSON.parse(localStorage.getItem('mkt_prefs')||'{}');
+  if(p.compact) document.body.classList.add('compact');
+  if(p.filterTag) filterTag = p.filterTag;
+  if(p.filterDay) filterDay = p.filterDay;
+}catch(e){}
+function savePrefs(){
+  try{localStorage.setItem('mkt_prefs',JSON.stringify({
+    compact:document.body.classList.contains('compact'),filterTag,filterDay}))}catch(e){}
+}
+
+// ── часы ──
+const clock=document.getElementById('clock');
+setInterval(()=>{clock.textContent=new Date().toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow'})},1000);
+
+// ── кнопки шапки ──
+const sndBtn=document.getElementById('sndBtn');
+sndBtn.onclick=()=>{sound=!sound;sndBtn.textContent=sound?'🔊':'🔇';sndBtn.classList.toggle('on',sound)};
+const denBtn=document.getElementById('denBtn');
+function denLabel(){denBtn.textContent=document.body.classList.contains('compact')?'свободно':'плотно'}
+denBtn.onclick=()=>{document.body.classList.toggle('compact');denLabel();savePrefs()};
+denLabel();
+
+// ── звук ──
+function beep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.frequency.value=880;g.gain.setValueAtTime(.12,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.35);
+    o.start();o.stop(ctx.currentTime+.35);
+  }catch(e){}
+}
+
+// ── время суток (МСК) ──
+function mskHour(iso){
+  return +new Date(iso).toLocaleString('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',hour12:false});
+}
+function passDay(x){
+  if(filterDay==='24h')return true;
+  const h=mskHour(x.time);
+  if(filterDay==='morning')return h<9;
+  if(filterDay==='day')return h>=9&&h<19;
+  return h>=19;
+}
+function passTag(x){
+  if(filterTag==='all')return true;
+  if(filterTag==='imp')return x.lvl===2;
+  return (x.tags||[]).includes(filterTag)||x.src===filterTag;
+}
+
+// ── фильтры ──
+function topTags(){
+  const cnt={};
+  for(const x of ITEMS)for(const t of (x.tags||[]))cnt[t]=(cnt[t]||0)+1;
+  return Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,7).map(e=>e[0]);
+}
+function renderNav(){
+  const nav=document.getElementById('nav');
+  const chips=[
+    {id:'all',label:'Все'},
+    {id:'imp',label:'⚡ Важно',cls:'imp'},
+    ...topTags().map(t=>({id:t,label:'#'+t}))
+  ];
+  const days=[{id:'24h',label:'24ч'},{id:'morning',label:'утро'},{id:'day',label:'день'},{id:'evening',label:'вечер'}];
+  nav.innerHTML=
+    chips.map(c=>'<button class="chip '+(c.cls||'')+(filterTag===c.id?' on':'')+'" data-t="'+c.id+'">'+c.label+'</button>').join('')
+    +'<span class="vr"></span>'
+    +days.map(d=>'<button class="chip'+(filterDay===d.id?' on':'')+'" data-d="'+d.id+'">'+d.label+'</button>').join('');
+  nav.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{filterTag=b.dataset.t;savePrefs();renderAll();window.scrollTo({top:0})});
+  nav.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{filterDay=b.dataset.d;savePrefs();renderAll();window.scrollTo({top:0})});
+}
+
+// ── рендер строки ──
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function hhmm(iso){return new Date(iso).toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'})}
+function rowHTML(x,fresh){
+  const band=x.lvl===2?'<div class="fband"><span class="vtxt">Важно</span><span class="ico">⚡</span></div>':'';
+  const tags=(x.tags||[]).map(t=>'<span class="tag" data-tag="'+t+'">#'+t+'</span>').join('');
+  const tks=(x.tk||[]).map(t=>'<a class="tk" target="_blank" rel="noopener" href="https://www.tradingview.com/chart/?symbol='+t+'">'+t+'</a>').join('');
+  const srcs=x.srcCount>1?'<span class="srcs">'+x.srcCount+' источника</span>':'';
+  return '<article class="row'+(x.lvl===2?' lvl2':'')+(fresh?' fresh':'')+'" id="n-'+x.id+'">'+band+
+    '<div class="time">'+hhmm(x.time)+'</div>'+
+    '<div><div class="src">'+esc(x.srcName)+'</div>'+
+    '<div class="txt">'+esc(x.text)+'</div>'+
+    '<div class="meta">'+tags+tks+srcs+
+      '<a class="lnk" target="_blank" rel="noopener" href="'+x.url+'">первоисточник ↗</a>'+
+      '<button class="share" data-id="'+x.id+'">поделиться</button>'+
+    '</div></div></article>';
+}
+function renderAll(){
+  renderNav();
+  const feed=document.getElementById('feed');
+  const vis=ITEMS.filter(x=>passTag(x)&&passDay(x));
+  feed.innerHTML=vis.length?vis.map(x=>rowHTML(x,false)).join(''):'<div class="note">По этому фильтру пока пусто.</div>';
+  bindRowEvents();
+}
+function bindRowEvents(){
+  document.querySelectorAll('.tag').forEach(t=>t.onclick=()=>{filterTag=t.dataset.tag;savePrefs();renderAll();window.scrollTo({top:0})});
+  document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{
+    const x=ITEMS.find(i=>i.id===b.dataset.id); if(!x)return;
+    const link=location.origin+'/?n='+encodeURIComponent(x.id);
+    const short=x.text.split('\n')[0].slice(0,140);
+    if(navigator.share){try{await navigator.share({title:'MKT·TERMINAL',text:short,url:link});return}catch(e){}}
+    try{await navigator.clipboard.writeText(short+'\n'+link);b.textContent='скопировано ✓';setTimeout(()=>b.textContent='поделиться',1500)}catch(e){}
+  });
+}
+
+// ── загрузка ──
+async function load(){
+  try{
+    const r=await fetch('/api/feed');
+    const data=await r.json();
+    if(!data.items)return;
+    let newImportant=false,anyNew=false;
+    for(const x of data.items){
+      if(!knownIds.has(x.id)){
+        if(!firstLoad){x._fresh=true;anyNew=true;if(x.lvl===2)newImportant=true;}
+        knownIds.add(x.id);
+      }
+    }
+    ITEMS=data.items;
+    renderAll();
+    if(anyNew){
+      document.querySelectorAll('.row').forEach(el=>{
+        const id=el.id.slice(2);
+        const x=ITEMS.find(i=>i.id===id);
+        if(x&&x._fresh){el.classList.add('fresh');delete x._fresh}
+      });
+    }
+    if(newImportant&&sound)beep();
+    if(firstLoad){
+      firstLoad=false;
+      const n=new URLSearchParams(location.search).get('n');
+      if(n){const el=document.getElementById('n-'+n);
+        if(el){el.scrollIntoView({block:'center'});el.classList.add('mark')}}
+    }
+  }catch(e){
+    if(firstLoad)document.getElementById('feed').innerHTML='<div class="note">Не удалось загрузить ленту. Обнови страницу.</div>';
+  }
+}
+load();
+setInterval(load,90000);
+</script>
+</body>
+</html>
