@@ -40,12 +40,17 @@ const TG = [
   ['bbbreaking',          'Раньше всех'],
   ['Bonds_lab',           'Bonds lab'],
   ['PresidentDonaldTrumpRU', 'Трамп'],
+  ['antonchehovanalitk',  'Аналитика Чехова'],
 ];
 const RSS = [
   ['https://www.finam.ru/analysis/conews/rsspoint/', 'Финам'],
   ['https://www.moex.com/export/news.aspx?cat=100', 'Мосбиржа'],
   ['https://minfin.gov.ru/ru/press-center/rss/', 'Минфин'],
 ];
+// Реклама, платные подписки и набор в закрытые группы — не новости
+const PROMO_SOURCES = new Set(['antonchehovanalitk']);
+const PROMO_RE = /вип[\s-]*канал|vip[\s-]*канал|платн[а-яё]+\s+(канал|подписк|групп)|подписк[а-яё]*\s+на\s+(закрыт|вип|vip)|закрыт[а-яё]+\s+(канал|групп)|открыт[а-яё]+\s+набор|набор\s+в\s+(групп|команд)|мест[а-яё]*\s+осталось|осталось\s+\d+\s+мест|успей\s+записат|запись\s+открыт|_bot(?![a-z])|бот\s+для\s+оплат|оплат[а-яё]*\s+(вип|vip|подписк)|тариф|промокод|скидк[а-яё]+\s+на\s+подписк|реклам[а-яё]*\s*[:\-]|erid|по\s+вопросам\s+рекламы|прайс|сотрудничеств|партнёрск|партнерск/i;
+
 // Технический мусор Мосбиржи и Минфина в ленту не пускаем
 const RSS_SKIP = {
   'Мосбиржа': /технически[ей]\s+работ|смена\s+ip|сетев[а-яё]+\s+оборудован|плановы[ей]\s+изменени|тестировани|коллокаци|colocation|сертификат|версии\s+по|релиз[а-яё]*\s+систем/i,
@@ -242,6 +247,7 @@ function parseTelegram(html, username, srcName) {
     if (!post || !dt || !txt) continue;
     const text = stripHtml(txt[1]);
     if (!text || text.length < 15) continue;
+    if (PROMO_SOURCES.has(username) && PROMO_RE.test(text)) continue;
     const msgId = post[1].split('/')[1];
     items.push({
       id: username + '-' + msgId,
