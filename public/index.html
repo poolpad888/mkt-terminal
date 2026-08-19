@@ -236,6 +236,10 @@ function collapseText(t){
 }
 
 // ── рендер строки ──
+// ── символ для TradingView (акции Мосбиржи vs товары/валюты) ──
+const TVSYM={BRENT:'TVC:UKOIL',WTI:'TVC:USOIL',GAS:'TVC:NATGAS',GOLD:'TVC:GOLD',SILVER:'TVC:SILVER',
+  USDRUB:'FX_IDC:USDRUB',CNYRUB:'FX_IDC:CNYRUB',EURUSD:'FX:EURUSD',IMOEX:'MOEX:IMOEX'};
+function tvsym(t){return TVSYM[t]||('MOEX:'+t)}
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
 function hi(html){
@@ -247,7 +251,7 @@ const openIds=new Set();
 function rowHTML(x,fresh){
   const band=x.lvl===2?'<div class="fband"><span class="vtxt">Важно</span><span class="ico">⚡</span></div>':'';
   const tags=(x.tags||[]).map(t=>'<span class="tag" data-tag="'+t+'">#'+t+'</span>').join('');
-  const tks=(x.tk||[]).map(t=>'<a class="tk" data-tk="'+t+'" target="_blank" rel="noopener" href="https://www.tradingview.com/chart/?symbol=MOEX%3A'+t+'">'+t+'</a>').join('');
+  const tks=(x.tk||[]).map(t=>'<a class="tk" data-tk="'+t+'" target="_blank" rel="noopener" href="https://www.tradingview.com/chart/?symbol='+encodeURIComponent(tvsym(t))+'">'+t+'</a>').join('');
   const srcs=x.srcCount>1?'<span class="srcs">'+x.srcCount+' источника</span>':'';
   const col=collapseText(x.text);
   const long=col.length<x.text.length-15;
@@ -311,7 +315,7 @@ function tvShow(el,sym){
   if(y+240>innerHeight-8)y=r.top-248;
   tvpop.style.left=Math.max(8,x)+'px';
   tvpop.style.top=Math.max(8,y)+'px';
-  tvpop.innerHTML='<iframe loading="eager" src="https://s.tradingview.com/widgetembed/?symbol=MOEX%3A'+sym+'&interval=5&hidesidetoolbar=1&hidetoptoolbar=1&hidelegend=1&saveimage=0&theme=dark&style=1&timezone=Europe%2FMoscow&locale=ru"></iframe>';
+  tvpop.innerHTML='<iframe loading="eager" src="https://s.tradingview.com/widgetembed/?symbol='+encodeURIComponent(tvsym(sym))+'&interval=5&hidesidetoolbar=1&hidetoptoolbar=1&hidelegend=1&saveimage=0&theme=dark&style=1&timezone=Europe%2FMoscow&locale=ru"></iframe>';
   tvpop.style.display='block';
   tvCur=sym;
 }
