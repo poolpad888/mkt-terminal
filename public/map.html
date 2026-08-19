@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Новостная карта рынков — набросок</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07090c;--panel:#0d1117;--line:#1b232e;--fg:#d7dde6;--dim:#77839a;
+--amber:#ffb000;--red:#ff5252;--green:#2ee06f;--blue:#4db8ff;
+--mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;--sans:'IBM Plex Sans',system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.45}
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font-size:15px;font-family:var(--mono);color:var(--amber);letter-spacing:.5px}
+.sw{margin-left:auto;display:flex;gap:6px}
+.sw button{background:#131a23;border:1px solid var(--line);color:var(--dim);padding:6px 12px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px}
+.sw button.on{color:var(--amber);border-color:var(--amber)}
+.note{padding:8px 14px;color:var(--dim);font-size:12px;border-bottom:1px solid var(--line)}
+.note b{color:var(--fg);font-weight:500}
+main{max-width:980px;margin:0 auto;padding:12px}
+table{width:100%;border-collapse:collapse}
+th{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.5px}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr.row{cursor:pointer}
+tr.row:hover{background:#0e141b}
+.tk{font-family:var(--mono);font-weight:600;color:var(--blue)}
+.nm{color:var(--fg)}
+.cnt{font-family:var(--mono);font-weight:600;text-align:right}
+.bar{height:6px;border-radius:3px;background:linear-gradient(90deg,#1f6feb,#ffb000);min-width:2px}
+.imp{font-family:var(--mono);color:var(--red);text-align:right}
+.tm{font-family:var(--mono);color:var(--dim);font-size:12px;text-align:right;white-space:nowrap}
+tr.det td{background:#0a0e13;padding:10px 12px}
+.dn{padding:6px 0;border-bottom:1px dashed #141c26;font-size:13px}
+.dn:last-child{border-bottom:0}
+.dn a{color:var(--blue);text-decoration:none;font-size:12px;font-family:var(--mono);margin-left:8px}
+.dn .t{color:var(--dim);font-family:var(--mono);font-size:12px;margin-right:8px}
+.dn .s{color:var(--amber);font-size:12px;margin-right:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:10px;cursor:pointer;background:var(--panel);position:relative;overflow:hidden}
+.tile:hover{border-color:var(--amber)}
+.tile .tk{font-size:15px}
+.tile .nm{display:block;font-size:12px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .cnt{display:block;font-size:22px;margin-top:8px;text-align:left}
+.tile .sub{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.tile.h3{background:#2a1215;border-color:#5c1f24}
+.tile.h2{background:#20160c;border-color:#5a4210}
+.tile.h1{background:#101820}
+.tile .fire{position:absolute;top:8px;right:10px;font-size:13px}
+#panel{position:fixed;inset:auto 0 0 0;max-height:60vh;overflow:auto;background:#0a0e13;border-top:2px solid var(--amber);padding:12px 16px;display:none}
+#panel h3{font-family:var(--mono);color:var(--amber);font-size:14px;margin-bottom:8px}
+#panel .x{float:right;color:var(--dim);cursor:pointer;font-family:var(--mono)}
+.dim{color:var(--dim)}
+@media(max-width:640px){body{font-size:13px} main{padding:8px} td{padding:6px} .grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}}
+</style>
+</head>
+<body>
+<header>
+  <h1>НОВОСТНАЯ КАРТА РЫНКОВ</h1>
+  <span class="dim" id="upd" style="font-family:var(--mono);font-size:12px"></span>
+  <div class="sw">
+    <button id="b1" class="on" onclick="show(1)">Вариант 1 · таблица</button>
+    <button id="b2" onclick="show(2)">Вариант 2 · плитки</button>
+  </div>
+</header>
+<div class="note">Считается по сегодняшним новостям (с 00:00 МСК) из всех источников. <b>Всплеск «к обычному уровню» появится позже</b>, когда начнём копить историю — пока накал показан по доле в сегодняшнем потоке. Нажатие на строку или плитку раскрывает новости по бумаге.</div>
+<main>
+  <div id="v1"><table><thead><tr><th>Тикер</th><th>Компания</th><th style="text-align:right">Новостей</th><th style="width:30%">Поток</th><th style="text-align:right">Важных</th><th style="text-align:right">Последняя</th></tr></thead><tbody id="tb"></tbody></table></div>
+  <div id="v2" style="display:none"><div class="grid" id="gr"></div></div>
+  <p id="empty" class="dim" style="display:none;padding:20px;text-align:center">Сегодня упоминаний тикеров пока нет</p>
+</main>
+<div id="panel"><span class="x" onclick="pnl(false)">закрыть ✕</span><h3 id="pt"></h3><div id="pl"></div></div>
+<script>
+const NAMES = {"SBER":"Сбербанк","GAZP":"Газпром","SIBN":"Газпром нефть","LKOH":"Лукойл","ROSN":"Роснефть","NVTK":"Новатэк","TATN":"Татнефть","SNGS":"Сургутнефтегаз","GMKN":"Норникель","YDEX":"Яндекс","VTBR":"ВТБ","T":"Т-Банк","MOEX":"Мосбиржа","PLZL":"Полюс","CHMF":"Северсталь","NLMK":"НЛМК","MAGN":"ММК","ALRS":"Алроса","AFLT":"Аэрофлот","MGNT":"Магнит","X5":"X5 Group","OZON":"Озон","MTSS":"МТС","RUAL":"Русал","PHOR":"ФосАгро","AFKS":"АФК Система","HYDR":"РусГидро","IRAO":"Интер РАО","FLOT":"Совкомфлот","SVCB":"Совкомбанк","BSPB":"Банк СПб","UGLD":"ЮГК","SMLT":"Самолет","PIKK":"ПИК","VKCO":"VK","POSI":"Позитив","ASTR":"Астра","RTKM":"Ростелеком","TRNFP":"Транснефть","FEES":"Россети","RENI":"Ренессанс","ENPG":"Эн+","SGZH":"Сегежа","MTLR":"Мечел","RASP":"Распадская","UPRO":"Юнипро","LSRG":"ЛСР","ETLN":"Эталон","LENT":"Лента","HEAD":"Хэдхантер"};
+let DATA = [];
+function mskDayStart(){
+  const now = new Date();
+  const msk = new Date(now.toLocaleString('en-US',{timeZone:'Europe/Moscow'}));
+  const off = msk - now;
+  const d0 = new Date(msk.getFullYear(),msk.getMonth(),msk.getDate());
+  return new Date(d0.getTime()-off);
+}
+function fmt(t){return new Date(t).toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'})}
+async function load(){
+  const r = await fetch('/api/feed'); const f = await r.json();
+  const from = mskDayStart();
+  const items = (f.items||[]).filter(x=>new Date(x.time)>=from);
+  const m = new Map();
+  for(const x of items){ for(const tk of (x.tk||[])){
+    if(!m.has(tk)) m.set(tk,{tk,n:0,imp:0,last:0,news:[]});
+    const o=m.get(tk); o.n++; if(x.lvl===2)o.imp++;
+    const t=new Date(x.time).getTime(); if(t>o.last)o.last=t; o.news.push(x);
+  }}
+  DATA=[...m.values()].sort((a,b)=>b.n-a.n||b.last-a.last);
+  document.getElementById('upd').textContent = 'обновлено '+fmt(f.updated)+' МСК · новостей за день: '+items.length;
+  render();
+}
+function heat(o,max){ const r=o.n/max; return r>0.66?3:r>0.33?2:1 }
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+function render(){
+  const max = DATA.length?DATA[0].n:1;
+  const tb=document.getElementById('tb'); tb.innerHTML='';
+  DATA.forEach(o=>{
+    const tr=document.createElement('tr'); tr.className='row';
+    tr.innerHTML='<td class="tk">'+o.tk+'</td><td class="nm">'+(NAMES[o.tk]||'')+'</td>'+
+      '<td class="cnt">'+o.n+'</td><td><div class="bar" style="width:'+Math.max(3,Math.round(o.n/max*100))+'%"></div></td>'+
+      '<td class="imp">'+(o.imp||'—')+'</td><td class="tm">'+fmt(o.last)+'</td>';
+    tr.onclick=()=>toggleDet(tr,o);
+    tb.appendChild(tr);
+  });
+  const gr=document.getElementById('gr'); gr.innerHTML='';
+  DATA.forEach(o=>{
+    const d=document.createElement('div'); d.className='tile h'+heat(o,max);
+    d.innerHTML='<span class="tk">'+o.tk+'</span>'+(heat(o,max)===3?'<span class="fire">🔥</span>':'')+
+      '<span class="nm">'+(NAMES[o.tk]||'')+'</span><span class="cnt">'+o.n+'</span>'+
+      '<span class="sub">'+(o.imp?('важных: '+o.imp+' · '):'')+fmt(o.last)+'</span>';
+    d.onclick=()=>openPanel(o);
+    gr.appendChild(d);
+  });
+  document.getElementById('empty').style.display = DATA.length?'none':'block';
+}
+function newsHtml(o){
+  return o.news.map(x=>{
+    const txt = x.text.length>180?x.text.slice(0,180)+'…':x.text;
+    return '<div class="dn"><span class="t">'+fmt(x.time)+'</span><span class="s">'+esc(x.srcName)+'</span>'+esc(txt)+
+      (x.link?'<a href="'+x.link+'" target="_blank" rel="noopener">источник ↗</a>':'')+'</div>';
+  }).join('');
+}
+function toggleDet(tr,o){
+  const nx=tr.nextElementSibling;
+  if(nx && nx.classList.contains('det')){ nx.remove(); return }
+  document.querySelectorAll('tr.det').forEach(e=>e.remove());
+  const d=document.createElement('tr'); d.className='det';
+  d.innerHTML='<td colspan="6">'+newsHtml(o)+'</td>';
+  tr.after(d);
+}
+function openPanel(o){
+  document.getElementById('pt').textContent=o.tk+' · '+(NAMES[o.tk]||'')+' — '+o.n+' за день';
+  document.getElementById('pl').innerHTML=newsHtml(o);
+  pnl(true);
+}
+function pnl(v){document.getElementById('panel').style.display=v?'block':'none'}
+function show(v){
+  document.getElementById('v1').style.display=v===1?'':'none';
+  document.getElementById('v2').style.display=v===2?'':'none';
+  document.getElementById('b1').classList.toggle('on',v===1);
+  document.getElementById('b2').classList.toggle('on',v===2);
+  pnl(false);
+}
+load(); setInterval(load,90000);
+</script>
+</body>
+</html>

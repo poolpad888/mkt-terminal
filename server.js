@@ -323,6 +323,7 @@ const server = http.createServer(async (req, res) => {
     // статика
     let p = u.pathname === '/' ? '/index.html' : u.pathname;
     if (p === '/fonts' || p === '/шрифты' || p === encodeURI('/шрифты')) p = '/fonts.html';
+    if (p === '/map' || p === '/карта' || p === encodeURI('/карта')) p = '/map.html';
     p = path.normalize(p).replace(/^(\.\.[/\\])+/, '');
     const file = path.join(__dirname, 'public', p);
     if (file.startsWith(path.join(__dirname, 'public')) && fs.existsSync(file) && fs.statSync(file).isFile()) {
