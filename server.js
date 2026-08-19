@@ -37,6 +37,9 @@ const TG = [
   ['cbonds',             'Cbonds'],
   ['oil_capital',        'Нефть и Капитал'],
   ['stocksi',            'STOCKSI'],
+  ['bbbreaking',          'Раньше всех'],
+  ['Bonds_lab',           'Bonds lab'],
+  ['PresidentDonaldTrumpRU', 'Трамп'],
 ];
 const RSS = [
   ['https://www.finam.ru/analysis/conews/rsspoint/', 'Финам'],
