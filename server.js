@@ -291,6 +291,29 @@ function fingerprint(text) {
   return text.toLowerCase().replace(/[^a-zа-яё0-9]+/g, ' ').trim().slice(0, 140);
 }
 
+// Значимые слова новости для сравнения по смыслу
+const STOP = new Set(('и в на не что с по за от до для как это его ее её их тот эта они оно мы вы также при или если чем уже еще ещё году года год лет млн млрд трлн руб рублей процент процента процентов пункта пунктов около более менее может стал стала стало были было будет через после ранее сообщил сообщила сообщает сообщили заявил заявила заявили рассказал отметил считает данным словам итогам которая который которые может также свой свои этом этой согласно').split(' '));
+function wordSet(text) {
+  const w = text.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9,.\s]+/g, ' ')
+    .replace(/(\d+),(\d+)/g, '$1.$2')
+    .replace(/[^a-zа-я0-9.\s]+/g, ' ')
+    .split(/\s+/)
+    .map(t => /^\d/.test(t) ? t.replace(/\.$/, '') : t.replace(/[.]+/g, ''))
+    .map(t => /^\d/.test(t) ? t.replace(/\.0$/, '') : t)
+    .filter(t => (/^\d/.test(t) ? t.length >= 2 : t.length >= 3) && !STOP.has(t))
+    .map(t => /^\d/.test(t) ? t : t.slice(0, 5));   // грубая основа слова
+  return new Set(w);
+}
+function similar(a, b) {
+  if (!a.size || !b.size) return false;
+  let inter = 0;
+  const [small, big] = a.size <= b.size ? [a, b] : [b, a];
+  for (const t of small) if (big.has(t)) inter++;
+  const contain = inter / small.size;                // маленький почти целиком внутри большого
+  const jacc = inter / (a.size + b.size - inter);
+  return jacc >= 0.45 || contain >= 0.7;
+}
+
 // ── Сборка ленты ────────────────────────────────────────────────────────
 let cache = { at: 0, feed: null };
 const health = {};
@@ -312,23 +335,36 @@ async function build() {
   const fresh = all.filter(x => new Date(x.time).getTime() > cutoff);
   fresh.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-  // дедупликация точных дублей (первый по времени остаётся)
+  // дедупликация: точные дубли + похожие по смыслу в окне 3 часов
   const seen = new Map();
   const out = [];
+  const WINDOW = 3 * 3600 * 1000;
   for (let i = fresh.length - 1; i >= 0; i--) {   // от старых к новым
     const x = fresh[i];
     const fp = fingerprint(x.text);
-    if (seen.has(fp)) {
-      const keep = seen.get(fp);
-      keep.srcCount = (keep.srcCount || 1) + 1;
-      if (!keep.alsoIn) keep.alsoIn = [];
-      if (!keep.alsoIn.includes(x.srcName)) keep.alsoIn.push(x.srcName);
-      continue;
+    let keep = seen.get(fp) || null;
+    if (!keep) {
+      const ws = wordSet(x.text);
+      const t = new Date(x.time).getTime();
+      for (let j = out.length - 1; j >= 0; j--) {
+        const y = out[j];
+        if (t - new Date(y.time).getTime() > WINDOW) break;
+        if (y.src === x.src) continue;             // внутри одного канала не склеиваем
+        if (similar(ws, y._ws)) { keep = y; break; }
+      }
+      if (!keep) {
+        x._ws = ws;
+        seen.set(fp, x);
+        out.push(x);
+        continue;
+      }
     }
-    seen.set(fp, x);
-    out.push(x);
+    keep.srcCount = (keep.srcCount || 1) + 1;
+    if (!keep.alsoIn) keep.alsoIn = [];
+    if (!keep.alsoIn.includes(x.srcName) && keep.srcName !== x.srcName) keep.alsoIn.push(x.srcName);
   }
   out.reverse();                                   // снова: новые сверху
+  for (const x of out) delete x._ws;
 
   for (const x of out) {
     const c = classify(x.text);
@@ -336,6 +372,8 @@ async function build() {
     x.tk = tickers(x.text);
     x.tags = hashtags(x.text);
   }
+  const dups = fresh.length - out.length;
+  console.log('DEDUP: kept=' + out.length + ' merged=' + dups);
   return { updated: new Date().toISOString(), count: out.length, items: out };
 }
 
