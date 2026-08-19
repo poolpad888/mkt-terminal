@@ -41,7 +41,7 @@ const TG = [
 const RSS = [
   ['https://www.finam.ru/analysis/conews/rsspoint/', 'Финам'],
   ['https://www.moex.com/export/news.aspx?cat=100', 'Мосбиржа'],
-  ['https://minfin.gov.ru/ru/rss/', 'Минфин'],
+  ['https://minfin.gov.ru/ru/press-center/rss/', 'Минфин'],
 ];
 // Технический мусор Мосбиржи и Минфина в ленту не пускаем
 const RSS_SKIP = {
