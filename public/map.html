@@ -2,154 +2,222 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Новостная карта рынков — набросок</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Новостная карта рынков — MKT·TERMINAL</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#07090c;--panel:#0d1117;--line:#1b232e;--fg:#d7dde6;--dim:#77839a;
---amber:#ffb000;--red:#ff5252;--green:#2ee06f;--blue:#4db8ff;
---mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;--sans:'IBM Plex Sans',system-ui,sans-serif}
+:root{
+  --bg:#07090c; --panel:#0d1117; --line:#1b232e;
+  --amber:#ffb000; --red:#ff5252; --green:#2ee06f; --blue:#4db8ff; --violet:#b48cff;
+  --tx:#c9d4e0; --dim:#5b6b7c;
+  --mono:"IBM Plex Mono","SF Mono",Consolas,Menlo,monospace;
+  --sans:"IBM Plex Sans","Segoe UI",Arial,sans-serif;
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.45}
-header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-h1{font-size:15px;font-family:var(--mono);color:var(--amber);letter-spacing:.5px}
-.sw{margin-left:auto;display:flex;gap:6px}
-.sw button{background:#131a23;border:1px solid var(--line);color:var(--dim);padding:6px 12px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px}
-.sw button.on{color:var(--amber);border-color:var(--amber)}
-.note{padding:8px 14px;color:var(--dim);font-size:12px;border-bottom:1px solid var(--line)}
-.note b{color:var(--fg);font-weight:500}
-main{max-width:980px;margin:0 auto;padding:12px}
+body{background:var(--bg);color:var(--tx);font:14px/1.5 var(--sans)}
+a{color:inherit;text-decoration:none}
+header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;padding:9px 14px}
+.logo{color:var(--amber);font-weight:700;letter-spacing:.08em;white-space:nowrap;font-family:var(--mono)}
+.sub{color:var(--dim);font-size:12px}
+.sp{flex:1}
+.hbtn{background:none;border:1px solid var(--line);color:var(--dim);font:inherit;font-size:11px;
+  padding:4px 9px;border-radius:4px;cursor:pointer;white-space:nowrap;display:inline-block}
+.hbtn:hover{color:var(--amber);border-color:var(--amber)}
+#clock{color:var(--dim);font-size:12px;font-family:var(--mono)}
+
+main{max-width:900px;margin:0 auto;padding:14px 14px 60px}
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+#q{background:var(--panel);border:1px solid var(--line);color:var(--tx);font:inherit;font-size:13px;
+  padding:6px 12px;border-radius:5px;width:260px;max-width:60vw;outline:none}
+#q:focus{border-color:var(--amber)}
+#q::placeholder{color:var(--dim)}
+.hint{color:var(--dim);font-size:11.5px}
+
 table{width:100%;border-collapse:collapse}
-th{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.5px}
+th{color:var(--dim);font-size:11px;letter-spacing:.05em;text-align:left;padding:7px 8px;
+  border-bottom:1px solid var(--line);cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{color:var(--amber)}
+th .ar{color:var(--amber)}
 td{padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
-tr.row{cursor:pointer}
-tr.row:hover{background:#0e141b}
-.tk{font-family:var(--mono);font-weight:600;color:var(--blue)}
-.nm{color:var(--fg)}
-.cnt{font-family:var(--mono);font-weight:600;text-align:right}
-.bar{height:6px;border-radius:3px;background:linear-gradient(90deg,#1f6feb,#ffb000);min-width:2px}
-.imp{font-family:var(--mono);color:var(--red);text-align:right}
-.tm{font-family:var(--mono);color:var(--dim);font-size:12px;text-align:right;white-space:nowrap}
-tr.det td{background:#0a0e13;padding:10px 12px}
-.dn{padding:6px 0;border-bottom:1px dashed #141c26;font-size:13px}
-.dn:last-child{border-bottom:0}
-.dn a{color:var(--blue);text-decoration:none;font-size:12px;font-family:var(--mono);margin-left:8px}
-.dn .t{color:var(--dim);font-family:var(--mono);font-size:12px;margin-right:8px}
-.dn .s{color:var(--amber);font-size:12px;margin-right:6px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
-.tile{border:1px solid var(--line);border-radius:8px;padding:10px;cursor:pointer;background:var(--panel);position:relative;overflow:hidden}
-.tile:hover{border-color:var(--amber)}
-.tile .tk{font-size:15px}
-.tile .nm{display:block;font-size:12px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile .cnt{display:block;font-size:22px;margin-top:8px;text-align:left}
-.tile .sub{font-family:var(--mono);font-size:11px;color:var(--dim)}
-.tile.h3{background:#2a1215;border-color:#5c1f24}
-.tile.h2{background:#20160c;border-color:#5a4210}
-.tile.h1{background:#101820}
-.tile .fire{position:absolute;top:8px;right:10px;font-size:13px}
-#panel{position:fixed;inset:auto 0 0 0;max-height:60vh;overflow:auto;background:#0a0e13;border-top:2px solid var(--amber);padding:12px 16px;display:none}
-#panel h3{font-family:var(--mono);color:var(--amber);font-size:14px;margin-bottom:8px}
-#panel .x{float:right;color:var(--dim);cursor:pointer;font-family:var(--mono)}
-.dim{color:var(--dim)}
-@media(max-width:640px){body{font-size:13px} main{padding:8px} td{padding:6px} .grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}}
+tr.r{cursor:pointer}
+tr.r:hover td{background:rgba(255,176,0,.05)}
+.tkc{font-family:var(--mono);font-weight:600;color:var(--green)}
+.nm{color:var(--tx)}
+.num{font-family:var(--mono);text-align:right}
+.imp{color:var(--red);font-weight:600;font-family:var(--mono);text-align:right}
+.chg{font-family:var(--mono);text-align:right;font-weight:600}
+.chg.up{color:var(--green)}
+.chg.dn{color:var(--red)}
+.chg.na{color:var(--dim);font-weight:400}
+.tm{font-family:var(--mono);color:var(--dim);text-align:right;font-size:12.5px}
+.flow{height:7px;background:#131a22;border-radius:4px;overflow:hidden;min-width:60px}
+.flow i{display:block;height:100%;background:linear-gradient(90deg,var(--amber),var(--red));border-radius:4px}
+
+tr.det td{background:var(--panel);padding:0}
+.dbox{padding:10px 14px}
+.dn1{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.dn1:last-child{border-bottom:none}
+.dt{font-family:var(--mono);color:var(--dim);flex:none;font-size:12px;padding-top:1px}
+.dx a{color:var(--dim);font-size:11px}
+.dx a:hover{color:var(--blue)}
+.dimp{color:var(--red);font-weight:600}
+.note{color:var(--dim);text-align:center;padding:40px 20px;font-size:12.5px}
+@media(max-width:640px){
+  main{padding:10px 6px 60px}
+  th,td{padding:6px 5px;font-size:12.5px}
+  .flowtd{display:none}th.flowth{display:none}
+  .tm,.tmth{display:none}
+}
 </style>
 </head>
 <body>
 <header>
-  <h1>НОВОСТНАЯ КАРТА РЫНКОВ</h1>
-  <span class="dim" id="upd" style="font-family:var(--mono);font-size:12px"></span>
-  <div class="sw">
-    <button id="b1" class="on" onclick="show(1)">Вариант 1 · таблица</button>
-    <button id="b2" onclick="show(2)">Вариант 2 · плитки</button>
-  </div>
+  <span class="logo">MKT·TERMINAL</span>
+  <span class="sub">Новостная карта рынков · сегодня с 00:00 МСК</span>
+  <span class="sp"></span>
+  <a class="hbtn" href="/">← лента</a>
+  <span id="clock">--:--:--</span>
 </header>
-<div class="note">Считается по сегодняшним новостям (с 00:00 МСК) из всех источников. <b>Всплеск «к обычному уровню» появится позже</b>, когда начнём копить историю — пока накал показан по доле в сегодняшнем потоке. Нажатие на строку или плитку раскрывает новости по бумаге.</div>
 <main>
-  <div id="v1"><table><thead><tr><th>Тикер</th><th>Компания</th><th style="text-align:right">Новостей</th><th style="width:30%">Поток</th><th style="text-align:right">Важных</th><th style="text-align:right">Последняя</th></tr></thead><tbody id="tb"></tbody></table></div>
-  <div id="v2" style="display:none"><div class="grid" id="gr"></div></div>
-  <p id="empty" class="dim" style="display:none;padding:20px;text-align:center">Сегодня упоминаний тикеров пока нет</p>
+  <div class="bar">
+    <input id="q" type="search" placeholder="тикер или компания: SBER, Сбер…" autocomplete="off">
+    <span class="hint">щёлкни по заголовку столбца — сортировка · щёлкни по строке — новости бумаги</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th data-s="tk">Тикер <span class="ar"></span></th>
+      <th data-s="nm">Компания <span class="ar"></span></th>
+      <th data-s="n" style="text-align:right">Новостей <span class="ar"></span></th>
+      <th class="flowth">Поток</th>
+      <th data-s="imp" style="text-align:right">Важных <span class="ar"></span></th>
+      <th data-s="chg" style="text-align:right">Изм. цены <span class="ar"></span></th>
+      <th data-s="last" class="tmth" style="text-align:right">Последняя <span class="ar"></span></th>
+    </tr></thead>
+    <tbody id="tb"><tr><td colspan="7" class="note">Считаю карту…</td></tr></tbody>
+  </table>
 </main>
-<div id="panel"><span class="x" onclick="pnl(false)">закрыть ✕</span><h3 id="pt"></h3><div id="pl"></div></div>
 <script>
+'use strict';
 const NAMES = {"SBER":"Сбербанк","GAZP":"Газпром","SIBN":"Газпром нефть","LKOH":"Лукойл","ROSN":"Роснефть","NVTK":"Новатэк","TATN":"Татнефть","SNGS":"Сургутнефтегаз","GMKN":"Норникель","YDEX":"Яндекс","VTBR":"ВТБ","T":"Т-Банк","MOEX":"Мосбиржа","PLZL":"Полюс","CHMF":"Северсталь","NLMK":"НЛМК","MAGN":"ММК","ALRS":"Алроса","AFLT":"Аэрофлот","MGNT":"Магнит","X5":"X5 Group","OZON":"Озон","MTSS":"МТС","RUAL":"Русал","PHOR":"ФосАгро","AFKS":"АФК Система","HYDR":"РусГидро","IRAO":"Интер РАО","FLOT":"Совкомфлот","SVCB":"Совкомбанк","BSPB":"Банк СПб","UGLD":"ЮГК","SMLT":"Самолет","PIKK":"ПИК","VKCO":"VK","POSI":"Позитив","ASTR":"Астра","RTKM":"Ростелеком","TRNFP":"Транснефть","FEES":"Россети","RENI":"Ренессанс","ENPG":"Эн+","SGZH":"Сегежа","MTLR":"Мечел","RASP":"Распадская","UPRO":"Юнипро","LSRG":"ЛСР","ETLN":"Эталон","LENT":"Лента","HEAD":"Хэдхантер"};
-let DATA = [];
+let ROWS=[],QUOTES={},sortKey='n',sortDir=-1,openTk=null,q='';
+
+const clock=document.getElementById('clock');
+setInterval(()=>{clock.textContent=new Date().toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow'})},1000);
+
 function mskDayStart(){
-  const now = new Date();
-  const msk = new Date(now.toLocaleString('en-US',{timeZone:'Europe/Moscow'}));
-  const off = msk - now;
-  const d0 = new Date(msk.getFullYear(),msk.getMonth(),msk.getDate());
+  const now=new Date();
+  const msk=new Date(now.toLocaleString('en-US',{timeZone:'Europe/Moscow'}));
+  const off=msk-now;
+  const d0=new Date(msk.getFullYear(),msk.getMonth(),msk.getDate());
   return new Date(d0.getTime()-off);
 }
-function fmt(t){return new Date(t).toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'})}
-async function load(){
-  const r = await fetch('/api/feed'); const f = await r.json();
-  const from = mskDayStart();
-  const items = (f.items||[]).filter(x=>new Date(x.time)>=from);
-  const m = new Map();
-  for(const x of items){ for(const tk of (x.tk||[])){
-    if(!m.has(tk)) m.set(tk,{tk,n:0,imp:0,last:0,news:[]});
-    const o=m.get(tk); o.n++; if(x.lvl===2)o.imp++;
-    const t=new Date(x.time).getTime(); if(t>o.last)o.last=t; o.news.push(x);
-  }}
-  DATA=[...m.values()].sort((a,b)=>b.n-a.n||b.last-a.last);
-  document.getElementById('upd').textContent = 'обновлено '+fmt(f.updated)+' МСК · новостей за день: '+items.length;
-  render();
+function hhmm(iso){return new Date(iso).toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'})}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fmtChg(v){
+  if(v==null||isNaN(v))return'<span class="chg na">—</span>';
+  const s=(v>0?'+':'')+v.toFixed(2)+'%';
+  return'<span class="chg '+(v>0?'up':v<0?'dn':'na')+'">'+s+'</span>';
 }
-function heat(o,max){ const r=o.n/max; return r>0.66?3:r>0.33?2:1 }
-function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+
+function buildRows(items){
+  const t0=mskDayStart().getTime();
+  const by={};
+  for(const x of items){
+    if(new Date(x.time).getTime()<t0)continue;
+    for(const t of (x.tk||[])){
+      if(!by[t])by[t]={tk:t,n:0,imp:0,last:0,news:[]};
+      by[t].n++;
+      if(x.lvl===2)by[t].imp++;
+      const tm=new Date(x.time).getTime();
+      if(tm>by[t].last)by[t].last=tm;
+      by[t].news.push(x);
+    }
+  }
+  ROWS=Object.values(by);
+  for(const r of ROWS){
+    r.nm=NAMES[r.tk]||'';
+    r.news.sort((a,b)=>new Date(b.time)-new Date(a.time));
+    const qd=QUOTES[r.tk];
+    r.chg=qd&&qd.chg!=null?qd.chg:null;
+  }
+}
+function applyQuotes(){
+  for(const r of ROWS){const qd=QUOTES[r.tk];r.chg=qd&&qd.chg!=null?qd.chg:null}
+}
+
 function render(){
-  const max = DATA.length?DATA[0].n:1;
-  const tb=document.getElementById('tb'); tb.innerHTML='';
-  DATA.forEach(o=>{
-    const tr=document.createElement('tr'); tr.className='row';
-    tr.innerHTML='<td class="tk">'+o.tk+'</td><td class="nm">'+(NAMES[o.tk]||'')+'</td>'+
-      '<td class="cnt">'+o.n+'</td><td><div class="bar" style="width:'+Math.max(3,Math.round(o.n/max*100))+'%"></div></td>'+
-      '<td class="imp">'+(o.imp||'—')+'</td><td class="tm">'+fmt(o.last)+'</td>';
-    tr.onclick=()=>toggleDet(tr,o);
-    tb.appendChild(tr);
+  const tb=document.getElementById('tb');
+  let rows=ROWS.slice();
+  if(q){
+    const s=q.toLowerCase();
+    rows=rows.filter(r=>r.tk.toLowerCase().includes(s)||r.nm.toLowerCase().includes(s));
+  }
+  rows.sort((a,b)=>{
+    let va=a[sortKey],vb=b[sortKey];
+    if(sortKey==='chg'){if(va==null)va=sortDir===-1?-Infinity:Infinity;if(vb==null)vb=sortDir===-1?-Infinity:Infinity}
+    if(typeof va==='string')return va.localeCompare(vb,'ru')*sortDir;
+    return (va-vb)*sortDir;
   });
-  const gr=document.getElementById('gr'); gr.innerHTML='';
-  DATA.forEach(o=>{
-    const d=document.createElement('div'); d.className='tile h'+heat(o,max);
-    d.innerHTML='<span class="tk">'+o.tk+'</span>'+(heat(o,max)===3?'<span class="fire">🔥</span>':'')+
-      '<span class="nm">'+(NAMES[o.tk]||'')+'</span><span class="cnt">'+o.n+'</span>'+
-      '<span class="sub">'+(o.imp?('важных: '+o.imp+' · '):'')+fmt(o.last)+'</span>';
-    d.onclick=()=>openPanel(o);
-    gr.appendChild(d);
+  if(!rows.length){tb.innerHTML='<tr><td colspan="7" class="note">'+(q?'Ничего не нашлось.':'Сегодня новостей с тикерами ещё не было.')+'</td></tr>';return}
+  const max=Math.max(...ROWS.map(r=>r.n));
+  let h='';
+  for(const r of rows){
+    h+='<tr class="r" data-tk="'+r.tk+'">'+
+      '<td class="tkc">'+r.tk+'</td>'+
+      '<td class="nm">'+esc(r.nm)+'</td>'+
+      '<td class="num">'+r.n+'</td>'+
+      '<td class="flowtd"><div class="flow"><i style="width:'+Math.round(r.n/max*100)+'%"></i></div></td>'+
+      '<td class="imp">'+(r.imp||'')+'</td>'+
+      '<td>'+fmtChg(r.chg)+'</td>'+
+      '<td class="tm">'+hhmm(r.last)+'</td></tr>';
+    if(openTk===r.tk){
+      h+='<tr class="det"><td colspan="7"><div class="dbox">'+
+        r.news.map(x=>'<div class="dn1"><span class="dt">'+hhmm(x.time)+'</span><span class="dx">'+
+          (x.lvl===2?'<span class="dimp">⚡ </span>':'')+esc(x.text.slice(0,180))+(x.text.length>180?'…':'')+
+          ' <a target="_blank" rel="noopener" href="'+x.url+'">источник ↗</a></span></div>').join('')+
+        '</div></td></tr>';
+    }
+  }
+  tb.innerHTML=h;
+  tb.querySelectorAll('tr.r').forEach(tr=>tr.onclick=e=>{
+    if(e.target.closest('a'))return;
+    openTk=openTk===tr.dataset.tk?null:tr.dataset.tk;
+    render();
   });
-  document.getElementById('empty').style.display = DATA.length?'none':'block';
+  document.querySelectorAll('th[data-s]').forEach(th=>{
+    th.querySelector('.ar').textContent=th.dataset.s===sortKey?(sortDir===-1?'▼':'▲'):'';
+  });
 }
-function newsHtml(o){
-  return o.news.map(x=>{
-    const txt = x.text.length>180?x.text.slice(0,180)+'…':x.text;
-    return '<div class="dn"><span class="t">'+fmt(x.time)+'</span><span class="s">'+esc(x.srcName)+'</span>'+esc(txt)+
-      (x.link?'<a href="'+x.link+'" target="_blank" rel="noopener">источник ↗</a>':'')+'</div>';
-  }).join('');
+
+document.querySelectorAll('th[data-s]').forEach(th=>th.onclick=()=>{
+  const k=th.dataset.s;
+  if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==='tk'||k==='nm')?1:-1}
+  render();
+});
+document.getElementById('q').addEventListener('input',e=>{q=e.target.value.trim();render()});
+
+async function load(){
+  try{
+    const r=await fetch('/api/feed');
+    const data=await r.json();
+    buildRows(data.items||[]);
+    render();
+  }catch(e){
+    document.getElementById('tb').innerHTML='<tr><td colspan="7" class="note">Не удалось загрузить данные. Обнови страницу.</td></tr>';
+  }
+  try{
+    const r2=await fetch('/api/quotes');
+    const d2=await r2.json();
+    QUOTES=d2.quotes||{};
+    applyQuotes();
+    render();
+  }catch(e){}
 }
-function toggleDet(tr,o){
-  const nx=tr.nextElementSibling;
-  if(nx && nx.classList.contains('det')){ nx.remove(); return }
-  document.querySelectorAll('tr.det').forEach(e=>e.remove());
-  const d=document.createElement('tr'); d.className='det';
-  d.innerHTML='<td colspan="6">'+newsHtml(o)+'</td>';
-  tr.after(d);
-}
-function openPanel(o){
-  document.getElementById('pt').textContent=o.tk+' · '+(NAMES[o.tk]||'')+' — '+o.n+' за день';
-  document.getElementById('pl').innerHTML=newsHtml(o);
-  pnl(true);
-}
-function pnl(v){document.getElementById('panel').style.display=v?'block':'none'}
-function show(v){
-  document.getElementById('v1').style.display=v===1?'':'none';
-  document.getElementById('v2').style.display=v===2?'':'none';
-  document.getElementById('b1').classList.toggle('on',v===1);
-  document.getElementById('b2').classList.toggle('on',v===2);
-  pnl(false);
-}
-load(); setInterval(load,90000);
+load();
+setInterval(load,90000);
 </script>
 </body>
 </html>

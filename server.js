@@ -305,6 +305,26 @@ async function getFeed() {
   return cache.feed;
 }
 
+// ── Котировки Мосбиржи (открытый интерфейс ISS, кэш 60 сек) ────────────
+let qCache = { at: 0, data: null };
+async function getQuotes() {
+  const now = Date.now();
+  if (qCache.data && now - qCache.at < 60 * 1000) return qCache.data;
+  try {
+    const raw = await fetchUrl('https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST,LASTTOPREVPRICE');
+    const j = JSON.parse(raw);
+    const out = {};
+    for (const row of (j.marketdata && j.marketdata.data) || []) {
+      const [secid, last, chg] = row;
+      if (secid) out[secid] = { last, chg };
+    }
+    qCache = { at: now, data: { updated: new Date().toISOString(), quotes: out } };
+  } catch (e) {
+    if (!qCache.data) qCache = { at: now, data: { updated: null, quotes: {}, error: e.message } };
+  }
+  return qCache.data;
+}
+
 // ── HTTP-сервер ─────────────────────────────────────────────────────────
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
@@ -315,6 +335,11 @@ const server = http.createServer(async (req, res) => {
       const feed = await getFeed();
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60' });
       return res.end(JSON.stringify(feed));
+    }
+    if (u.pathname === '/api/quotes') {
+      const q = await getQuotes();
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=30' });
+      return res.end(JSON.stringify(q));
     }
     if (u.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
