@@ -11,7 +11,7 @@ const path = require('path');
 const zlib = require('zlib');
 
 const PORT = process.env.PORT || 10000;
-const CACHE_SEC = 180;          // как часто обновлять ленту
+const CACHE_SEC = 20;           // как часто обновлять ленту (фоновый опрос)
 const KEEP_HOURS = 26;          // сколько часов новостей держать
 const PER_SOURCE_LIMIT = 40;    // максимум постов с одного источника за проход
 
@@ -405,15 +405,21 @@ async function build() {
   return { updated: new Date().toISOString(), count: out.length, items: out };
 }
 
-async function getFeed() {
-  const now = Date.now();
-  if (cache.feed && now - cache.at < CACHE_SEC * 1000) return cache.feed;
+let building = false;                       // защита от наложения сборок
+async function refresh() {
+  if (building) return;
+  building = true;
   try {
     const feed = await build();
-    if (feed.count > 0 || !cache.feed) cache = { at: now, feed };
+    if (feed.count > 0 || !cache.feed) cache = { at: Date.now(), feed };
   } catch (e) {
-    if (!cache.feed) cache = { at: now, feed: { updated: null, count: 0, items: [], error: e.message } };
-  }
+    if (!cache.feed) cache = { at: Date.now(), feed: { updated: null, count: 0, items: [], error: e.message } };
+  } finally { building = false; }
+}
+setInterval(refresh, CACHE_SEC * 1000);     // фоновый опрос: лента свежая, пока сервер не спит
+
+async function getFeed() {
+  if (!cache.feed) await refresh();         // первый заход после пробуждения — собираем сразу
   return cache.feed;
 }
 
