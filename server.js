@@ -46,6 +46,9 @@ const RSS = [
   ['https://www.finam.ru/analysis/conews/rsspoint/', 'Финам'],
   ['https://www.moex.com/export/news.aspx?cat=100', 'Мосбиржа'],
   ['https://minfin.gov.ru/ru/press-center/rss/', 'Минфин'],
+  ['http://www.cbr.ru/rss/RssNews', 'ЦБ РФ'],
+  ['http://www.cbr.ru/rss/RssPress', 'ЦБ РФ пресс-релизы'],
+  ['http://www.cbr.ru/rss/eventrss', 'ЦБ РФ события'],
 ];
 // Реклама, платные подписки и набор в закрытые группы — не новости
 const PROMO_SOURCES = new Set(['antonchehovanalitk']);
