@@ -368,6 +368,8 @@ if (process.env.DATABASE_URL) {
 
 async function saveToDb(items) {
   if (!pool || !items.length) return;
+  const seen = new Set();                    // в пачке не должно быть двух строк с одним id
+  items = items.filter(x => seen.has(x.id) ? false : (seen.add(x.id), true));
   try {
     const cols = ['id','ts','src','src_name','url','body','lvl','src_count'];
     let saved = 0;
