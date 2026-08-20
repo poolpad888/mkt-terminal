@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20x%3D%222%22%20y%3D%222%22%20width%3D%2260%22%20height%3D%2260%22%20rx%3D%2213%22%20fill%3D%22%230d1117%22%20stroke%3D%22%231b232e%22%20stroke-width%3D%223%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2233%22%20font-family%3D%22monospace%22%20font-weight%3D%22700%22%20font-size%3D%2242%22%20fill%3D%22%23ffb000%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22central%22%3EF%3C%2Ftext%3E%3C%2Fsvg%3E">
 <title>Новостная карта рынков — FINFACTS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,6 +16,14 @@
   --mono:"IBM Plex Mono","SF Mono",Consolas,Menlo,monospace;
   --sans:"IBM Plex Sans","Segoe UI",Arial,sans-serif;
 }
+html.light{
+  --bg:#f7f8fa; --panel:#ffffff; --line:#dde3ea;
+  --amber:#b06f00; --red:#c62828; --green:#0f7a3d; --blue:#1565c0; --violet:#6a3fb5;
+  --tx:#1c2530; --dim:#6b7a8a;
+}
+html.light tr.r:hover td{background:rgba(176,111,0,.06)}
+html.light tr.det td{background:#f2f4f7}
+html.light .flow{background:#e6eaef}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--tx);font:12.5px/1.45 var(--sans)}
 a{color:inherit;text-decoration:none}
@@ -80,6 +89,7 @@ tr.det td{background:var(--panel);padding:0}
   <span class="sp"></span>
   <a class="hbtn" href="/">← лента</a>
   <a class="hbtn" href="/quotes">котировки</a>
+  <button class="hbtn" id="thBtn" title="светлая / тёмная тема">◑</button>
   <span id="clock">--:--:--</span>
 </header>
 <main>
@@ -101,6 +111,14 @@ tr.det td{background:var(--panel);padding:0}
   </table>
 </main>
 <script>
+// тема (общая с лентой, хранится в mkt_prefs.light)
+try{const p=JSON.parse(localStorage.getItem('mkt_prefs')||'{}');if(p.light)document.documentElement.classList.add('light')}catch(e){}
+const thBtn=document.getElementById('thBtn');
+function thLabel(){thBtn.textContent=document.documentElement.classList.contains('light')?'◕':'◑'}
+thBtn.onclick=()=>{document.documentElement.classList.toggle('light');thLabel();
+  try{const p=JSON.parse(localStorage.getItem('mkt_prefs')||'{}');p.light=document.documentElement.classList.contains('light');localStorage.setItem('mkt_prefs',JSON.stringify(p))}catch(e){}};
+thLabel();
+
 'use strict';
 const NAMES = {"SBER":"Сбербанк","GAZP":"Газпром","SIBN":"Газпром нефть","LKOH":"Лукойл","ROSN":"Роснефть","NVTK":"Новатэк","TATN":"Татнефть","SNGS":"Сургутнефтегаз","GMKN":"Норникель","YDEX":"Яндекс","VTBR":"ВТБ","T":"Т-Банк","MOEX":"Мосбиржа","PLZL":"Полюс","CHMF":"Северсталь","NLMK":"НЛМК","MAGN":"ММК","ALRS":"Алроса","AFLT":"Аэрофлот","MGNT":"Магнит","X5":"X5 Group","OZON":"Озон","MTSS":"МТС","RUAL":"Русал","PHOR":"ФосАгро","AFKS":"АФК Система","HYDR":"РусГидро","IRAO":"Интер РАО","FLOT":"Совкомфлот","SVCB":"Совкомбанк","BSPB":"Банк СПб","UGLD":"ЮГК","SMLT":"Самолет","PIKK":"ПИК","VKCO":"VK","POSI":"Позитив","ASTR":"Астра","RTKM":"Ростелеком","TRNFP":"Транснефть","FEES":"Россети","RENI":"Ренессанс","ENPG":"Эн+","SGZH":"Сегежа","MTLR":"Мечел","RASP":"Распадская","UPRO":"Юнипро","LSRG":"ЛСР","ETLN":"Эталон","LENT":"Лента","HEAD":"Хэдхантер","BRENT":"Нефть Brent","WTI":"Нефть WTI","GAS":"Газ","GOLD":"Золото","SILVER":"Серебро","USDRUB":"Доллар/рубль","CNYRUB":"Юань/рубль","EURUSD":"Евро/доллар","IMOEX":"Индекс Мосбиржи"};
 let ROWS=[],QUOTES={},sortKey='n',sortDir=-1,openTk=null,q='';
