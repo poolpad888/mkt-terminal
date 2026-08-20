@@ -38,8 +38,13 @@ main{max-width:1080px;margin:0 auto;padding:16px 14px 60px}
 .top{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
 .top h1{font-size:15px;font-weight:700;letter-spacing:.02em}
 .top .note{color:var(--dim);font-size:11.5px}
-#wrap{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;height:76vh;min-height:520px}
-#wrap .tradingview-widget-container,#wrap .tradingview-widget-container__widget{height:100%;width:100%}
+#wrap{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;height:76vh;min-height:520px;
+  display:flex;flex-direction:column}
+#wrap .tradingview-widget-container{flex:1;display:flex;flex-direction:column;min-height:0;width:100%}
+#wrap .tradingview-widget-container__widget{flex:1;min-height:0;width:100%}
+.tradingview-widget-copyright{flex:none;font-size:10px;padding:5px 12px;text-align:right;border-top:1px solid var(--line)}
+.tradingview-widget-copyright a,.tradingview-widget-copyright .blue-text{color:var(--dim);text-decoration:none}
+.tradingview-widget-copyright a:hover .blue-text{color:var(--blue)}
 .foot{color:var(--dim);font-size:11px;text-align:center;margin-top:18px;line-height:1.6}
 </style>
 </head>
@@ -106,6 +111,9 @@ function buildWidget(){
   const w=document.createElement('div');
   w.className='tradingview-widget-container__widget';
   cont.appendChild(w);
+  const cp=document.createElement('div');
+  cp.innerHTML='<div class="tradingview-widget-copyright"><a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank"><span class="blue-text">Отслеживайте рынки на TradingView</span></a></div>';
+  cont.appendChild(cp.firstChild);
   const cfg={
     colorTheme:isLight()?'light':'dark',
     dateRange:'1D',

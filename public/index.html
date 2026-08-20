@@ -176,6 +176,9 @@ body.side-on #side{transform:none}
 #side .sx{background:none;border:none;color:var(--dim);font:inherit;font-size:17px;cursor:pointer;padding:0 2px;line-height:1}
 #side .sx:hover{color:var(--amber)}
 #side .sbody{overflow-y:auto;flex:1}
+#side .tradingview-widget-copyright{font-size:10px;padding:5px 12px;text-align:right}
+#side .tradingview-widget-copyright a,#side .tradingview-widget-copyright .blue-text{color:var(--dim);text-decoration:none}
+#side .tradingview-widget-copyright a:hover .blue-text{color:var(--blue)}
 #sideBack{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39;opacity:0;pointer-events:none;transition:opacity .28s}
 body.side-on #sideBack{opacity:1;pointer-events:auto}
 @media(min-width:1000px){
@@ -294,6 +297,9 @@ function sideBuild(){
   w.className='tradingview-widget-container__widget';
   w.style.height='100%';
   cont.appendChild(w);
+  const cp=document.createElement('div');
+  cp.innerHTML='<div class="tradingview-widget-copyright"><a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank"><span class="blue-text">Отслеживайте рынки на TradingView</span></a></div>';
+  cont.appendChild(cp.firstChild);
   const cfg={colorTheme:document.documentElement.classList.contains('light')?'light':'dark',
     dateRange:'1D',locale:'ru',showChart:false,isTransparent:true,showSymbolLogo:true,
     width:'100%',height:'100%',
