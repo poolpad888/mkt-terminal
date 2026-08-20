@@ -273,7 +273,7 @@ function hi(html){
 function hhmm(iso){return new Date(iso).toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'})}
 const openIds=new Set();
 function rowHTML(x,fresh){
-  const band=x.lvl===2?'<div class="fband"><span class="vtxt">Важно</span><span class="ico">⚡</span></div>':'';
+  const band=x.lvl===2&&!x.reg?'<div class="fband"><span class="vtxt">Важно</span><span class="ico">⚡</span></div>':'';
   const tags=(x.tags||[]).map(t=>'<span class="tag" data-tag="'+t+'">#'+t+'</span>').join('');
   const tks=(x.tk||[]).map(t=>'<a class="tk" data-tk="'+t+'" target="_blank" rel="noopener" href="https://www.tradingview.com/chart/?symbol='+encodeURIComponent(tvsym(t))+'">'+t+'</a>').join('');
   const sc=x.srcCount||1;
@@ -285,8 +285,8 @@ function rowHTML(x,fresh){
   const shown=(long&&!open)?col+' …':x.text;
   const more=long?'<div class="more">'+(open?'свернуть':'развернуть …')+'</div>':'';
   const isFin=x.mark==='fin';
-  const regband=x.reg&&x.lvl!==2?'<div class="fband '+(isFin?'finband':'regband')+'"><span class="vtxt">'+(isFin?'МИНФИН':'ЦБ РФ')+'</span><span class="ico">'+(isFin?'⛨':'₽')+'</span></div>':'';
-  return '<article class="row'+(x.lvl===2?' lvl2':'')+(x.reg?(isFin?' reg fin':' reg'):'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+band+regband+
+  const regband=x.reg?'<div class="fband '+(isFin?'finband':'regband')+'"><span class="vtxt">'+(isFin?'МИНФИН':'ЦБ РФ')+'</span><span class="ico">'+(isFin?'⛨':'₽')+'</span></div>':'';
+  return '<article class="row'+(x.lvl===2&&!x.reg?' lvl2':'')+(x.reg?(isFin?' reg fin':' reg'):'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+band+regband+
     '<div class="time">'+hhmm(x.time)+'</div>'+
     '<div><div class="src">'+esc(x.srcName)+srcs+reso+'</div>'+
     (tks?'<div class="tkline">'+tks+'</div>':'')+
