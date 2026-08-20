@@ -452,11 +452,6 @@ async function build() {
       .catch(e => { health[n] = { ok: false, err: e.message }; return []; })),
   ];
   const all = (await Promise.all(jobs)).flat().concat(fastItems);
-  if (process.env.DEMO_REG === '1') {          // тестовая новость регулятора (убрать после проверки)
-    all.push({ id: 'demo-fin-1', src: 'fin-demo', srcName: 'Минфин России',
-      url: 'https://minfin.gov.ru/ru/press-center/', time: new Date().toISOString(), reg: true, mark: 'fin',
-      text: 'ТЕСТОВАЯ ЗАПИСЬ МИНФИНА ДЛЯ ПРОВЕРКИ СЕРОЙ ПЛАШКИ. Смотрим, как выглядит серая рамка со щитом в живой ленте. Уникальный маркер: бронзовый ёж настраивает арфу под дождём.' });
-  }
   for (const x of all) markByName(x);
   const bad = Object.entries(health).filter(([,v]) => !v.ok).map(([k,v]) => k + '(' + v.err + ')');
   console.log('BUILD: items=' + all.length + ' okSources=' + Object.values(health).filter(v=>v.ok).length + '/' + Object.keys(health).length + (bad.length ? ' fail: ' + bad.join(', ') : ''));
@@ -593,76 +588,6 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify({ items: [], error: e.message }));
       }
     }
-    if (u.pathname === '/api/proxytest') {
-      // берём свежий список российских посредников и пробуем через них Минфин
-      const target = 'https://minfin.gov.ru/ru/press-center/rss/';
-      let list = [];
-      const srcs = [
-        'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&country=ru&timeout=10000',
-        'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt',
-      ];
-      for (const sUrl of srcs) {
-        try {
-          const t = await fetchUrl(sUrl);
-          list = list.concat(t.split(/\s+/).filter(x => /^\d+\.\d+\.\d+\.\d+:\d+$/.test(x)));
-        } catch (e) {}
-      }
-      list = list.slice(0, 40);
-      const out = { tried: list.length, ok: [], sample: '' };
-      for (const p of list) {
-        try {
-          const r = await new Promise((res, rej) => {
-            const [h, pt] = p.split(':');
-            const req = http.request({ host: h, port: +pt, method: 'GET', path: target,
-              headers: { Host: 'minfin.gov.ru', 'User-Agent': 'Mozilla/5.0' }, timeout: 6000 }, rr => {
-              let d = ''; rr.on('data', c => d += c); rr.on('end', () => res({ code: rr.statusCode, body: d }));
-            });
-            req.on('error', rej); req.on('timeout', () => { req.destroy(); rej(new Error('timeout')); });
-            req.end();
-          });
-          if (r.code === 200 && /<item[\s>]/i.test(r.body)) {
-            out.ok.push(p);
-            if (!out.sample) out.sample = r.body.slice(0, 300);
-          }
-        } catch (e) {}
-      }
-      console.log('PROXYTEST: tried=' + out.tried + ' ok=' + out.ok.length + ' ' + JSON.stringify(out.ok.slice(0, 5)));
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      return res.end(JSON.stringify(out, null, 1));
-    }
-
-    if (u.pathname === '/api/probe') {
-      const cand = [
-        'https://minfin.gov.ru/ru/rss/',
-        'https://minfin.gov.ru/rss/',
-        'https://minfin.gov.ru/ru/press-center/rss/',
-        'https://minfin.gov.ru/ru/rss/news/',
-        'https://minfin.gov.ru/ru/rss/documents/',
-        'https://minfin.gov.ru/ru/news/rss/',
-        'https://minfin.gov.ru/common/rss/',
-        'https://minfin.gov.ru/ru/document/rss/',
-        'https://minfin.gov.ru/ru/press-center/',
-        'https://minfin.gov.ru/',
-        'https://government.ru/rss/dep/69/',
-        'https://api.allorigins.win/raw?url=https%3A%2F%2Fminfin.gov.ru%2Fru%2Fpress-center%2F',
-        'https://api.codetabs.com/v1/proxy?quest=https://minfin.gov.ru/ru/press-center/',
-        'https://corsproxy.io/?https://minfin.gov.ru/ru/press-center/',
-        'https://r.jina.ai/https://minfin.gov.ru/ru/press-center/',
-        'https://www.google.com/search?q=site:minfin.gov.ru',
-      ];
-      const out = [];
-      for (const c of cand) {
-        try {
-          const t = await fetchUrl(c);
-          const isRss = /<item[\s>]/i.test(t);
-          out.push({ u: c, ok: true, len: t.length, items: isRss ? t.split(/<item[\s>]/i).length - 1 : 0 });
-        } catch (e) { out.push({ u: c, ok: false, err: e.message }); }
-      }
-      console.log('PROBE: ' + JSON.stringify(out));
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      return res.end(JSON.stringify(out, null, 1));
-    }
-
     if (u.pathname === '/api/quotes') {
       const q = await getQuotes();
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=30' });
