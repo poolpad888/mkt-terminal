@@ -66,7 +66,8 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
   padding:1px 8px;border-radius:10px;cursor:pointer}
 .tkline{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
 .tk{font-size:10.5px;color:var(--green);border:1px solid #14361f;background:#0b1a10;padding:1px 8px;border-radius:10px;font-family:var(--mono)}
-.srcs{font-size:10px;color:var(--blue);border:1px solid #16324a;background:#0a1622;padding:1px 7px;border-radius:10px;margin-left:8px;font-family:var(--mono);white-space:nowrap;cursor:help}
+.reso{font-size:10px;color:#8b98a5;border:1px solid #2a3441;background:#141a22;padding:1px 7px;border-radius:10px;margin-left:6px;font-family:var(--mono);white-space:nowrap;cursor:help;letter-spacing:.03em}
+    .srcs{font-size:10px;color:var(--blue);border:1px solid #16324a;background:#0a1622;padding:1px 7px;border-radius:10px;margin-left:8px;font-family:var(--mono);white-space:nowrap;cursor:help}
 .lnk{font-size:10.5px;color:var(--dim)}
 .lnk:hover{color:var(--blue)}
 .share{background:none;border:none;color:var(--dim);cursor:pointer;font:inherit;font-size:10.5px;padding:0}
@@ -257,6 +258,7 @@ function rowHTML(x,fresh){
   const tks=(x.tk||[]).map(t=>'<a class="tk" data-tk="'+t+'" target="_blank" rel="noopener" href="https://www.tradingview.com/chart/?symbol='+encodeURIComponent(tvsym(t))+'">'+t+'</a>').join('');
   const sc=x.srcCount||1;
   const srcs=sc>1?'<span class="srcs" title="'+esc([x.srcName].concat(x.alsoIn||[]).join(', '))+'">'+sc+' '+(sc>=5?'источников':'источника')+'</span>':'';
+      const reso=sc>=5?'<span class="reso" title="Новость подхватили '+sc+' источников — возможный признак значимости">резонанс</span>':'';
   const col=collapseText(x.text);
   const long=col.length<x.text.length-15;
   const open=openIds.has(x.id);
@@ -264,7 +266,7 @@ function rowHTML(x,fresh){
   const more=long?'<div class="more">развернуть ⌄</div>':'';
   return '<article class="row'+(x.lvl===2?' lvl2':'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+band+
     '<div class="time">'+hhmm(x.time)+'</div>'+
-    '<div><div class="src">'+esc(x.srcName)+srcs+'</div>'+
+    '<div><div class="src">'+esc(x.srcName)+srcs+reso+'</div>'+
     (tks?'<div class="tkline">'+tks+'</div>':'')+
     '<div class="txt">'+hi(esc(shown))+'</div>'+more+
     '<div class="meta">'+tags+
