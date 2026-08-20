@@ -515,6 +515,31 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60' });
       return res.end(JSON.stringify(feed));
     }
+    if (u.pathname === '/api/history') {
+      // Поиск по архиву в базе: ?q=слово. Отдаём до 200 совпадений, новые сверху.
+      const q = (u.searchParams.get('q') || '').trim().slice(0, 80);
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      if (!pool)  return res.end(JSON.stringify({ items: [], error: 'архив не подключён' }));
+      if (q.length < 2) return res.end(JSON.stringify({ items: [] }));
+      try {
+        const r = await pool.query(
+          `SELECT id, ts, src, src_name, url, body, lvl, src_count
+             FROM news
+            WHERE body ILIKE '%' || $1 || '%'
+            ORDER BY ts DESC NULLS LAST
+            LIMIT 200`, [q]);
+        const items = r.rows.map(w => {
+          const x = { id: w.id, time: w.ts, src: w.src, srcName: w.src_name,
+                      url: w.url, text: w.body, lvl: w.lvl || 0,
+                      srcCount: w.src_count || 1 };
+          x.tk = tickers(x.text); x.tags = hashtags(x.text);
+          return x;
+        });
+        return res.end(JSON.stringify({ items }));
+      } catch (e) {
+        return res.end(JSON.stringify({ items: [], error: e.message }));
+      }
+    }
     if (u.pathname === '/api/quotes') {
       const q = await getQuotes();
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=30' });

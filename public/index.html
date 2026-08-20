@@ -144,6 +144,8 @@ let filterDay = '24h';      // 24h | morning | day | evening
 let sound = false;
 let searchQ = '';           // строка живого поиска
 let searchOld = false;      // искать глубже 24 часов
+let archItems = null;       // результаты из архива (база); null — не запрашивали
+let archBusy = false;       // идёт запрос к архиву
 const knownIds = new Set();
 let firstLoad = true;
 
@@ -176,6 +178,7 @@ const qInput=document.getElementById('q');
 qInput.addEventListener('input',()=>{
   searchQ=qInput.value.trim();
   if(!searchQ)searchOld=false;
+  archItems=null;           // новая строка — старые архивные результаты не годятся
   renderAll();
 });
 
@@ -280,16 +283,28 @@ function renderAll(){
   let vis;
   if(searchQ){
     const q=searchQ.toLowerCase();
-    const cutoff=searchOld?0:Date.now()-24*3600*1000;
-    vis=ITEMS.filter(x=>x.text.toLowerCase().includes(q)&&new Date(x.time).getTime()>cutoff);
+    vis=ITEMS.filter(x=>x.text.toLowerCase().includes(q)&&new Date(x.time).getTime()>Date.now()-24*3600*1000);
+    if(searchOld&&archItems){
+      const have=new Set(vis.map(x=>x.id));
+      for(const x of archItems)if(!have.has(x.id))vis.push(x);
+      vis.sort((a,b)=>new Date(b.time)-new Date(a.time));
+    }
   }else{
     vis=ITEMS.filter(x=>passTag(x)&&passDay(x));
   }
-  let html=vis.length?vis.map(x=>rowHTML(x,false)).join(''):'<div class="note">'+(searchQ?'Ничего не нашлось за последние сутки.':'По этому фильтру пока пусто.')+'</div>';
-  if(searchQ&&!searchOld)html+='<button class="oldbtn" id="oldBtn">найти более старые новости</button>';
+  let html=vis.length?vis.map(x=>rowHTML(x,false)).join(''):'<div class="note">'+(searchQ?(searchOld?'В архиве тоже ничего не нашлось.':'Ничего не нашлось за последние сутки.'):'По этому фильтру пока пусто.')+'</div>';
+  if(searchQ&&!searchOld)html+='<button class="oldbtn" id="oldBtn">поискать в архиве</button>';
+  if(searchQ&&archBusy)html+='<div class="note">Ищу в архиве…</div>';
   feed.innerHTML=html;
   const ob=document.getElementById('oldBtn');
-  if(ob)ob.onclick=()=>{searchOld=true;renderAll()};
+  if(ob)ob.onclick=async()=>{
+    searchOld=true;archBusy=true;renderAll();
+    try{
+      const r=await fetch('/api/history?q='+encodeURIComponent(searchQ));
+      const d=await r.json();archItems=d.items||[];
+    }catch(e){archItems=[]}
+    archBusy=false;renderAll();
+  };
   bindRowEvents();
 }
 function bindRowEvents(){
