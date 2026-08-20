@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MKT·TERMINAL — лента финансовых новостей</title>
+<title>FINFACTS — лента финансовых новостей</title>
 <meta name="description" content="Оперативные новости финансов и рынков из 20 источников. Без VPN.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,6 +16,21 @@
   --mono:"IBM Plex Mono","SF Mono",Consolas,Menlo,monospace;
   --sans:"IBM Plex Sans","Segoe UI",Arial,sans-serif;
 }
+html.light{
+  --bg:#f7f8fa; --panel:#ffffff; --line:#dde3ea;
+  --amber:#b06f00; --red:#c62828; --green:#0f7a3d; --blue:#1565c0; --violet:#6a3fb5;
+  --tx:#1c2530; --dim:#6b7a8a;
+}
+html.light .chip.on{color:#fff}
+html.light mark{background:#ffe08a;color:#1c2530}
+html.light .tag{border-color:#ddd0f2;background:#f4eefe}
+html.light .tk{border-color:#c8e6d2;background:#eef8f1}
+html.light .reso{color:#5f6d7a;border-color:#d8dfe6;background:#f0f3f6}
+html.light .srcs{border-color:#c6dcf5;background:#eef5fd}
+html.light .row.reg:not(.lvl2){border-color:#8fb4e8;background:#eef4fc}
+html.light .regband{background:#1565c0}
+html.light .row.reg.fin:not(.lvl2){border-color:#c3cad2;background:#f2f4f7}
+html.light .tvpop{box-shadow:0 8px 30px rgba(0,0,0,.18)}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--tx);font:12.5px/1.45 var(--sans)}
@@ -139,18 +154,19 @@ footer{color:var(--dim);font-size:10.5px;line-height:1.6;text-align:center;paddi
 </head>
 <body>
 <header>
-  <span class="logo">MKT·TERMINAL</span>
+  <span class="logo">FINFACTS</span>
   <span class="live"><span class="dot"></span>LIVE</span>
   <span class="sp"></span>
   <input id="q" type="search" placeholder="поиск по новостям…" autocomplete="off">
   <button class="hbtn" id="sndBtn" title="звук важных новостей">🔇</button>
   <button class="hbtn" id="denBtn">плотно</button>
   <a class="hbtn" href="/map">карта</a>
+  <button class="hbtn" id="thBtn" title="светлая / тёмная тема">◑</button>
   <span id="clock">--:--:--</span>
 </header>
 <nav id="nav"></nav>
 <main id="feed"><div class="note">Загружаю ленту…</div></main>
-<footer>MKT·TERMINAL · агрегатор открытых источников · под каждой новостью — ссылка на первоисточник<br>Приводятся заголовки и короткие фрагменты публикаций; права на материалы принадлежат их авторам и изданиям.<br>Не является инвестиционной рекомендацией и индивидуальной инвестиционной рекомендацией. Сервис не оказывает услуг инвестиционного консультирования. Ответственность за содержание несут первоисточники. 18+</footer>
+<footer>FINFACTS · агрегатор открытых источников · под каждой новостью — ссылка на первоисточник<br>Приводятся заголовки и короткие фрагменты публикаций; права на материалы принадлежат их авторам и изданиям.<br>Не является инвестиционной рекомендацией и индивидуальной инвестиционной рекомендацией. Сервис не оказывает услуг инвестиционного консультирования. Ответственность за содержание несут первоисточники. 18+</footer>
 <div id="tvpop"></div>
 
 <script>
@@ -173,10 +189,12 @@ try{
   if(p.compact) document.body.classList.add('compact');
   if(p.filterTag) filterTag = p.filterTag;
   if(p.filterDay) filterDay = p.filterDay;
+  if(p.light) document.documentElement.classList.add('light');
 }catch(e){}
 function savePrefs(){
   try{localStorage.setItem('mkt_prefs',JSON.stringify({
-    compact:document.body.classList.contains('compact'),filterTag,filterDay}))}catch(e){}
+    compact:document.body.classList.contains('compact'),filterTag,filterDay,
+    light:document.documentElement.classList.contains('light')}))}catch(e){}
 }
 
 // ── часы ──
@@ -189,6 +207,10 @@ sndBtn.onclick=()=>{sound=!sound;sndBtn.textContent=sound?'🔊':'🔇';sndBtn.c
 const denBtn=document.getElementById('denBtn');
 function denLabel(){denBtn.textContent=document.body.classList.contains('compact')?'свободно':'плотно'}
 denBtn.onclick=()=>{document.body.classList.toggle('compact');denLabel();savePrefs()};
+const thBtn=document.getElementById('thBtn');
+function thLabel(){thBtn.textContent=document.documentElement.classList.contains('light')?'◕':'◑'}
+thBtn.onclick=()=>{document.documentElement.classList.toggle('light');thLabel();savePrefs()};
+thLabel();
 denLabel();
 
 // ── живой поиск ──
@@ -341,7 +363,7 @@ function bindRowEvents(){
     const x=ITEMS.find(i=>i.id===b.dataset.id); if(!x)return;
     const link=location.origin+'/?n='+encodeURIComponent(x.id);
     const short=x.text.split('\n')[0].slice(0,140);
-    if(navigator.share){try{await navigator.share({title:'MKT·TERMINAL',text:short,url:link});return}catch(e){}}
+    if(navigator.share){try{await navigator.share({title:'FINFACTS',text:short,url:link});return}catch(e){}}
     try{await navigator.clipboard.writeText(short+'\n'+link);b.textContent='скопировано ✓';setTimeout(()=>b.textContent='поделиться',1500)}catch(e){}
   });
 }
