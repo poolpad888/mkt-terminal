@@ -410,7 +410,8 @@ async function saveToDb(items) {
         vals);
       saved += r.rowCount;
     }
-    console.log('DB: записано строк ' + saved + ' (из ' + items.length + ' в сборке)');
+    const regN = items.filter(x => x.reg).length;
+    console.log('DB: записано строк ' + saved + ' (из ' + items.length + ' в сборке, из них регулятор ' + regN + ')');
   } catch (e) {
     console.log('DB save error: ' + e.message);
   }
