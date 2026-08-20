@@ -46,10 +46,29 @@ const RSS = [
   ['https://www.finam.ru/analysis/conews/rsspoint/', 'Финам'],
   ['https://www.moex.com/export/news.aspx?cat=100', 'Мосбиржа'],
   ['https://minfin.gov.ru/ru/press-center/rss/', 'Минфин'],
+];
+// Регулятор: опрашиваем отдельно и часто — решения по ставке выходят здесь
+// раньше, чем в каналах. Помечаются как reg, показываются особой плашкой.
+const FAST_RSS = [
   ['https://www.cbr.ru/rss/RssNews', 'ЦБ РФ'],
   ['https://www.cbr.ru/rss/RssPress', 'ЦБ РФ пресс-релизы'],
   ['https://www.cbr.ru/rss/eventrss', 'ЦБ РФ события'],
 ];
+const FAST_SEC = 3;                  // опрос регулятора раз в 3 секунды
+let fastItems = [];                  // последнее, что удалось прочитать
+let fastBusy = false;
+async function fastPoll() {
+  if (fastBusy) return;
+  fastBusy = true;
+  try {
+    const got = await Promise.all(FAST_RSS.map(([url, n]) => fetchUrl(url)
+      .then(x => { const it = parseRss(x, n); health[n] = { ok: true, n: it.length }; return it; })
+      .catch(e => { health[n] = { ok: false, err: e.message }; return []; })));
+    const flat = got.flat();
+    for (const x of flat) x.reg = true;              // метка регулятора
+    if (flat.length) fastItems = flat;
+  } finally { fastBusy = false; }
+}
 // Реклама, платные подписки и набор в закрытые группы — не новости
 const PROMO_SOURCES = new Set(['antonchehovanalitk']);
 const PROMO_RE = /вип[\s-]*канал|vip[\s-]*канал|платн[а-яё]+\s+(канал|подписк|групп)|подписк[а-яё]*\s+на\s+(закрыт|вип|vip)|закрыт[а-яё]+\s+(канал|групп)|открыт[а-яё]+\s+набор|набор\s+в\s+(групп|команд)|мест[а-яё]*\s+осталось|осталось\s+\d+\s+мест|успей\s+записат|запись\s+открыт|_bot(?![a-z])|бот\s+для\s+оплат|оплат[а-яё]*\s+(вип|vip|подписк)|тариф|промокод|скидк[а-яё]+\s+на\s+подписк|реклам[а-яё]*\s*[:\-]|erid|по\s+вопросам\s+рекламы|прайс|сотрудничеств|партнёрск|партнерск/i;
@@ -410,7 +429,7 @@ async function build() {
       .then(x => { const it = parseRss(x, n); health[n] = { ok: true, n: it.length }; return it; })
       .catch(e => { health[n] = { ok: false, err: e.message }; return []; })),
   ];
-  const all = (await Promise.all(jobs)).flat();
+  const all = (await Promise.all(jobs)).flat().concat(fastItems);
   const bad = Object.entries(health).filter(([,v]) => !v.ok).map(([k,v]) => k + '(' + v.err + ')');
   console.log('BUILD: items=' + all.length + ' okSources=' + Object.values(health).filter(v=>v.ok).length + '/' + Object.keys(health).length + (bad.length ? ' fail: ' + bad.join(', ') : ''));
 
@@ -443,6 +462,7 @@ async function build() {
       }
     }
     keep.srcCount = (keep.srcCount || 1) + 1;
+    if (x.reg) keep.reg = true;                     // регулятор важнее пересказа
     if (!keep.alsoIn) keep.alsoIn = [];
     if (!keep.alsoIn.includes(x.srcName) && keep.srcName !== x.srcName) keep.alsoIn.push(x.srcName);
   }
@@ -473,6 +493,8 @@ async function refresh() {
   } finally { building = false; }
 }
 setInterval(refresh, CACHE_SEC * 1000);     // фоновый опрос: лента свежая, пока сервер не спит
+fastPoll();
+setInterval(fastPoll, FAST_SEC * 1000);     // регулятор — отдельно и часто
 
 // Самоокрик: раз в 10 минут заходим на собственный публичный адрес,
 // чтобы бесплатный тариф Render не усыплял сервер и новости копились круглосуточно.
@@ -556,6 +578,7 @@ const server = http.createServer(async (req, res) => {
     let p = u.pathname === '/' ? '/index.html' : u.pathname;
     if (p === '/fonts' || p === '/шрифты' || p === encodeURI('/шрифты')) p = '/fonts.html';
     if (p === '/map' || p === '/карта' || p === encodeURI('/карта')) p = '/map.html';
+    if (p === '/cbr' || p === '/цб' || p === encodeURI('/цб')) p = '/cbr.html';
     p = path.normalize(p).replace(/^(\.\.[/\\])+/, '');
     const file = path.join(__dirname, 'public', p);
     if (file.startsWith(path.join(__dirname, 'public')) && fs.existsSync(file) && fs.statSync(file).isFile()) {

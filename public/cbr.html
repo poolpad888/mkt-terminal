@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Примерочная плашки ЦБ РФ · MKT·TERMINAL</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d1117;--fg:#c9d1d9;--dim:#8b98a5;--line:#2a3441;--amber:#e3a008;--red:#c9403f;--gold:#ffcf66}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px;line-height:1.45}
+header{padding:14px;border-bottom:1px solid var(--line)}
+h1{margin:0 0 4px;font-size:15px;font-weight:600;letter-spacing:.5px}
+.sub{color:var(--dim);font-size:11.5px}
+.wrap{padding:14px;max-width:760px}
+.vari{margin-bottom:26px}
+.cap{color:var(--amber);font-size:11.5px;margin-bottom:6px;font-family:'IBM Plex Mono',monospace}
+.hint{color:var(--dim);font-size:11px;margin-top:6px}
+.row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);position:relative}
+.time{color:var(--dim);font-family:'IBM Plex Mono',monospace;font-size:11.5px;flex:0 0 38px}
+.src{color:var(--dim);font-size:11px;margin-bottom:2px}
+.txt{white-space:pre-wrap}
+
+/* 1. Синяя рамка слева + плашка */
+.v1{border-left:3px solid #3b82f6;padding-left:10px;background:#101a2b}
+.v1 .band{display:inline-block;background:#1e3a8a;color:#cfe0ff;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:1px;padding:1px 6px;border-radius:2px;margin-bottom:4px}
+
+/* 2. Тонкая рамка вокруг, надпись в углу */
+.v2{border:1px solid #2f5aa8;background:#0e1626;padding:8px 10px}
+.v2 .band{position:absolute;top:-1px;right:0;background:#2f5aa8;color:#e8f0ff;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:1px;padding:1px 6px}
+
+/* 3. Стальной серо-синий, строгий official */
+.v3{border-left:3px solid #64748b;padding-left:10px;background:#12171f}
+.v3 .band{display:inline-block;border:1px solid #64748b;color:#aeb9c7;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1.5px;padding:0 5px;margin-bottom:4px}
+
+/* 4. Бирюзовый акцент, текст холодный */
+.v4{border-left:3px solid #14b8a6;padding-left:10px;background:#0d1a1a}
+.v4 .band{display:inline-block;background:#0f766e;color:#ccfbf1;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:1px;padding:1px 6px;border-radius:2px;margin-bottom:4px}
+.v4 .txt{color:#d5f5f0}
+
+/* 5. Только плашка, без подложки — самый тихий */
+.v5 .band{display:inline-block;background:#1e3a8a;color:#cfe0ff;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:1px;padding:1px 6px;border-radius:2px;margin-right:6px}
+
+/* 6. Синий с золотым текстом — как важное, но синее */
+.v6{border-left:3px solid #3b82f6;padding-left:10px;background:#111c2e}
+.v6 .band{display:inline-block;background:#3b82f6;color:#0d1117;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:1px;padding:1px 6px;border-radius:2px;margin-bottom:4px}
+.v6 .txt{color:var(--gold);font-weight:600}
+
+/* для сравнения — как выглядит нынешнее "Важно" */
+.vimp{border-left:3px solid var(--red);padding-left:10px;background:#1c1013}
+.vimp .band{display:inline-block;background:var(--red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:1px;padding:1px 6px;border-radius:2px;margin-bottom:4px}
+.vimp .txt{color:var(--gold);font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <h1>ПРИМЕРОЧНАЯ ПЛАШКИ «ЦБ РФ»</h1>
+  <div class="sub">Шесть вариантов оформления новостей от регулятора. Скажите номер — поставлю в ленту.</div>
+</header>
+<div class="wrap">
+
+  <div class="vari">
+    <div class="cap">ВАРИАНТ 1 — синяя рамка и плашка</div>
+    <div class="row v1"><div class="time">13:30</div><div>
+      <div class="src">ЦБ РФ пресс-релизы</div>
+      <div class="band">ЦБ РФ</div>
+      <div class="txt">Банк России принял решение снизить ключевую ставку на 50 б.п., до 16,00% годовых.</div></div></div>
+    <div class="hint">Самый узнаваемый: цвет и подложка сразу отделяют регулятора от лент.</div>
+  </div>
+
+  <div class="vari">
+    <div class="cap">ВАРИАНТ 2 — рамка вокруг, метка в углу</div>
+    <div class="row v2"><div class="time">13:30</div><div>
+      <div class="band">ЦБ РФ</div>
+      <div class="src">ЦБ РФ пресс-релизы</div>
+      <div class="txt">Банк России принял решение снизить ключевую ставку на 50 б.п., до 16,00% годовых.</div></div></div>
+    <div class="hint">Аккуратнее, похоже на документ. Метка не отнимает строку.</div>
+  </div>
+
+  <div class="vari">
+    <div class="cap">ВАРИАНТ 3 — стальной, строгий</div>
+    <div class="row v3"><div class="time">13:30</div><div>
+      <div class="src">ЦБ РФ пресс-релизы</div>
+      <div class="band">ЦБ РФ</div>
+      <div class="txt">Банк России принял решение снизить ключевую ставку на 50 б.п., до 16,00% годовых.</div></div></div>
+    <div class="hint">Сдержанный официальный тон, не спорит с красным «Важно».</div>
+  </div>
+
+  <div class="vari">
+    <div class="cap">ВАРИАНТ 4 — бирюзовый</div>
+    <div class="row v4"><div class="time">13:30</div><div>
+      <div class="src">ЦБ РФ пресс-релизы</div>
+      <div class="band">ЦБ РФ</div>
+      <div class="txt">Банк России принял решение снизить ключевую ставку на 50 б.п., до 16,00% годовых.</div></div></div>
+    <div class="hint">Заметнее синего, но дальше от банковской традиции.</div>
+  </div>
+
+  <div class="vari">
+    <div class="cap">ВАРИАНТ 5 — только плашка, без подложки</div>
+    <div class="row v5"><div class="time">13:30</div><div>
+      <div class="src"><span class="band">ЦБ РФ</span>ЦБ РФ пресс-релизы</div>
+      <div class="txt">Банк России принял решение снизить ключевую ставку на 50 б.п., до 16,00% годовых.</div></div></div>
+    <div class="hint">Самый тихий: лента остаётся ровной, метка просто помогает найти глазом.</div>
+  </div>
+
+  <div class="vari">
+    <div class="cap">ВАРИАНТ 6 — синий с золотым текстом</div>
+    <div class="row v6"><div class="time">13:30</div><div>
+      <div class="src">ЦБ РФ пресс-релизы</div>
+      <div class="band">ЦБ РФ</div>
+      <div class="txt">Банк России принял решение снизить ключевую ставку на 50 б.п., до 16,00% годовых.</div></div></div>
+    <div class="hint">Вес как у важного, но цвет другой. Годится, если решения по ставке всегда считать важными.</div>
+  </div>
+
+  <div class="vari">
+    <div class="cap">ДЛЯ СРАВНЕНИЯ — нынешнее «Важно»</div>
+    <div class="row vimp"><div class="time">13:30</div><div>
+      <div class="src">Раньше всех</div>
+      <div class="band">ВАЖНО ⚡</div>
+      <div class="txt">Банк России принял решение снизить ключевую ставку на 50 б.п., до 16,00% годовых.</div></div></div>
+    <div class="hint">Чтобы видеть, с чем плашка регулятора будет соседствовать в ленте.</div>
+  </div>
+
+</div>
+</body>
+</html>
