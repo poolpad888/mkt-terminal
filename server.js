@@ -471,6 +471,14 @@ async function refresh() {
 }
 setInterval(refresh, CACHE_SEC * 1000);     // фоновый опрос: лента свежая, пока сервер не спит
 
+// Самоокрик: раз в 10 минут заходим на собственный публичный адрес,
+// чтобы бесплатный тариф Render не усыплял сервер и новости копились круглосуточно.
+const SELF_URL = process.env.SELF_URL || 'https://mkt-terminal.onrender.com/api/health';
+setInterval(() => {
+  fetchUrl(SELF_URL).then(() => console.log('WAKE: ok'))
+                    .catch(e => console.log('WAKE: ' + e.message));
+}, 10 * 60 * 1000);
+
 async function getFeed() {
   if (!cache.feed) await refresh();         // первый заход после пробуждения — собираем сразу
   return cache.feed;
