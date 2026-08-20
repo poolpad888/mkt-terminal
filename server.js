@@ -57,6 +57,18 @@ const FAST_RSS = [
 const FAST_TG = [
   ['minfin',  'Минфин России', 'fin'],
 ];
+// Комментарии представителей ведомств помечаем той же плашкой
+const CBR_NAMES = /\b(набиуллин|заботкин|тремасов|юдаева|чистюхин|полякова|скоробогатова|данилов|зубарев|цб\s*рф|центробанк|центральн\w+\s+банк|банк\s+росси)/i;
+const FIN_NAMES = /\b(силуанов|моисеев|сазанов|чебесков|колычев|иванов\s+ирина|минфин)/i;
+
+function markByName(x) {
+  if (x.reg) return x;
+  const t = (x.text || '');
+  if (CBR_NAMES.test(t)) { x.reg = true; x.mark = 'reg'; }
+  else if (FIN_NAMES.test(t)) { x.reg = true; x.mark = 'fin'; }
+  return x;
+}
+
 const FAST_SEC = 3;                  // опрос регулятора раз в 3 секунды
 let fastItems = [];                  // последнее, что удалось прочитать
 let fastBusy = false;
@@ -445,6 +457,7 @@ async function build() {
       url: 'https://minfin.gov.ru/ru/press-center/', time: new Date().toISOString(), reg: true, mark: 'fin',
       text: 'ТЕСТОВАЯ ЗАПИСЬ МИНФИНА ДЛЯ ПРОВЕРКИ СЕРОЙ ПЛАШКИ. Смотрим, как выглядит серая рамка со щитом в живой ленте. Уникальный маркер: бронзовый ёж настраивает арфу под дождём.' });
   }
+  for (const x of all) markByName(x);
   const bad = Object.entries(health).filter(([,v]) => !v.ok).map(([k,v]) => k + '(' + v.err + ')');
   console.log('BUILD: items=' + all.length + ' okSources=' + Object.values(health).filter(v=>v.ok).length + '/' + Object.keys(health).length + (bad.length ? ' fail: ' + bad.join(', ') : ''));
 
