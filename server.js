@@ -45,7 +45,6 @@ const TG = [
 const RSS = [
   ['https://www.finam.ru/analysis/conews/rsspoint/', 'Финам'],
   ['https://www.moex.com/export/news.aspx?cat=100', 'Мосбиржа'],
-  ['https://minfin.gov.ru/ru/press-center/rss/', 'Минфин'],
 ];
 // Регулятор: опрашиваем отдельно и часто — решения по ставке выходят здесь
 // раньше, чем в каналах. Помечаются как reg, показываются особой плашкой.
@@ -54,6 +53,10 @@ const FAST_RSS = [
   ['https://www.cbr.ru/rss/RssPress', 'ЦБ РФ пресс-релизы'],
   ['https://www.cbr.ru/rss/eventrss', 'ЦБ РФ события'],
 ];
+// Минфин: RSS на сайте отдаёт 503, берём официальный канал с открытой веб-версией
+const FAST_TG = [
+  ['minfin',  'Минфин России', 'fin'],
+];
 const FAST_SEC = 3;                  // опрос регулятора раз в 3 секунды
 let fastItems = [];                  // последнее, что удалось прочитать
 let fastBusy = false;
@@ -61,11 +64,17 @@ async function fastPoll() {
   if (fastBusy) return;
   fastBusy = true;
   try {
-    const got = await Promise.all(FAST_RSS.map(([url, n]) => fetchUrl(url)
-      .then(x => { const it = parseRss(x, n); health[n] = { ok: true, n: it.length }; return it; })
-      .catch(e => { health[n] = { ok: false, err: e.message }; return []; })));
+    const got = await Promise.all([
+      ...FAST_RSS.map(([url, n]) => fetchUrl(url)
+        .then(x => { const it = parseRss(x, n); health[n] = { ok: true, n: it.length }; return it; })
+        .catch(e => { health[n] = { ok: false, err: e.message }; return []; })),
+      ...FAST_TG.map(([u, n, mark]) => fetchUrl('https://t.me/s/' + u)
+        .then(h => { const it = parseTelegram(h, u, n); for (const x of it) x.mark = mark;
+                     health[u] = { ok: true, n: it.length }; return it; })
+        .catch(e => { health[u] = { ok: false, err: e.message }; return []; })),
+    ]);
     const flat = got.flat();
-    for (const x of flat) x.reg = true;              // метка регулятора
+    for (const x of flat) { if (!x.mark) x.mark = 'reg'; x.reg = true; }   // reg — ЦБ, fin — Минфин
     if (flat.length) fastItems = flat;
   } finally { fastBusy = false; }
 }
@@ -433,7 +442,7 @@ async function build() {
   const all = (await Promise.all(jobs)).flat().concat(fastItems);
   if (process.env.DEMO_REG === '1') {          // тестовая новость регулятора (убрать после проверки)
     all.push({ id: 'demo-cbr-1', src: 'cbr-demo', srcName: 'ЦБ РФ пресс-релизы',
-      url: 'https://www.cbr.ru/press/pr/', time: new Date().toISOString(), reg: true,
+      url: 'https://www.cbr.ru/press/pr/', time: new Date().toISOString(), reg: true, mark: 'reg',
       text: 'ТЕСТОВАЯ ЗАПИСЬ ДЛЯ ПРОВЕРКИ ОФОРМЛЕНИЯ ПЛАШКИ. Проверяем, как выглядит синяя рамка регулятора в живой ленте. Уникальный маркер: щёлкающий кашалот подпрыгивает над барометром.' });
   }
   const bad = Object.entries(health).filter(([,v]) => !v.ok).map(([k,v]) => k + '(' + v.err + ')');
@@ -468,7 +477,7 @@ async function build() {
       }
     }
     keep.srcCount = (keep.srcCount || 1) + 1;
-    if (x.reg) keep.reg = true;                     // регулятор важнее пересказа
+    if (x.reg) { keep.reg = true; keep.mark = keep.mark || x.mark; }   // регулятор важнее пересказа
     if (!keep.alsoIn) keep.alsoIn = [];
     if (!keep.alsoIn.includes(x.srcName) && keep.srcName !== x.srcName) keep.alsoIn.push(x.srcName);
   }

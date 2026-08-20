@@ -96,6 +96,13 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
 .regband{background:#1e3a8a}
 .regband .ico{font-size:14px;font-weight:400;color:#e8f0ff;line-height:1}
 .regband .vtxt{color:#e8f0ff}
+/* Минфин: та же плашка, серая */
+.row.reg.fin:not(.lvl2){border-color:#4a5563;background:#161a20}
+.row.reg.fin .time{color:#aeb9c7}
+.row.reg.fin:not(.lvl2) .txt{color:#d7dde5}
+.finband{background:#3f4854}
+.finband .ico{font-size:14px;font-weight:400;color:#eef2f6;line-height:1}
+.finband .vtxt{color:#eef2f6}
 
 /* всплывающий график */
 #tvpop{position:fixed;z-index:50;width:340px;height:240px;background:var(--panel);
@@ -277,8 +284,9 @@ function rowHTML(x,fresh){
   const open=openIds.has(x.id);
   const shown=(long&&!open)?col+' …':x.text;
   const more=long?'<div class="more">'+(open?'свернуть':'развернуть …')+'</div>':'';
-  const regband=x.reg&&x.lvl!==2?'<div class="fband regband"><span class="vtxt">ЦБ РФ</span><span class="ico">₽</span></div>':'';
-  return '<article class="row'+(x.lvl===2?' lvl2':'')+(x.reg?' reg':'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+band+regband+
+  const isFin=x.mark==='fin';
+  const regband=x.reg&&x.lvl!==2?'<div class="fband '+(isFin?'finband':'regband')+'"><span class="vtxt">'+(isFin?'МИНФИН':'ЦБ РФ')+'</span><span class="ico">'+(isFin?'⛨':'₽')+'</span></div>':'';
+  return '<article class="row'+(x.lvl===2?' lvl2':'')+(x.reg?(isFin?' reg fin':' reg'):'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+band+regband+
     '<div class="time">'+hhmm(x.time)+'</div>'+
     '<div><div class="src">'+esc(x.srcName)+srcs+reso+'</div>'+
     (tks?'<div class="tkline">'+tks+'</div>':'')+
