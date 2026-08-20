@@ -721,3 +721,9 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => console.log('MKT-TERMINAL on :' + PORT));
 // прогреваем кэш при старте
 getFeed().catch(() => {});
+// разовая диагностика котировок при старте — счётчики по разделам
+getMarkets()
+  .then(m => console.log('MARKETS: сырьё ' + m.sections.commodities.length +
+    ', индексы ' + m.sections.indices.length + ', валюты ' + m.sections.fx.length +
+    ', акции ' + m.sections.stocks.length))
+  .catch(e => console.log('MARKETS ERROR: ' + e.message));
