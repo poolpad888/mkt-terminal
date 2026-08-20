@@ -106,8 +106,7 @@ const SECTIONS=[
 ];
 function fmtVal(v){
   if(v==null)return '—';
-  const abs=Math.abs(v);
-  const dp=abs>=1000?0:abs>=100?1:abs>=1?2:4;
+  const dp=Math.abs(v)>=1?2:4;
   return v.toLocaleString('ru-RU',{minimumFractionDigits:dp,maximumFractionDigits:dp});
 }
 function chgCell(c){
