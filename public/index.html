@@ -60,7 +60,8 @@ main{max-width:860px;margin:0 auto;padding:8px 0 60px}
 mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
 .row.clickable{cursor:pointer}
 .more{color:var(--amber);font-size:10.5px;margin-top:3px}
-.row.open .more{display:none}
+.more{cursor:pointer}
+.more:hover{text-decoration:underline}
 .row .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;align-items:center}
 .tag{font-size:10.5px;color:var(--violet);border:1px solid #2a2440;background:#161226;
   padding:1px 8px;border-radius:10px;cursor:pointer}
@@ -102,7 +103,7 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
 body.compact .row{padding:5px 14px}
 body.compact .row .meta{margin-top:3px}
 body.compact .tkline{margin:2px 0 3px}
-body.compact .row .txt{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+body.compact .row.open .txt{display:block;overflow:visible}
 body.compact .row.lvl2{padding:6px 10px 6px 0;margin:4px 10px}
 
 @media(max-width:640px){
@@ -266,7 +267,7 @@ function rowHTML(x,fresh){
   const long=col.length<x.text.length-15;
   const open=openIds.has(x.id);
   const shown=(long&&!open)?col+' …':x.text;
-  const more=long?'<div class="more">развернуть ⌄</div>':'';
+  const more=long?'<div class="more">'+(open?'свернуть ⌃':'развернуть ⌄')+'</div>':'';
   return '<article class="row'+(x.lvl===2?' lvl2':'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+band+
     '<div class="time">'+hhmm(x.time)+'</div>'+
     '<div><div class="src">'+esc(x.srcName)+srcs+reso+'</div>'+
@@ -360,7 +361,7 @@ if(canHover){
 // ── загрузка ──
 async function load(){
   try{
-    const r=await fetch('/api/feed');
+    const r=await fetch('/api/feed?t='+Date.now(),{cache:'no-store'});
     const data=await r.json();
     if(!data.items)return;
     let newImportant=false,anyNew=false;
@@ -391,7 +392,7 @@ async function load(){
   }
 }
 load();
-setInterval(load,90000);
+setInterval(load,15000);   // спрашиваем сервер каждые 15 секунд
 </script>
 </body>
 </html>

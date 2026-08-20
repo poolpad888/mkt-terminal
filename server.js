@@ -512,7 +512,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (u.pathname === '/api/feed') {
       const feed = await getFeed();
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60' });
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(JSON.stringify(feed));
     }
     if (u.pathname === '/api/history') {
