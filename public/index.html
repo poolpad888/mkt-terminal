@@ -88,11 +88,11 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
 .row.lvl2.fresh{animation:fr2 2.4s ease both}
 @keyframes fr2{0%{background:rgba(255,82,82,.35)}100%{background:rgba(255,82,82,.13)}}
 .row.mark{outline:2px solid var(--amber);outline-offset:-2px}
-/* регулятор: вариант 1 — синяя рамка и плашка */
-.row.reg{border-left:3px solid #3b82f6;background:#101a2b}
+/* регулятор: вертикальная плашка слева, как у важного, только синяя */
+.row.reg:not(.lvl2){grid-template-columns:24px 52px 1fr;border:1px solid #2f5aa8;border-left:none;
+  background:#101a2b;margin:8px 10px;padding:12px 14px 12px 0;border-radius:0 4px 4px 0}
 .row.reg .time{color:#7fb0ff}
-.regband{display:inline-block;background:#1e3a8a;color:#cfe0ff;font-family:var(--mono);font-size:10px;
-  font-weight:600;letter-spacing:.1em;padding:1px 7px;border-radius:2px;margin-bottom:4px}
+.regband{background:#1e3a8a;justify-content:center}
 
 /* всплывающий график */
 #tvpop{position:fixed;z-index:50;width:340px;height:240px;background:var(--panel);
@@ -119,6 +119,7 @@ body.compact .row.lvl2{padding:6px 10px 6px 0;margin:4px 10px}
   nav{padding:6px 10px;top:38px}
   .row{grid-template-columns:42px 1fr;gap:0 9px;padding:10px 10px}
   .row.lvl2{grid-template-columns:20px 42px 1fr;margin:6px 6px;padding:10px 10px 10px 0}
+  .row.reg:not(.lvl2){grid-template-columns:20px 42px 1fr;margin:6px 6px;padding:10px 10px 10px 0}
   .row .time{font-size:11px}
 }
 .note{color:var(--dim);text-align:center;padding:40px 20px;font-size:12.5px}
@@ -273,11 +274,10 @@ function rowHTML(x,fresh){
   const open=openIds.has(x.id);
   const shown=(long&&!open)?col+' …':x.text;
   const more=long?'<div class="more">'+(open?'свернуть ⌃':'развернуть ⌄')+'</div>':'';
-  const regband=x.reg?'<div class="regband">ЦБ РФ</div>':'';
-  return '<article class="row'+(x.lvl===2?' lvl2':'')+(x.reg?' reg':'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+band+
+  const regband=x.reg&&x.lvl!==2?'<div class="fband regband"><span class="vtxt">ЦБ РФ</span></div>':'';
+  return '<article class="row'+(x.lvl===2?' lvl2':'')+(x.reg?' reg':'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+band+regband+
     '<div class="time">'+hhmm(x.time)+'</div>'+
     '<div><div class="src">'+esc(x.srcName)+srcs+reso+'</div>'+
-    regband+
     (tks?'<div class="tkline">'+tks+'</div>':'')+
     '<div class="txt">'+hi(esc(shown))+'</div>'+more+
     '<div class="meta">'+tags+
