@@ -92,7 +92,7 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
 .row.reg:not(.lvl2){grid-template-columns:24px 52px 1fr;border:1px solid #2f5aa8;border-left:none;
   background:#101a2b;margin:8px 10px;padding:12px 14px 12px 0;border-radius:0 4px 4px 0}
 .row.reg .time{color:#7fb0ff}
-.regband{background:#1e3a8a;justify-content:center}
+.regband{background:#1e3a8a}
 
 /* всплывающий график */
 #tvpop{position:fixed;z-index:50;width:340px;height:240px;background:var(--panel);
@@ -274,7 +274,7 @@ function rowHTML(x,fresh){
   const open=openIds.has(x.id);
   const shown=(long&&!open)?col+' …':x.text;
   const more=long?'<div class="more">'+(open?'свернуть ⌃':'развернуть ⌄')+'</div>':'';
-  const regband=x.reg&&x.lvl!==2?'<div class="fband regband"><span class="vtxt">ЦБ РФ</span></div>':'';
+  const regband=x.reg&&x.lvl!==2?'<div class="fband regband"><span class="vtxt">ЦБ РФ</span><span class="ico">₽</span></div>':'';
   return '<article class="row'+(x.lvl===2?' lvl2':'')+(x.reg?' reg':'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+band+regband+
     '<div class="time">'+hhmm(x.time)+'</div>'+
     '<div><div class="src">'+esc(x.srcName)+srcs+reso+'</div>'+
