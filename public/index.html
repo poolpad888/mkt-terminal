@@ -285,7 +285,7 @@ function rowHTML(x,fresh){
   const shown=(long&&!open)?col+' …':x.text;
   const more=long?'<div class="more">'+(open?'свернуть':'развернуть …')+'</div>':'';
   const isFin=x.mark==='fin';
-  const regband=x.reg?'<div class="fband '+(isFin?'finband':'regband')+'"><span class="vtxt">'+(isFin?'МИНФИН':'ЦБ РФ')+'</span><span class="ico">'+(isFin?'⛨':'₽')+'</span></div>':'';
+  const regband=x.reg?'<div class="fband '+(isFin?'finband':'regband')+'"><span class="vtxt">'+(isFin?'МИНФИН':'ЦБ РФ')+'</span><span class="ico">'+(isFin?'◉':'₽')+'</span></div>':'';
   return '<article class="row'+(x.lvl===2&&!x.reg?' lvl2':'')+(x.reg?(isFin?' reg fin':' reg'):'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+band+regband+
     '<div class="time">'+hhmm(x.time)+'</div>'+
     '<div><div class="src">'+esc(x.srcName)+srcs+reso+'</div>'+
