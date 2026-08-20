@@ -324,8 +324,11 @@ function wordSet(text) {
     .filter(t => (/^\d/.test(t) ? t.length >= 2 : t.length >= 3) && !STOP.has(t))
     .map(t => {
       if (/^\d/.test(t)) return t;
-      const st = t.slice(0, 5);
-      return SYN.get(st) || SYN.get(t.slice(0, 6)) || st;   // синоним → общий вид, иначе основа
+      for (let L = Math.min(6, t.length); L >= 3; L--) {   // ищем синоним по началу слова
+        const hit = SYN.get(t.slice(0, L));
+        if (hit) return hit;
+      }
+      return t.slice(0, 5);                                // иначе грубая основа
     });
   return new Set(w);
 }
