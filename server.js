@@ -342,6 +342,56 @@ function similar(a, b) {
   return jacc >= 0.45 || contain >= 0.7;
 }
 
+// ── База данных (история новостей) ─────────────────────────────────────
+// Включается, только если задана переменная DATABASE_URL. Без неё сервер
+// работает как раньше — просто ничего не сохраняет.
+let pool = null;
+if (process.env.DATABASE_URL) {
+  const { Pool } = require('pg');
+  pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
+  pool.query(`
+    CREATE TABLE IF NOT EXISTS news (
+      id         text PRIMARY KEY,
+      ts         timestamptz,
+      src        text,
+      src_name   text,
+      url        text,
+      body       text,
+      lvl        int  DEFAULT 0,
+      src_count  int  DEFAULT 1,
+      first_seen timestamptz DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS news_ts_idx ON news (ts DESC);
+  `).then(() => console.log('DB: таблица news готова'))
+    .catch(e => { console.log('DB init error: ' + e.message); pool = null; });
+}
+
+async function saveToDb(items) {
+  if (!pool || !items.length) return;
+  try {
+    const cols = ['id','ts','src','src_name','url','body','lvl','src_count'];
+    let saved = 0;
+    for (let i = 0; i < items.length; i += 100) {
+      const chunk = items.slice(i, i + 100);
+      const vals = [], ph = [];
+      chunk.forEach((x, j) => {
+        const b = j * cols.length;
+        ph.push('(' + cols.map((_, k) => '$' + (b + k + 1)).join(',') + ')');
+        vals.push(x.id, x.time || null, x.src || null, x.srcName || null,
+                  x.url || null, x.text || '', x.lvl || 0, x.srcCount || 1);
+      });
+      const r = await pool.query(
+        'INSERT INTO news (' + cols.join(',') + ') VALUES ' + ph.join(',') +
+        ' ON CONFLICT (id) DO UPDATE SET src_count = GREATEST(news.src_count, EXCLUDED.src_count), lvl = GREATEST(news.lvl, EXCLUDED.lvl)',
+        vals);
+      saved += r.rowCount;
+    }
+    console.log('DB: записано строк ' + saved + ' (из ' + items.length + ' в сборке)');
+  } catch (e) {
+    console.log('DB save error: ' + e.message);
+  }
+}
+
 // ── Сборка ленты ────────────────────────────────────────────────────────
 let cache = { at: 0, feed: null };
 const health = {};
@@ -412,6 +462,7 @@ async function refresh() {
   try {
     const feed = await build();
     if (feed.count > 0 || !cache.feed) cache = { at: Date.now(), feed };
+    if (feed.count > 0) saveToDb(feed.items);   // в базу — не дожидаясь, фоном
   } catch (e) {
     if (!cache.feed) cache = { at: Date.now(), feed: { updated: null, count: 0, items: [], error: e.message } };
   } finally { building = false; }
