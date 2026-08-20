@@ -444,6 +444,9 @@ async function build() {
     all.push({ id: 'demo-cbr-1', src: 'cbr-demo', srcName: 'ЦБ РФ пресс-релизы',
       url: 'https://www.cbr.ru/press/pr/', time: new Date().toISOString(), reg: true, mark: 'reg',
       text: 'ТЕСТОВАЯ ЗАПИСЬ ДЛЯ ПРОВЕРКИ ОФОРМЛЕНИЯ ПЛАШКИ. Проверяем, как выглядит синяя рамка регулятора в живой ленте. Уникальный маркер: щёлкающий кашалот подпрыгивает над барометром.' });
+    all.push({ id: 'demo-fin-1', src: 'fin-demo', srcName: 'Минфин России',
+      url: 'https://minfin.gov.ru/ru/press-center/', time: new Date().toISOString(), reg: true, mark: 'fin',
+      text: 'ТЕСТОВАЯ ЗАПИСЬ МИНФИНА ДЛЯ ПРОВЕРКИ СЕРОЙ ПЛАШКИ. Смотрим, как выглядит серая рамка со щитом в живой ленте. Уникальный маркер: бронзовый ёж настраивает арфу под дождём.' });
   }
   const bad = Object.entries(health).filter(([,v]) => !v.ok).map(([k,v]) => k + '(' + v.err + ')');
   console.log('BUILD: items=' + all.length + ' okSources=' + Object.values(health).filter(v=>v.ok).length + '/' + Object.keys(health).length + (bad.length ? ' fail: ' + bad.join(', ') : ''));
