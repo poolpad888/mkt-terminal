@@ -593,6 +593,44 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify({ items: [], error: e.message }));
       }
     }
+    if (u.pathname === '/api/proxytest') {
+      // берём свежий список российских посредников и пробуем через них Минфин
+      const target = 'https://minfin.gov.ru/ru/press-center/rss/';
+      let list = [];
+      const srcs = [
+        'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&country=ru&timeout=10000',
+        'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt',
+      ];
+      for (const sUrl of srcs) {
+        try {
+          const t = await fetchUrl(sUrl);
+          list = list.concat(t.split(/\s+/).filter(x => /^\d+\.\d+\.\d+\.\d+:\d+$/.test(x)));
+        } catch (e) {}
+      }
+      list = list.slice(0, 40);
+      const out = { tried: list.length, ok: [], sample: '' };
+      for (const p of list) {
+        try {
+          const r = await new Promise((res, rej) => {
+            const [h, pt] = p.split(':');
+            const req = http.request({ host: h, port: +pt, method: 'GET', path: target,
+              headers: { Host: 'minfin.gov.ru', 'User-Agent': 'Mozilla/5.0' }, timeout: 6000 }, rr => {
+              let d = ''; rr.on('data', c => d += c); rr.on('end', () => res({ code: rr.statusCode, body: d }));
+            });
+            req.on('error', rej); req.on('timeout', () => { req.destroy(); rej(new Error('timeout')); });
+            req.end();
+          });
+          if (r.code === 200 && /<item[\s>]/i.test(r.body)) {
+            out.ok.push(p);
+            if (!out.sample) out.sample = r.body.slice(0, 300);
+          }
+        } catch (e) {}
+      }
+      console.log('PROXYTEST: tried=' + out.tried + ' ok=' + out.ok.length + ' ' + JSON.stringify(out.ok.slice(0, 5)));
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify(out, null, 1));
+    }
+
     if (u.pathname === '/api/probe') {
       const cand = [
         'https://minfin.gov.ru/ru/rss/',
