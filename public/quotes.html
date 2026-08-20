@@ -37,33 +37,16 @@ header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1p
 main{max-width:1080px;margin:0 auto;padding:16px 14px 60px}
 .top{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
 .top h1{font-size:15px;font-weight:700;letter-spacing:.02em}
-.upd{color:var(--dim);font-size:11.5px;font-family:var(--mono)}
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-@media(max-width:760px){.grid{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.card h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);
-  padding:11px 14px 9px;border-bottom:1px solid var(--line);font-weight:700;display:flex;align-items:center;gap:8px}
-.card h2 .d{width:7px;height:7px;border-radius:50%;background:var(--amber);flex:none}
-.row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;
-  padding:9px 14px;border-bottom:1px solid var(--line)}
-.row:last-child{border-bottom:none}
-.row:hover{background:rgba(255,176,0,.04)}
-.nm{color:var(--tx);font-size:13px}
-.val{font-family:var(--mono);text-align:right;font-weight:600;font-size:13px;min-width:78px}
-.chg{font-family:var(--mono);text-align:right;font-weight:600;font-size:12.5px;min-width:64px}
-.chg.up{color:var(--green)} .chg.up::before{content:"▲ "}
-.chg.dn{color:var(--red)}  .chg.dn::before{content:"▼ "}
-.chg.na{color:var(--dim);font-weight:400}
-.empty{padding:14px;color:var(--dim);font-size:12px;text-align:center}
-.note{color:var(--dim);text-align:center;padding:40px 20px;font-size:12.5px}
-.foot{color:var(--dim);font-size:11px;text-align:center;margin-top:22px;line-height:1.6}
-.skel{opacity:.5}
+.top .note{color:var(--dim);font-size:11.5px}
+#wrap{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;height:76vh;min-height:520px}
+#wrap .tradingview-widget-container,#wrap .tradingview-widget-container__widget{height:100%;width:100%}
+.foot{color:var(--dim);font-size:11px;text-align:center;margin-top:18px;line-height:1.6}
 </style>
 </head>
 <body>
 <header>
   <span class="logo">FINFACTS</span>
-  <span class="sub">Котировки · Московская биржа</span>
+  <span class="sub">Котировки · мировые рынки</span>
   <span class="sp"></span>
   <a class="hbtn" href="/">← лента</a>
   <a class="hbtn" href="/map">карта</a>
@@ -73,81 +56,87 @@ main{max-width:1080px;margin:0 auto;padding:16px 14px 60px}
 <main>
   <div class="top">
     <h1>Котировки рынков</h1>
-    <span class="upd" id="upd">загрузка…</span>
+    <span class="note">сырьё · индексы · валюты · крипта · акции РФ — реальное время, данные TradingView</span>
   </div>
-  <div class="grid" id="grid">
-    <div class="note">Загружаю котировки…</div>
-  </div>
+  <div id="wrap"></div>
   <div class="foot">
-    Данные Московской биржи (ISS), задержка до 15 минут · обновление раз в минуту<br>
-    Приводится справочно, не является инвестиционной рекомендацией. 18+
+    Котировки предоставлены TradingView · приводятся справочно, не являются инвестиционной рекомендацией. 18+
   </div>
 </main>
 <script>
-// тема
+// тема (общий ключ с лентой)
 try{const p=JSON.parse(localStorage.getItem('mkt_prefs')||'{}');if(p.light)document.documentElement.classList.add('light')}catch(e){}
 const thBtn=document.getElementById('thBtn');
-function thLabel(){thBtn.textContent=document.documentElement.classList.contains('light')?'◕':'◑'}
+function isLight(){return document.documentElement.classList.contains('light')}
+function thLabel(){thBtn.textContent=isLight()?'◕':'◑'}
 thBtn.onclick=()=>{
   document.documentElement.classList.toggle('light');thLabel();
-  try{const p=JSON.parse(localStorage.getItem('mkt_prefs')||'{}');p.light=document.documentElement.classList.contains('light');localStorage.setItem('mkt_prefs',JSON.stringify(p))}catch(e){}
+  try{const p=JSON.parse(localStorage.getItem('mkt_prefs')||'{}');p.light=isLight();localStorage.setItem('mkt_prefs',JSON.stringify(p))}catch(e){}
+  buildWidget();
 };
 thLabel();
 
-// часы
+// часы (МСК)
 const clock=document.getElementById('clock');
 setInterval(()=>{clock.textContent=new Date().toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow'})},1000);
 
-const SECTIONS=[
-  ['commodities','Сырьё'],
-  ['indices','Индексы'],
-  ['fx','Валюты'],
-  ['stocks','Акции'],
+// виджет TradingView — пересобираем при смене темы
+const TABS=[
+  {title:"Сырьё",symbols:[
+    {s:"TVC:UKOIL",d:"Нефть Brent"},{s:"TVC:USOIL",d:"Нефть WTI"},{s:"TVC:GOLD",d:"Золото"},
+    {s:"TVC:SILVER",d:"Серебро"},{s:"NYMEX:NG1!",d:"Природный газ"},{s:"COMEX:HG1!",d:"Медь"}]},
+  {title:"Индексы",symbols:[
+    {s:"SP:SPX",d:"S&P 500"},{s:"NASDAQ:IXIC",d:"Nasdaq"},{s:"DJ:DJI",d:"Dow Jones"},
+    {s:"XETR:DAX",d:"DAX"},{s:"TVC:NI225",d:"Nikkei 225"},{s:"MOEX:IMOEX",d:"Индекс МосБиржи"}]},
+  {title:"Валюты",symbols:[
+    {s:"FX:EURUSD",d:"EUR/USD"},{s:"FX_IDC:USDRUB",d:"USD/RUB"},{s:"FX_IDC:EURRUB",d:"EUR/RUB"},
+    {s:"FX_IDC:CNYRUB",d:"CNY/RUB"},{s:"TVC:DXY",d:"Индекс доллара"},{s:"FX:USDJPY",d:"USD/JPY"}]},
+  {title:"Крипта",symbols:[
+    {s:"BINANCE:BTCUSDT",d:"Bitcoin"},{s:"BINANCE:ETHUSDT",d:"Ethereum"},{s:"BINANCE:BNBUSDT",d:"BNB"},
+    {s:"BINANCE:SOLUSDT",d:"Solana"},{s:"BINANCE:XRPUSDT",d:"XRP"},{s:"BINANCE:TONUSDT",d:"Toncoin"}]},
+  {title:"Акции РФ",symbols:[
+    {s:"MOEX:SBER",d:"Сбербанк"},{s:"MOEX:GAZP",d:"Газпром"},{s:"MOEX:LKOH",d:"Лукойл"},
+    {s:"MOEX:GMKN",d:"Норникель"},{s:"MOEX:ROSN",d:"Роснефть"},{s:"MOEX:YDEX",d:"Яндекс"}]},
 ];
-function fmtVal(v){
-  if(v==null)return '—';
-  const dp=Math.abs(v)>=1?2:4;
-  return v.toLocaleString('ru-RU',{minimumFractionDigits:dp,maximumFractionDigits:dp});
+function buildWidget(){
+  const wrap=document.getElementById('wrap');
+  wrap.innerHTML='';
+  const cont=document.createElement('div');
+  cont.className='tradingview-widget-container';
+  const w=document.createElement('div');
+  w.className='tradingview-widget-container__widget';
+  cont.appendChild(w);
+  const cfg={
+    colorTheme:isLight()?'light':'dark',
+    dateRange:'1D',
+    locale:'ru',
+    showChart:true,
+    largeChartUrl:'',
+    isTransparent:true,
+    showSymbolLogo:true,
+    showFloatingTooltip:true,
+    width:'100%',
+    height:'100%',
+    plotLineColorGrowing:'#2ee06f',
+    plotLineColorFalling:'#ff5252',
+    gridLineColor:'rgba(120,130,145,0.12)',
+    scaleFontColor:isLight()?'#1c2530':'#c9d4e0',
+    belowLineFillColorGrowing:'rgba(46,224,111,0.10)',
+    belowLineFillColorFalling:'rgba(255,82,82,0.10)',
+    belowLineFillColorGrowingBottom:'rgba(46,224,111,0)',
+    belowLineFillColorFallingBottom:'rgba(255,82,82,0)',
+    symbolActiveColor:'rgba(255,176,0,0.14)',
+    tabs:TABS
+  };
+  const sc=document.createElement('script');
+  sc.type='text/javascript';
+  sc.async=true;
+  sc.src='https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js';
+  sc.textContent=JSON.stringify(cfg);
+  cont.appendChild(sc);
+  wrap.appendChild(cont);
 }
-function chgCell(c){
-  if(c==null)return '<span class="chg na">—</span>';
-  const cls=c>0?'up':c<0?'dn':'na';
-  return '<span class="chg '+cls+'">'+Math.abs(c).toFixed(2)+'%</span>';
-}
-function render(data){
-  const g=document.getElementById('grid');
-  const s=data.sections||{};
-  let html='';
-  for(const [key,title] of SECTIONS){
-    const rows=s[key]||[];
-    html+='<div class="card"><h2><span class="d"></span>'+title+'</h2>';
-    if(!rows.length){
-      html+='<div class="empty">нет данных</div>';
-    }else{
-      for(const r of rows){
-        html+='<div class="row"><span class="nm">'+r.name+'</span>'
-             +'<span class="val">'+fmtVal(r.val)+'</span>'+chgCell(r.chg)+'</div>';
-      }
-    }
-    html+='</div>';
-  }
-  g.innerHTML=html;
-  const t=data.updated?new Date(data.updated):null;
-  document.getElementById('upd').textContent=t
-    ? 'обновлено '+t.toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'})
-    : '';
-}
-async function load(){
-  try{
-    const r=await fetch('/api/markets',{cache:'no-store'});
-    const d=await r.json();
-    render(d);
-  }catch(e){
-    document.getElementById('grid').innerHTML='<div class="note">Не удалось загрузить котировки. Обнови страницу.</div>';
-  }
-}
-load();
-setInterval(load,60*1000);
+buildWidget();
 </script>
 </body>
 </html>

@@ -552,102 +552,6 @@ async function getQuotes() {
   return qCache.data;
 }
 
-// ── Рынки по разделам для страницы котировок и боковой панели (кэш 90 сек) ──
-// Разбираем ответ ISS по именам колонок — устойчиво к их порядку.
-async function issRows(url) {
-  const raw = await fetchUrl(url);
-  const j = JSON.parse(raw);
-  const md = j.marketdata || {};
-  const cols = md.columns || [];
-  return (md.data || []).map(row => {
-    const o = {};
-    cols.forEach((c, i) => { o[c] = row[i]; });
-    return o;
-  });
-}
-// из строки ISS достаём цену и процент изменения под разными именами колонок
-function pickVal(o) {
-  const v = o.LAST ?? o.CURRENTVALUE ?? o.LASTVALUE ?? o.LCLOSEPRICE ?? o.LASTSETTLEPRICE ?? o.MARKETPRICE;
-  return (v === '' || v == null) ? null : +v;
-}
-function pickChg(o) {
-  const c = o.LASTTOPREVPRICE ?? o.LASTCHANGEPRCTOPREVDAY ?? o.LASTCHANGETOOPENPRC ?? o.CHANGE ?? null;
-  return (c === '' || c == null) ? null : +c;
-}
-async function section(url, wanted) {
-  // wanted: [[SECID, label], ...] — сохраняем порядок и подписи
-  const rows = await issRows(url);
-  const by = {};
-  for (const o of rows) if (o.SECID) by[o.SECID] = o;
-  const out = [];
-  for (const [secid, label] of wanted) {
-    const o = by[secid];
-    if (o) out.push({ name: label, secid, val: pickVal(o), chg: pickChg(o) });
-  }
-  return out;
-}
-
-let mCache = { at: 0, data: null };
-async function getMarkets() {
-  const now = Date.now();
-  if (mCache.data && now - mCache.at < 90 * 1000) return mCache.data;
-
-  const sections = { commodities: [], indices: [], fx: [], stocks: [] };
-
-  // Валюты (валютный рынок, доска CETS)
-  try {
-    sections.fx = await section(
-      'https://iss.moex.com/iss/engines/currency/markets/selt/boards/CETS/securities.json?iss.meta=off&iss.only=marketdata',
-      [['USD000UTSTOM','Доллар / ₽'],['EUR_RUB__TOM','Евро / ₽'],['CNYRUB_TOM','Юань / ₽'],
-       ['EURUSD000TOM','Евро / $'],['GLDRUB_TOM','Золото / ₽ (грамм)']]
-    );
-  } catch (e) { sections.fx = []; }
-
-  // Индексы (доска SNDX)
-  try {
-    sections.indices = await section(
-      'https://iss.moex.com/iss/engines/stock/markets/index/boards/SNDX/securities.json?iss.meta=off&iss.only=marketdata',
-      [['IMOEX','Индекс МосБиржи'],['RTSI','Индекс РТС'],['MOEXBC','Голубые фишки'],
-       ['MOEXOG','Нефть и газ'],['MOEXFN','Финансы'],['MOEXMM','Металлы и добыча']]
-    );
-  } catch (e) { sections.indices = []; }
-
-  // Акции (доска TQBR) — голубые фишки
-  try {
-    sections.stocks = await section(
-      'https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?iss.meta=off&iss.only=marketdata',
-      [['SBER','Сбербанк'],['GAZP','Газпром'],['LKOH','Лукойл'],['GMKN','Норникель'],
-       ['ROSN','Роснефть'],['YDEX','Яндекс'],['TATN','Татнефть'],['VTBR','ВТБ'],
-       ['NVTK','Новатэк'],['MGNT','Магнит'],['MTSS','МТС'],['PLZL','Полюс']]
-    );
-  } catch (e) { sections.stocks = []; }
-
-  // Сырьё — фьючерсы FORTS, берём ближайший контракт по коду актива.
-  try {
-    const rows = await issRows('https://iss.moex.com/iss/engines/futures/markets/forts/securities.json?iss.meta=off&iss.only=marketdata');
-    // marketdata по фьючерсам не содержит ASSETCODE, зато SECID вида BRV6, GDZ5 …
-    const want = [['BR','Нефть Brent'],['GD','Золото'],['SILV','Серебро'],['SV','Серебро'],
-                  ['NG','Природный газ'],['PLT','Платина'],['CU','Медь']];
-    const seen = {};
-    const order = [];
-    for (const o of rows) {
-      const id = o.SECID || '';
-      for (const [pre, label] of want) {
-        // код = префикс + одна буква месяца + цифра года (напр. BRV6)
-        if (id.length >= 3 && id.startsWith(pre) && /^[FGHJKMNQUVXZ]\d$/.test(id.slice(pre.length))) {
-          const key = label;
-          const v = pickVal(o);
-          if (v != null && !seen[key]) { seen[key] = { name: label, secid: id, val: v, chg: pickChg(o) }; order.push(key); }
-        }
-      }
-    }
-    sections.commodities = order.map(k => seen[k]);
-  } catch (e) { sections.commodities = []; }
-
-  mCache = { at: now, data: { updated: new Date().toISOString(), sections } };
-  return mCache.data;
-}
-
 // ── HTTP-сервер ─────────────────────────────────────────────────────────
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
@@ -689,11 +593,6 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=30' });
       return res.end(JSON.stringify(q));
     }
-    if (u.pathname === '/api/markets') {
-      const m = await getMarkets();
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=45' });
-      return res.end(JSON.stringify(m));
-    }
     if (u.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       return res.end(JSON.stringify({ cacheAgeSec: cache.at ? Math.round((Date.now() - cache.at) / 1000) : null, sources: health }, null, 2));
@@ -721,9 +620,3 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => console.log('MKT-TERMINAL on :' + PORT));
 // прогреваем кэш при старте
 getFeed().catch(() => {});
-// разовая диагностика котировок при старте — счётчики по разделам
-getMarkets()
-  .then(m => console.log('MARKETS: сырьё ' + m.sections.commodities.length +
-    ', индексы ' + m.sections.indices.length + ', валюты ' + m.sections.fx.length +
-    ', акции ' + m.sections.stocks.length))
-  .catch(e => console.log('MARKETS ERROR: ' + e.message));

@@ -175,17 +175,7 @@ body.side-on #side{transform:none}
 #side .sh .su{font-size:10.5px;color:var(--dim);font-family:var(--mono);margin-left:auto}
 #side .sx{background:none;border:none;color:var(--dim);font:inherit;font-size:17px;cursor:pointer;padding:0 2px;line-height:1}
 #side .sx:hover{color:var(--amber)}
-#side .sbody{overflow-y:auto;flex:1;padding-bottom:20px}
-.ssec h3{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:700;
-  padding:12px 14px 6px;display:flex;align-items:center;gap:7px}
-.ssec h3 .d{width:6px;height:6px;border-radius:50%;background:var(--amber);flex:none}
-.srow{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:6px 14px}
-.srow:hover{background:rgba(255,176,0,.04)}
-.srow .n{font-size:12px;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.srow .v{font-family:var(--mono);font-size:12px;font-weight:600;text-align:right;min-width:62px}
-.srow .c{font-family:var(--mono);font-size:11px;font-weight:600;text-align:right;min-width:52px}
-.srow .c.up{color:var(--green)} .srow .c.dn{color:var(--red)} .srow .c.na{color:var(--dim);font-weight:400}
-.sempty{padding:6px 14px 10px;color:var(--dim);font-size:11px}
+#side .sbody{overflow-y:auto;flex:1}
 #sideBack{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39;opacity:0;pointer-events:none;transition:opacity .28s}
 body.side-on #sideBack{opacity:1;pointer-events:auto}
 @media(min-width:1000px){
@@ -282,40 +272,49 @@ sndBtn.onclick=()=>{sound=!sound;sndBtn.textContent=sound?'🔊':'🔇';sndBtn.c
 
 const thBtn=document.getElementById('thBtn');
 function thLabel(){thBtn.textContent=document.documentElement.classList.contains('light')?'◕':'◑'}
-thBtn.onclick=()=>{document.documentElement.classList.toggle('light');thLabel();savePrefs()};
+thBtn.onclick=()=>{document.documentElement.classList.toggle('light');thLabel();savePrefs();window.dispatchEvent(new Event('mkt-theme'))};
 thLabel();
 
-// ── боковая панель котировок ──
-const sideEl=document.getElementById('side');
+// ── боковая панель котировок (виджет TradingView) ──
 const sideBody=document.getElementById('sideBody');
-const sideUpd=document.getElementById('sideUpd');
-let sideTimer=null, sideLoaded=false;
-const SIDE_SECS=[['commodities','Сырьё'],['indices','Индексы'],['fx','Валюты'],['stocks','Акции']];
-function sFmt(v){if(v==null)return '\u2014';const dp=Math.abs(v)>=1?2:4;return v.toLocaleString('ru-RU',{minimumFractionDigits:dp,maximumFractionDigits:dp});}
-function sChg(c){if(c==null)return '<span class="c na">\u2014</span>';const cls=c>0?'up':c<0?'dn':'na';const sg=c>0?'+':'';return '<span class="c '+cls+'">'+sg+c.toFixed(2)+'%</span>';}
-function sideRender(d){
-  const sec=d.sections||{};let html='';
-  for(const [k,t] of SIDE_SECS){
-    const rows=sec[k]||[];
-    html+='<div class="ssec"><h3><span class="d"></span>'+t+'</h3>';
-    if(!rows.length)html+='<div class="sempty">нет данных</div>';
-    else for(const r of rows)html+='<div class="srow"><span class="n">'+r.name+'</span><span class="v">'+sFmt(r.val)+'</span>'+sChg(r.chg)+'</div>';
-    html+='</div>';
-  }
-  sideBody.innerHTML=html;
-  const tm=d.updated?new Date(d.updated):null;
-  sideUpd.textContent=tm?tm.toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'}):'';
-}
-async function sideLoad(){
-  try{const r=await fetch('/api/markets',{cache:'no-store'});sideRender(await r.json());sideLoaded=true;}
-  catch(e){if(!sideLoaded)sideBody.innerHTML='<div class="sempty">Не удалось загрузить котировки.</div>';}
+let sideBuilt=false;
+const SIDE_TABS=[
+  {title:"Сырьё",symbols:[{s:"TVC:UKOIL",d:"Brent"},{s:"TVC:GOLD",d:"Золото"},{s:"TVC:SILVER",d:"Серебро"},{s:"NYMEX:NG1!",d:"Газ"}]},
+  {title:"Индексы",symbols:[{s:"SP:SPX",d:"S&P 500"},{s:"NASDAQ:IXIC",d:"Nasdaq"},{s:"MOEX:IMOEX",d:"МосБиржа"},{s:"TVC:DXY",d:"Индекс $"}]},
+  {title:"Валюты",symbols:[{s:"FX_IDC:USDRUB",d:"USD/RUB"},{s:"FX_IDC:EURRUB",d:"EUR/RUB"},{s:"FX_IDC:CNYRUB",d:"CNY/RUB"},{s:"FX:EURUSD",d:"EUR/USD"}]},
+  {title:"Крипта",symbols:[{s:"BINANCE:BTCUSDT",d:"Bitcoin"},{s:"BINANCE:ETHUSDT",d:"Ethereum"},{s:"BINANCE:SOLUSDT",d:"Solana"},{s:"BINANCE:TONUSDT",d:"Toncoin"}]},
+  {title:"Акции",symbols:[{s:"MOEX:SBER",d:"Сбер"},{s:"MOEX:GAZP",d:"Газпром"},{s:"MOEX:LKOH",d:"Лукойл"},{s:"MOEX:GMKN",d:"Норникель"}]},
+];
+function sideBuild(){
+  sideBody.innerHTML='';
+  const cont=document.createElement('div');
+  cont.className='tradingview-widget-container';
+  cont.style.height='100%';
+  const w=document.createElement('div');
+  w.className='tradingview-widget-container__widget';
+  w.style.height='100%';
+  cont.appendChild(w);
+  const cfg={colorTheme:document.documentElement.classList.contains('light')?'light':'dark',
+    dateRange:'1D',locale:'ru',showChart:false,isTransparent:true,showSymbolLogo:true,
+    width:'100%',height:'100%',
+    plotLineColorGrowing:'#2ee06f',plotLineColorFalling:'#ff5252',
+    scaleFontColor:document.documentElement.classList.contains('light')?'#1c2530':'#c9d4e0',
+    symbolActiveColor:'rgba(255,176,0,0.14)',tabs:SIDE_TABS};
+  const sc=document.createElement('script');
+  sc.type='text/javascript';sc.async=true;
+  sc.src='https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js';
+  sc.textContent=JSON.stringify(cfg);
+  cont.appendChild(sc);
+  sideBody.appendChild(cont);
+  sideBuilt=true;
 }
 function sideOpen(on){
   document.body.classList.toggle('side-on',on);
   savePrefs();
-  if(on){sideLoad();if(!sideTimer)sideTimer=setInterval(sideLoad,60*1000);}
-  else{if(sideTimer){clearInterval(sideTimer);sideTimer=null;}}
+  if(on&&!sideBuilt)sideBuild();
 }
+// пересобрать виджет при смене темы, если панель открыта
+window.addEventListener('mkt-theme',()=>{if(document.body.classList.contains('side-on'))sideBuild();});
 document.getElementById('sideBtn').onclick=()=>sideOpen(!document.body.classList.contains('side-on'));
 document.getElementById('sideClose').onclick=()=>sideOpen(false);
 document.getElementById('sideBack').onclick=()=>sideOpen(false);
