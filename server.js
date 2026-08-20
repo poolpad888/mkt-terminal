@@ -606,6 +606,11 @@ const server = http.createServer(async (req, res) => {
         'https://minfin.gov.ru/ru/press-center/',
         'https://minfin.gov.ru/',
         'https://government.ru/rss/dep/69/',
+        'https://api.allorigins.win/raw?url=https%3A%2F%2Fminfin.gov.ru%2Fru%2Fpress-center%2F',
+        'https://api.codetabs.com/v1/proxy?quest=https://minfin.gov.ru/ru/press-center/',
+        'https://corsproxy.io/?https://minfin.gov.ru/ru/press-center/',
+        'https://r.jina.ai/https://minfin.gov.ru/ru/press-center/',
+        'https://www.google.com/search?q=site:minfin.gov.ru',
       ];
       const out = [];
       for (const c of cand) {
