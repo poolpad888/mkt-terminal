@@ -32,10 +32,15 @@ class H(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
         except urllib.error.HTTPError as e:
+            body = b''
+            try:
+                body = e.read()[:600]
+            except Exception:
+                pass
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain; charset=utf-8')
             self.end_headers()
-            self.wfile.write(('UPSTREAM_HTTP_' + str(e.code)).encode())
+            self.wfile.write(('UPSTREAM_HTTP_' + str(e.code) + '\n').encode() + body)
         except Exception as e:
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain; charset=utf-8')
