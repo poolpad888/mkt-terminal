@@ -580,6 +580,33 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify({ items: [], error: e.message }));
       }
     }
+    if (u.pathname === '/api/probe') {
+      const cand = [
+        'https://minfin.gov.ru/ru/rss/',
+        'https://minfin.gov.ru/rss/',
+        'https://minfin.gov.ru/ru/press-center/rss/',
+        'https://minfin.gov.ru/ru/rss/news/',
+        'https://minfin.gov.ru/ru/rss/documents/',
+        'https://minfin.gov.ru/ru/news/rss/',
+        'https://minfin.gov.ru/common/rss/',
+        'https://minfin.gov.ru/ru/document/rss/',
+        'https://minfin.gov.ru/ru/press-center/',
+        'https://minfin.gov.ru/',
+        'https://government.ru/rss/dep/69/',
+      ];
+      const out = [];
+      for (const c of cand) {
+        try {
+          const t = await fetchUrl(c);
+          const isRss = /<item[\s>]/i.test(t);
+          out.push({ u: c, ok: true, len: t.length, items: isRss ? t.split(/<item[\s>]/i).length - 1 : 0 });
+        } catch (e) { out.push({ u: c, ok: false, err: e.message }); }
+      }
+      console.log('PROBE: ' + JSON.stringify(out));
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify(out, null, 1));
+    }
+
     if (u.pathname === '/api/quotes') {
       const q = await getQuotes();
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=30' });
