@@ -430,6 +430,11 @@ async function build() {
       .catch(e => { health[n] = { ok: false, err: e.message }; return []; })),
   ];
   const all = (await Promise.all(jobs)).flat().concat(fastItems);
+  if (process.env.DEMO_REG === '1') {          // тестовая новость регулятора (убрать после проверки)
+    all.push({ id: 'demo-cbr-1', src: 'cbr-demo', srcName: 'ЦБ РФ пресс-релизы',
+      url: 'https://www.cbr.ru/press/pr/', time: new Date().toISOString(), reg: true,
+      text: 'ТЕСТОВАЯ НОВОСТЬ. Банк России принял решение снизить ключевую ставку на 50 б.п., до 16,00% годовых. Совет директоров отмечает замедление инфляции и снижение инфляционных ожиданий.' });
+  }
   const bad = Object.entries(health).filter(([,v]) => !v.ok).map(([k,v]) => k + '(' + v.err + ')');
   console.log('BUILD: items=' + all.length + ' okSources=' + Object.values(health).filter(v=>v.ok).length + '/' + Object.keys(health).length + (bad.length ? ' fail: ' + bad.join(', ') : ''));
 
