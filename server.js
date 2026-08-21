@@ -53,10 +53,19 @@ const TG = [
   ['tinkoff_invest_official', 'Т-Инвестиции'],
   ['economika',           'Экономика'],
   ['russianeconomism',    'Русский экономизм'],
+  ['expert_ra',           'Эксперт РА'],
+  ['fm_invest',           'Frank Инвестиции'],
+  ['dprunews',            'Деловой Петербург'],
+  ['businessgazeta',      'БИЗНЕС Online'],
+  ['realnoevremya',       'Реальное время'],
+  ['ksonline',            'Континент Сибирь'],
+  ['expertsouth',         'Эксперт Юг'],
+  ['dk_ru_news',          'Деловой квартал'],
 ];
 const RSS = [
   ['https://www.finam.ru/analysis/conews/rsspoint/', 'Финам'],
   ['https://www.moex.com/export/news.aspx?cat=100', 'Мосбиржа'],
+  ['https://abireg.ru/rss/rss4.xml', 'Абирег'],
 ];
 // Регулятор: опрашиваем отдельно и часто — решения по ставке выходят здесь
 // раньше, чем в каналах. Помечаются как reg, показываются особой плашкой.
