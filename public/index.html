@@ -214,14 +214,30 @@ html.light .qrow:hover{background:rgba(20,30,45,.05)}
 .qc.up{color:var(--green)}.qc.dn{color:var(--red)}.qc.z{color:var(--dim)}
 #sideBack{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:39;opacity:0;pointer-events:none;transition:opacity .28s}
 body.side-on #sideBack{opacity:1;pointer-events:auto}
-@media(min-width:1000px){
-  body.side-on{padding-right:296px}
+/* панель раздвигает контент везде, где хватает ширины — включая вертикальный планшет */
+@media(min-width:720px){
+  body.side-on{padding-right:var(--sw,296px)}
   #sideBack{display:none}
 }
-@media(max-width:999px){
+/* узкая ширина: панель поверх, с затемнением */
+@media(max-width:719px){
   #side{width:min(296px,86vw);
     -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
     background:color-mix(in srgb,var(--panel) 96%,transparent)}
+}
+#side{width:var(--sw,296px)}
+/* высокий экран: строки просторнее, лента заполняет высоту */
+@media(min-height:900px){
+  .qrow{padding:3.5px 14px}
+  .qg-t{padding:9px 14px 3px}
+  .qn,.qp{font-size:12.5px}
+  .qc{font-size:10.5px}
+}
+@media(min-height:1150px){
+  .qrow{padding:5.5px 14px}
+  .qg-t{padding:13px 14px 4px;font-size:9.5px}
+  .qn,.qp{font-size:13.5px}
+  .qc{font-size:11px}
 }
 </style>
 </head>
@@ -328,6 +344,11 @@ function sideAlign(){
   document.documentElement.style.setProperty('--hh',h.getBoundingClientRect().height+'px');
   const nv=document.getElementById('nav');
   if(nv)document.documentElement.style.setProperty('--navh2',nv.getBoundingClientRect().height+'px');
+  // ширина панели: доля экрана, но в разумных пределах
+  const w=window.innerWidth;
+  let sw=296;
+  if(w>=720) sw=Math.max(280,Math.min(360,Math.round(w*0.30)));
+  document.documentElement.style.setProperty('--sw',sw+'px');
 }
 window.addEventListener('resize',sideAlign);
 sideAlign();
