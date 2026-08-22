@@ -599,21 +599,26 @@ const R = (n, p, c) => ({ n, p: pFmt(p), c: (c == null || !isFinite(c)) ? null :
 
 async function buildPanel() {
   const G = {
-    'Сырьё':   [null, null, null, null],
-    'Индексы': [null, null, null, null],
-    'Валюты':  [null, null, null, null],
-    'Крипта':  [null, null, null, null],
-    'Акции':   [null, null, null, null],
+    'Сырьё':   new Array(8).fill(null),
+    'Индексы': new Array(8).fill(null),
+    'Валюты':  new Array(6).fill(null),
+    'Крипта':  new Array(4).fill(null),
+    'Акции':   new Array(8).fill(null),
   };
   const jobs = [];
 
   // мировые площадки — Yahoo, каждый символ отдельно
   const Y = [
-    ['BZ=F', 'Нефть Brent', 'Сырьё', 0], ['GC=F', 'Золото', 'Сырьё', 1],
-    ['SI=F', 'Серебро', 'Сырьё', 2], ['NG=F', 'Газ (США)', 'Сырьё', 3],
+    ['BZ=F', 'Нефть Brent', 'Сырьё', 0], ['CL=F', 'Нефть WTI', 'Сырьё', 1],
+    ['GC=F', 'Золото', 'Сырьё', 2], ['SI=F', 'Серебро', 'Сырьё', 3],
+    ['PL=F', 'Платина', 'Сырьё', 4], ['PA=F', 'Палладий', 'Сырьё', 5],
+    ['NG=F', 'Газ (США)', 'Сырьё', 6], ['HG=F', 'Медь', 'Сырьё', 7],
     ['^GSPC', 'S&P 500', 'Индексы', 0], ['^IXIC', 'Nasdaq', 'Индексы', 1],
-    ['DX-Y.NYB', 'Индекс доллара', 'Индексы', 3],
-    ['EURUSD=X', 'EUR/USD', 'Валюты', 3],
+    ['^DJI', 'Dow Jones', 'Индексы', 2], ['^GDAXI', 'DAX', 'Индексы', 3],
+    ['^N225', 'Nikkei 225', 'Индексы', 4],
+    ['DX-Y.NYB', 'Индекс доллара', 'Индексы', 7],
+    ['EURUSD=X', 'EUR/USD', 'Валюты', 3], ['GBPUSD=X', 'GBP/USD', 'Валюты', 4],
+    ['JPY=X', 'USD/JPY', 'Валюты', 5],
   ];
   for (const [sym, name, g, i] of Y)
     jobs.push(yQuote(sym).then(q => { G[g][i] = R(name, q.p, q.c); }));
@@ -622,8 +627,10 @@ async function buildPanel() {
   jobs.push(fetchUrl('https://iss.moex.com/iss/engines/stock/markets/index/boards/SNDX/securities.json?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,CURRENTVALUE,LASTCHANGEPRC')
     .then(raw => {
       const j = JSON.parse(raw);
-      for (const [secid, val, chg] of (j.marketdata && j.marketdata.data) || [])
-        if (secid === 'IMOEX') G['Индексы'][2] = R('МосБиржа', val, chg);
+      for (const [secid, val, chg] of (j.marketdata && j.marketdata.data) || []) {
+        if (secid === 'IMOEX') G['Индексы'][5] = R('МосБиржа', val, chg);
+        if (secid === 'RTSI')  G['Индексы'][6] = R('РТС', val, chg);
+      }
     }));
 
   // официальные курсы ЦБ (зеркало в JSON, есть вчерашнее значение)
@@ -657,7 +664,8 @@ async function buildPanel() {
       const x = q.quotes && q.quotes[sec];
       if (x && x.last != null) G['Акции'][i] = R(name, x.last, x.chg);
     };
-    st('SBER', 'Сбер', 0); st('GAZP', 'Газпром', 1); st('LKOH', 'Лукойл', 2); st('GMKN', 'Норникель', 3);
+    st('SBER', 'Сбер', 0); st('GAZP', 'Газпром', 1); st('LKOH', 'Лукойл', 2); st('ROSN', 'Роснефть', 3);
+    st('GMKN', 'Норникель', 4); st('VTBR', 'ВТБ', 5); st('TATN', 'Татнефть', 6); st('YDEX', 'Яндекс', 7);
   }));
 
   await Promise.allSettled(jobs);
