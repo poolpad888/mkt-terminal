@@ -658,7 +658,7 @@ async function buildPanel() {
   }));
 
   // крипта — CoinGecko
-  jobs.push(fetchUrl('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,the-open-network&vs_currencies=usd&include_24hr_change=true')
+  jobs.push(fetchUrl('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,ripple&vs_currencies=usd&include_24hr_change=true')
     .then(raw => {
       const j = JSON.parse(raw);
       const coin = (id, name, i) => {
@@ -666,7 +666,7 @@ async function buildPanel() {
         if (x && x.usd != null) G['Крипта'][i] = R(name, x.usd, x.usd_24h_change);
       };
       coin('bitcoin', 'Bitcoin', 0); coin('ethereum', 'Ethereum', 1);
-      coin('solana', 'Solana', 2); coin('the-open-network', 'Toncoin', 3);
+      coin('solana', 'Solana', 2); coin('ripple', 'XRP', 3);
     }));
 
   // российские акции — уже собранный /api/quotes
