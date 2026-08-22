@@ -74,7 +74,11 @@ button#sideBtn svg{width:13px;height:11px;display:block;fill:currentColor}
 button#sideBtn:focus{outline:none}
 body.side-on button#sideBtn{color:var(--amber);border-color:var(--amber)}
 a.hbtn{display:inline-block}
-#clock{color:var(--dim);font-size:12px;min-width:66px;text-align:right;font-family:var(--mono)}
+#clock{color:var(--dim);font-size:12px;min-width:66px;text-align:right;font-family:var(--mono);flex:none}
+/* поиск отдаёт место первым, время и кнопки не сжимаются */
+#q{flex:1 1 auto;min-width:70px}
+header .hbtn,header .logo,header .live,header #clock{flex:none}
+header{flex-wrap:nowrap}
 
 /* ── фильтры ── */
 nav{position:sticky;top:var(--hh,41px);z-index:19;background:var(--bg);border-bottom:1px solid var(--line);
@@ -178,9 +182,10 @@ footer{color:var(--dim);font-size:10.5px;line-height:1.6;text-align:center;paddi
   border-left:1px solid var(--line);
   box-shadow:-14px 0 40px rgba(0,0,0,.35), inset 1px 0 0 rgba(255,255,255,.05);
   transform:translateX(100%);transition:transform .3s cubic-bezier(.3,.9,.3,1);
+  will-change:transform;backface-visibility:hidden;contain:layout paint;
   display:flex;flex-direction:column;overflow:hidden}
 html.light #side{box-shadow:-14px 0 40px rgba(30,45,70,.12), inset 1px 0 0 rgba(255,255,255,.6)}
-body.side-on #side{transform:none}
+body.side-on #side{transform:translateX(0)}
 #side .sh{display:flex;align-items:center;gap:8px;padding:0 14px;flex:none;
   height:var(--hh,41px);box-sizing:border-box;background:var(--panel);
   border-bottom:1px solid var(--line)}
@@ -192,7 +197,7 @@ body.side-on #side{transform:none}
   flex:1;padding:2px 0 4px;scrollbar-width:thin}
 #side{overscroll-behavior:contain;touch-action:pan-y}
 #side .sempty{color:var(--dim);font-size:11.5px;text-align:center;padding:24px 12px}
-.smood{flex:none;box-sizing:border-box;height:var(--navh2,35px);
+.smood{flex:none;box-sizing:border-box;height:var(--navh2,35px);min-height:35px;
   display:flex;flex-direction:column;justify-content:center;
   padding:0 14px;border-bottom:1px solid var(--line)}
 .mbar{display:flex;height:4px;border-radius:3px;overflow:hidden;background:var(--line)}
@@ -218,6 +223,14 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
 @media(min-width:720px){
   body.side-on{padding-right:var(--sw,296px)}
   #sideBack{display:none}
+}
+/* панель открыта на нешироком экране — поиск компактнее, LIVE прячем */
+@media(max-width:1100px){
+  body.side-on header .live{display:none}
+  body.side-on #q{max-width:150px}
+}
+@media(max-width:860px){
+  body.side-on #q{max-width:110px}
 }
 /* узкая ширина: панель поверх, с затемнением */
 @media(max-width:719px){
@@ -354,7 +367,9 @@ window.addEventListener('resize',sideAlign);
 sideAlign();
 // шрифты меняют высоту шапки — пересчитать после их загрузки
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(sideAlign);
-new ResizeObserver(sideAlign).observe(document.querySelector('header'));
+const _ro=new ResizeObserver(sideAlign);
+_ro.observe(document.querySelector('header'));
+{const _nv=document.getElementById('nav'); if(_nv)_ro.observe(_nv);}
 // полоска настроения: доля растущих и падающих инструментов панели
 function moodRender(d){
   const box=document.getElementById('smood');
@@ -513,6 +528,7 @@ function rowHTML(x,fresh){
 }
 function renderAll(){
   renderNav();
+  sideAlign();
   const feed=document.getElementById('feed');
   let vis;
   if(searchQ){
