@@ -58,7 +58,7 @@ header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1p
 .dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:bl 1.6s infinite}
 @keyframes bl{0%,100%{opacity:1}50%{opacity:.25}}
 .sp{flex:1}
-#q{background:var(--bg);border:1px solid var(--line);color:var(--tx);font:inherit;font-size:12.5px;
+#q{background:var(--bg);border:1px solid var(--line);color:var(--tx);font:inherit;font-size:12.5px;transition:width .18s ease;
   padding:4px 10px;border-radius:4px;width:200px;max-width:38vw;outline:none}
 #q:focus{border-color:var(--amber)}
 #q::placeholder{color:var(--dim)}
@@ -76,7 +76,10 @@ body.side-on button#sideBtn{color:var(--amber);border-color:var(--amber)}
 a.hbtn{display:inline-block}
 #clock{color:var(--dim);font-size:12px;min-width:66px;text-align:right;font-family:var(--mono);flex:none}
 /* поиск отдаёт место первым, время и кнопки не сжимаются */
-#q{flex:1 1 auto;min-width:70px}
+#q{flex:0 1 auto;width:150px;min-width:60px;text-align:right}
+#q::placeholder{text-align:right}
+#q:focus{width:220px;text-align:left}
+#q:focus::placeholder{text-align:left}
 header .hbtn,header .logo,header .live,header #clock{flex:none}
 header{flex-wrap:nowrap}
 
@@ -166,7 +169,8 @@ body.compact .row.lvl2{padding:6px 10px 6px 0;margin:4px 10px}
   body{font-size:12px}
   header{padding:8px 10px;gap:7px;flex-wrap:wrap}
   .live{display:none}
-  #q{width:130px;max-width:34vw;font-size:12px}
+  #q{width:104px;max-width:34vw;font-size:12px}
+  #q:focus{width:150px}
   nav{padding:6px 10px;top:38px}
   .row{grid-template-columns:42px 1fr;gap:0 9px;padding:10px 10px}
   .row.lvl2{grid-template-columns:20px 42px 1fr;margin:6px 6px;padding:10px 10px 10px 0}
@@ -189,7 +193,7 @@ body.side-on #side{transform:translateX(0)}
 #side .sh{display:flex;align-items:center;gap:8px;padding:0 14px;flex:none;
   height:var(--hh,41px);box-sizing:border-box;background:var(--panel);
   border-bottom:1px solid var(--line)}
-#side .sh b{font-size:12px;letter-spacing:.08em;color:var(--tx);flex:1}
+#side .sh b{font-size:12px;letter-spacing:.09em;color:var(--tx);flex:1;font-weight:400}
 #side .sh .su{font-size:10px;color:var(--dim);font-family:var(--mono);margin-left:auto}
 #side .sx{background:none;border:none;color:var(--dim);font:inherit;font-size:17px;cursor:pointer;padding:0 2px;line-height:1}
 #side .sx:hover{color:var(--amber)}
@@ -227,10 +231,11 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
 /* панель открыта на нешироком экране — поиск компактнее, LIVE прячем */
 @media(max-width:1100px){
   body.side-on header .live{display:none}
-  body.side-on #q{max-width:150px}
+  body.side-on #q{width:120px}
 }
 @media(max-width:860px){
-  body.side-on #q{max-width:110px}
+  body.side-on #q{width:96px}
+  body.side-on #q:focus{width:150px}
 }
 /* узкая ширина: панель поверх, с затемнением */
 @media(max-width:719px){
@@ -264,7 +269,7 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
   <span class="logo">FINFACTS</span>
   <span class="live"><span class="dot"></span>LIVE</span>
   <span class="sp"></span>
-  <input id="q" type="search" placeholder="поиск по новостям…" autocomplete="off">
+  <input id="q" type="search" placeholder="поиск" autocomplete="off" size="1">
   <button class="hbtn" id="sndBtn" title="звук важных новостей">🔇</button>
   <!-- <a class="hbtn" href="/quotes">котировки</a> --><!-- страница котировок скрыта; вернуть при необходимости -->
   <a class="hbtn" href="/map">карта</a>
