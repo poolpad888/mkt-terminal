@@ -578,17 +578,6 @@ async function getQuotes() {
 // Кэш 90 сек; каждый источник падает независимо — панель показывает то, что пришло.
 let pCache = { at: 0, data: null, busy: null };
 
-function yUrl(sym) {
-  return 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(sym) + '?range=1d&interval=30m';
-}
-async function yQuote(sym) {
-  const j = JSON.parse(await fetchUrl(yUrl(sym)));
-  const m = j.chart && j.chart.result && j.chart.result[0] && j.chart.result[0].meta;
-  if (!m || m.regularMarketPrice == null) throw new Error('нет цены');
-  const p = m.regularMarketPrice;
-  const pc = m.chartPreviousClose || m.previousClose;
-  return { p, c: (pc && isFinite(pc)) ? (p - pc) / pc * 100 : null };
-}
 function pFmt(v) {
   if (v == null || !isFinite(v)) return '—';
   const a = Math.abs(v);
@@ -599,37 +588,59 @@ const R = (n, p, c) => ({ n, p: pFmt(p), c: (c == null || !isFinite(c)) ? null :
 
 async function buildPanel() {
   const G = {
-    'Сырьё':   new Array(8).fill(null),
-    'Индексы': new Array(8).fill(null),
-    'Валюты':  new Array(6).fill(null),
+    'Сырьё':   new Array(6).fill(null),
+    'Индексы': new Array(4).fill(null),
+    'Валюты':  new Array(4).fill(null),
     'Крипта':  new Array(4).fill(null),
     'Акции':   new Array(8).fill(null),
   };
   const jobs = [];
 
-  // мировые площадки — Yahoo, каждый символ отдельно
-  const Y = [
-    ['BZ=F', 'Нефть Brent', 'Сырьё', 0], ['CL=F', 'Нефть WTI', 'Сырьё', 1],
-    ['GC=F', 'Золото', 'Сырьё', 2], ['SI=F', 'Серебро', 'Сырьё', 3],
-    ['PL=F', 'Платина', 'Сырьё', 4], ['PA=F', 'Палладий', 'Сырьё', 5],
-    ['NG=F', 'Газ (США)', 'Сырьё', 6], ['HG=F', 'Медь', 'Сырьё', 7],
-    ['^GSPC', 'S&P 500', 'Индексы', 0], ['^IXIC', 'Nasdaq', 'Индексы', 1],
-    ['^DJI', 'Dow Jones', 'Индексы', 2], ['^GDAXI', 'DAX', 'Индексы', 3],
-    ['^N225', 'Nikkei 225', 'Индексы', 4],
-    ['DX-Y.NYB', 'Индекс доллара', 'Индексы', 7],
-    ['EURUSD=X', 'EUR/USD', 'Валюты', 3], ['GBPUSD=X', 'GBP/USD', 'Валюты', 4],
-    ['JPY=X', 'USD/JPY', 'Валюты', 5],
-  ];
-  for (const [sym, name, g, i] of Y)
-    jobs.push(yQuote(sym).then(q => { G[g][i] = R(name, q.p, q.c); }));
+  // мировые рынки — фьючерсы срочной секции Мосбиржи (Brent, газ, металлы,
+  // S&P 500, Nasdaq, EUR/USD): по каждому базовому активу берём самый
+  // торгуемый контракт
+  const WANT = {
+    BR:   ['Нефть Brent',    'Сырьё',   0],
+    NG:   ['Газ (США)',      'Сырьё',   1],
+    GOLD: ['Золото',         'Сырьё',   2],
+    SILV: ['Серебро',        'Сырьё',   3],
+    PLT:  ['Платина',        'Сырьё',   4],
+    PLD:  ['Палладий',       'Сырьё',   5],
+    SPYF: ['S&P 500 · ф.',   'Индексы', 0],
+    NASD: ['Nasdaq · ф.',    'Индексы', 1],
+    ED:   ['EUR/USD · ф.',   'Валюты',  3],
+  };
+  jobs.push(fetchUrl('https://iss.moex.com/iss/engines/futures/markets/forts/securities.json?iss.meta=off&iss.only=securities,marketdata&securities.columns=SECID,ASSETCODE&marketdata.columns=SECID,LAST,LASTTOPREVPRICE,VALTODAY')
+    .then(raw => {
+      const j = JSON.parse(raw);
+      const sc = Object.fromEntries(j.securities.columns.map((c, i) => [c, i]));
+      const mc = Object.fromEntries(j.marketdata.columns.map((c, i) => [c, i]));
+      const mdBy = {};
+      for (const r of j.marketdata.data) mdBy[r[mc.SECID]] = r;
+      const best = {};
+      for (const r of j.securities.data) {
+        const code = String(r[sc.ASSETCODE] || '').toUpperCase();
+        if (!WANT[code]) continue;
+        const m = mdBy[r[sc.SECID]];
+        if (!m || m[mc.LAST] == null || !m[mc.LAST]) continue;
+        const vol = m[mc.VALTODAY] || 0;
+        if (!best[code] || vol > best[code].vol)
+          best[code] = { vol, last: m[mc.LAST], chg: m[mc.LASTTOPREVPRICE] };
+      }
+      for (const code in best) {
+        const [name, g, i] = WANT[code];
+        G[g][i] = R(name, best[code].last, best[code].chg);
+      }
+    }));
 
-  // индекс Мосбиржи
-  jobs.push(fetchUrl('https://iss.moex.com/iss/engines/stock/markets/index/boards/SNDX/securities.json?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,CURRENTVALUE,LASTCHANGEPRC')
+  // индексы Мосбиржи — по всем площадкам секции, чтобы поймать и РТС
+  jobs.push(fetchUrl('https://iss.moex.com/iss/engines/stock/markets/index/securities.json?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,CURRENTVALUE,LASTCHANGEPRC')
     .then(raw => {
       const j = JSON.parse(raw);
       for (const [secid, val, chg] of (j.marketdata && j.marketdata.data) || []) {
-        if (secid === 'IMOEX') G['Индексы'][5] = R('МосБиржа', val, chg);
-        if (secid === 'RTSI')  G['Индексы'][6] = R('РТС', val, chg);
+        if (val == null) continue;
+        if (secid === 'IMOEX' && !G['Индексы'][2]) G['Индексы'][2] = R('МосБиржа', val, chg);
+        if (secid === 'RTSI'  && !G['Индексы'][3]) G['Индексы'][3] = R('РТС', val, chg);
       }
     }));
 
