@@ -188,8 +188,17 @@ body.side-on #side{transform:none}
 #side .sh .su{font-size:10px;color:var(--dim);font-family:var(--mono);margin-left:auto}
 #side .sx{background:none;border:none;color:var(--dim);font:inherit;font-size:17px;cursor:pointer;padding:0 2px;line-height:1}
 #side .sx:hover{color:var(--amber)}
-#side .sbody{overflow-y:auto;flex:1;padding:var(--navh,34px) 0 4px;scrollbar-width:thin}
+#side .sbody{overflow-y:auto;flex:1;padding:2px 0 4px;scrollbar-width:thin}
 #side .sempty{color:var(--dim);font-size:11.5px;text-align:center;padding:24px 12px}
+.smood{flex:none;padding:9px 14px 7px;border-bottom:1px solid var(--line)}
+.mbar{display:flex;height:4px;border-radius:3px;overflow:hidden;background:var(--line)}
+.mbar i{display:block;height:100%;transition:width .5s ease}
+.mbar i.up{background:var(--green)}
+.mbar i.dn{background:var(--red)}
+.mlab{display:flex;align-items:baseline;margin-top:5px;font-family:var(--mono);font-size:9px;letter-spacing:.1em}
+.mlab #mUpN{color:var(--green)}
+.mlab #mDnN{color:var(--red);margin-left:auto}
+.mlab #mMid{color:var(--dim);text-transform:uppercase;margin:0 auto;letter-spacing:.14em}
 .qg{padding:1px 0 0}
 .qg-t{font-size:9px;letter-spacing:.14em;color:var(--dim);padding:5px 14px 1px;text-transform:uppercase}
 .qrow{display:flex;align-items:baseline;gap:7px;padding:1.5px 14px}
@@ -236,6 +245,10 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
 <aside id="side">
   <div class="sh"><b>Котировки</b><span class="su" id="sideUpd" hidden></span>
     <button class="sx" id="sideClose" title="закрыть">×</button></div>
+  <div class="smood" id="smood" hidden>
+    <div class="mbar"><i class="up" id="mUp"></i><i class="dn" id="mDn"></i></div>
+    <div class="mlab"><span id="mUpN"></span><span id="mMid">настроение рынка</span><span id="mDnN"></span></div>
+  </div>
   <div class="sbody" id="sideBody"><div class="sempty">Загружаю…</div></div>
 </aside>
 <footer>FINFACTS · агрегатор открытых источников · под каждой новостью — ссылка на первоисточник<br>Приводятся заголовки и короткие фрагменты публикаций; права на материалы принадлежат их авторам и изданиям.<br>Не является инвестиционной рекомендацией и индивидуальной инвестиционной рекомендацией. Сервис не оказывает услуг инвестиционного консультирования. Ответственность за содержание несут первоисточники. 18+</footer>
@@ -317,10 +330,31 @@ sideAlign();
 // шрифты меняют высоту шапки — пересчитать после их загрузки
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(sideAlign);
 new ResizeObserver(sideAlign).observe(document.querySelector('header'));
+// полоска настроения: доля растущих и падающих инструментов панели
+function moodRender(d){
+  const box=document.getElementById('smood');
+  let up=0,dn=0;
+  for(const g of d.groups||[])for(const r of g.rows){
+    if(r.c==null)continue;
+    if(r.c>0.004)up++;else if(r.c<-0.004)dn++;
+  }
+  const tot=up+dn;
+  if(!tot){box.hidden=true;return;}
+  box.hidden=false;
+  document.getElementById('mUp').style.width=(up/tot*100)+'%';
+  document.getElementById('mDn').style.width=(dn/tot*100)+'%';
+  document.getElementById('mUpN').textContent='▲ '+up;
+  document.getElementById('mDnN').textContent=dn+' ▼';
+  const sh=up/tot;
+  document.getElementById('mMid').textContent=
+    sh>=.7?'рост по широкому фронту':sh>=.55?'преобладает рост':
+    sh>=.45?'рынок смешанный':sh>=.3?'преобладает снижение':'снижение по широкому фронту';
+}
 function sideRender(d){
   if(!d.groups||!d.groups.length){
     sideBody.innerHTML='<div class="sempty">Котировки временно недоступны</div>';return;
   }
+  moodRender(d);
   let h='';
   for(const g of d.groups){
     h+='<div class="qg"><div class="qg-t">'+g.name+'</div>';

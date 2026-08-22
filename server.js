@@ -589,7 +589,7 @@ const R = (n, p, c) => ({ n, p: pFmt(p), c: (c == null || !isFinite(c)) ? null :
 async function buildPanel() {
   const G = {
     'Сырьё':   new Array(6).fill(null),
-    'Индексы': new Array(4).fill(null),
+    'Индексы': new Array(5).fill(null),
     'Валюты':  new Array(4).fill(null),
     'Крипта':  new Array(4).fill(null),
     'Акции':   new Array(8).fill(null),
@@ -641,6 +641,7 @@ async function buildPanel() {
         if (val == null) continue;
         if (secid === 'IMOEX' && !G['Индексы'][2]) G['Индексы'][2] = R('МосБиржа', val, chg);
         if (secid === 'RTSI'  && !G['Индексы'][3]) G['Индексы'][3] = R('РТС', val, chg);
+        if (secid === 'RGBI'  && !G['Индексы'][4]) G['Индексы'][4] = R('ОФЗ · RGBI', val, chg);
       }
     }));
 
