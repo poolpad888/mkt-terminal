@@ -165,28 +165,47 @@ body.compact .row.lvl2{padding:6px 10px 6px 0;margin:4px 10px}
 footer{color:var(--dim);font-size:10.5px;line-height:1.6;text-align:center;padding:18px 14px 26px;border-top:1px solid var(--line);max-width:820px;margin:0 auto}
 /* ── боковая панель котировок ── */
 #sideBtn{font-size:15px;line-height:1;padding:3px 8px}
-#side{position:fixed;top:0;right:0;width:320px;height:100vh;z-index:40;
-  background:var(--panel);border-left:1px solid var(--line);
-  transform:translateX(100%);transition:transform .28s ease;
+#side{position:fixed;top:10px;right:10px;bottom:10px;width:300px;z-index:40;
+  border-radius:18px;
+  background:linear-gradient(160deg,rgba(30,39,52,.62),rgba(13,17,23,.55));
+  -webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);
+  border:1px solid rgba(255,255,255,.09);
+  box-shadow:0 18px 48px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.10);
+  transform:translateX(calc(100% + 14px));transition:transform .3s cubic-bezier(.3,.9,.3,1);
   display:flex;flex-direction:column;overflow:hidden}
+html.light #side{background:linear-gradient(160deg,rgba(255,255,255,.66),rgba(244,247,250,.55));
+  border-color:rgba(20,30,45,.10);
+  box-shadow:0 18px 48px rgba(30,45,70,.18), inset 0 1px 0 rgba(255,255,255,.65)}
 body.side-on #side{transform:none}
-#side .sh{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--line);flex:none}
-#side .sh b{font-size:12px;letter-spacing:.06em;color:var(--tx)}
-#side .sh .su{font-size:10.5px;color:var(--dim);font-family:var(--mono);margin-left:auto}
+#side .sh{display:flex;align-items:center;gap:8px;padding:0 16px;flex:none;
+  border-bottom:1px solid rgba(255,255,255,.07)}
+html.light #side .sh{border-bottom-color:rgba(20,30,45,.08)}
+#side .sh b{font-size:12px;letter-spacing:.08em;color:var(--tx)}
+#side .sh .su{font-size:10px;color:var(--dim);font-family:var(--mono);margin-left:auto}
 #side .sx{background:none;border:none;color:var(--dim);font:inherit;font-size:17px;cursor:pointer;padding:0 2px;line-height:1}
 #side .sx:hover{color:var(--amber)}
-#side .sbody{overflow-y:auto;flex:1}
-#side .tradingview-widget-copyright{font-size:10px;padding:5px 12px;text-align:right}
-#side .tradingview-widget-copyright a,#side .tradingview-widget-copyright .blue-text{color:var(--dim);text-decoration:none}
-#side .tradingview-widget-copyright a:hover .blue-text{color:var(--blue)}
-#sideBack{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39;opacity:0;pointer-events:none;transition:opacity .28s}
+#side .sbody{overflow-y:auto;flex:1;padding:4px 0 8px;scrollbar-width:thin}
+#side .sempty{color:var(--dim);font-size:11.5px;text-align:center;padding:24px 12px}
+.qg{padding:5px 0 2px}
+.qg-t{font-size:9.5px;letter-spacing:.14em;color:var(--dim);padding:5px 16px 3px;text-transform:uppercase}
+.qrow{display:flex;align-items:baseline;gap:7px;padding:3.5px 16px;border-radius:8px}
+.qrow:hover{background:rgba(255,255,255,.05)}
+html.light .qrow:hover{background:rgba(20,30,45,.05)}
+.qn{font-size:12px;color:var(--tx);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qp{font-family:var(--mono);font-size:12px;color:var(--tx)}
+.qc{font-family:var(--mono);font-size:10px;min-width:58px;text-align:right;white-space:nowrap}
+.qc.up{color:var(--green)}.qc.dn{color:var(--red)}.qc.z{color:var(--dim)}
+#sideBack{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:39;opacity:0;pointer-events:none;transition:opacity .28s}
 body.side-on #sideBack{opacity:1;pointer-events:auto}
 @media(min-width:1000px){
-  body.side-on{padding-right:320px}
+  body.side-on{padding-right:322px}
   #sideBack{display:none}
 }
 @media(max-width:999px){
-  #side{width:min(320px,86vw)}
+  #side{width:min(300px,86vw);top:6px;right:6px;bottom:6px;
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+    background:linear-gradient(160deg,rgba(24,31,42,.94),rgba(13,17,23,.92))}
+  html.light #side{background:linear-gradient(160deg,rgba(255,255,255,.97),rgba(244,247,250,.95))}
 }
 </style>
 </head>
@@ -278,57 +297,56 @@ function thLabel(){thBtn.textContent=document.documentElement.classList.contains
 thBtn.onclick=()=>{document.documentElement.classList.toggle('light');thLabel();savePrefs();window.dispatchEvent(new Event('mkt-theme'))};
 thLabel();
 
-// ── боковая панель котировок (виджет TradingView) ──
+// ── боковая панель котировок: свои данные с /api/panel, стеклянная ──
 const sideBody=document.getElementById('sideBody');
-let sideBuilt=false;
-const SIDE_GROUPS=[
-  {name:"Сырьё",symbols:[
-    {name:"TVC:UKOIL",displayName:"Нефть Brent"},{name:"TVC:GOLD",displayName:"Золото"},
-    {name:"TVC:SILVER",displayName:"Серебро"},{name:"NYMEX:NG1!",displayName:"Газ"}]},
-  {name:"Индексы",symbols:[
-    {name:"SP:SPX",displayName:"S&P 500"},{name:"NASDAQ:IXIC",displayName:"Nasdaq"},
-    {name:"MOEX:IMOEX",displayName:"МосБиржа"},{name:"TVC:DXY",displayName:"Индекс $"}]},
-  {name:"Валюты",symbols:[
-    {name:"FX_IDC:USDRUB",displayName:"USD/RUB"},{name:"FX_IDC:EURRUB",displayName:"EUR/RUB"},
-    {name:"FX_IDC:CNYRUB",displayName:"CNY/RUB"},{name:"FX:EURUSD",displayName:"EUR/USD"}]},
-  {name:"Крипта",symbols:[
-    {name:"BINANCE:BTCUSDT",displayName:"Bitcoin"},{name:"BINANCE:ETHUSDT",displayName:"Ethereum"},
-    {name:"BINANCE:SOLUSDT",displayName:"Solana"},{name:"BINANCE:TONUSDT",displayName:"Toncoin"}]},
-  {name:"Акции",symbols:[
-    {name:"MOEX:SBER",displayName:"Сбер"},{name:"MOEX:GAZP",displayName:"Газпром"},
-    {name:"MOEX:LKOH",displayName:"Лукойл"},{name:"MOEX:GMKN",displayName:"Норникель"}]},
-];
-function sideBuild(){
-  sideBody.innerHTML='';
-  const cont=document.createElement('div');
-  cont.className='tradingview-widget-container';
-  cont.style.height='100%';
-  const w=document.createElement('div');
-  w.className='tradingview-widget-container__widget';
-  w.style.height='100%';
-  cont.appendChild(w);
-  const cp=document.createElement('div');
-  cp.innerHTML='<div class="tradingview-widget-copyright"><a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank"><span class="blue-text">Отслеживайте рынки на TradingView</span></a></div>';
-  cont.appendChild(cp.firstChild);
-  const cfg={colorTheme:document.documentElement.classList.contains('light')?'light':'dark',
-    locale:'ru',isTransparent:true,showSymbolLogo:false,
-    width:'100%',height:'100%',
-    symbolsGroups:SIDE_GROUPS};
-  const sc=document.createElement('script');
-  sc.type='text/javascript';sc.async=true;
-  sc.src='https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js';
-  sc.textContent=JSON.stringify(cfg);
-  cont.appendChild(sc);
-  sideBody.appendChild(cont);
-  sideBuilt=true;
+const sideUpd=document.getElementById('sideUpd');
+let sideTimer=null;
+// высота шапки панели = высоте шапки сайта
+function sideAlign(){
+  const h=document.querySelector('header');
+  const sh=document.querySelector('#side .sh');
+  if(h&&sh)sh.style.height=h.offsetHeight+'px';
+}
+window.addEventListener('resize',sideAlign);
+function sideRender(d){
+  if(!d.groups||!d.groups.length){
+    sideBody.innerHTML='<div class="sempty">Котировки временно недоступны</div>';return;
+  }
+  let h='';
+  for(const g of d.groups){
+    h+='<div class="qg"><div class="qg-t">'+g.name+'</div>';
+    for(const r of g.rows){
+      const c=r.c;
+      const cls=c==null?'z':c>0.004?'up':c<-0.004?'dn':'z';
+      const arrow=c==null?'':c>0.004?'▲ ':c<-0.004?'▼ ':'';
+      const ct=c==null?'—':arrow+Math.abs(c).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
+      h+='<div class="qrow"><span class="qn">'+r.n+'</span><span class="qp">'+r.p+'</span><span class="qc '+cls+'">'+ct+'</span></div>';
+    }
+    h+='</div>';
+  }
+  sideBody.innerHTML=h;
+  if(d.updated){
+    sideUpd.textContent=new Date(d.updated).toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'});
+  }
+}
+async function sideLoad(){
+  try{
+    const r=await fetch('/api/panel');
+    sideRender(await r.json());
+  }catch(e){
+    if(!sideBody.querySelector('.qrow'))
+      sideBody.innerHTML='<div class="sempty">Не удалось загрузить котировки</div>';
+  }
 }
 function sideOpen(on){
   document.body.classList.toggle('side-on',on);
   savePrefs();
-  if(on&&!sideBuilt)sideBuild();
+  if(on){
+    sideAlign();
+    sideLoad();
+    if(!sideTimer)sideTimer=setInterval(sideLoad,60000);
+  }else if(sideTimer){clearInterval(sideTimer);sideTimer=null;}
 }
-// пересобрать виджет при смене темы, если панель открыта
-window.addEventListener('mkt-theme',()=>{if(document.body.classList.contains('side-on'))sideBuild();});
 document.getElementById('sideBtn').onclick=()=>sideOpen(!document.body.classList.contains('side-on'));
 document.getElementById('sideClose').onclick=()=>sideOpen(false);
 document.getElementById('sideBack').onclick=()=>sideOpen(false);

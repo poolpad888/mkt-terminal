@@ -573,6 +573,109 @@ async function getQuotes() {
   return qCache.data;
 }
 
+// ── Сводная панель котировок: свои данные из четырёх источников ─────────
+// Yahoo (мировые площадки), Мосбиржа (акции и индекс), ЦБ (курсы), CoinGecko (крипта).
+// Кэш 90 сек; каждый источник падает независимо — панель показывает то, что пришло.
+let pCache = { at: 0, data: null, busy: null };
+
+function yUrl(sym) {
+  return 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(sym) + '?range=1d&interval=30m';
+}
+async function yQuote(sym) {
+  const j = JSON.parse(await fetchUrl(yUrl(sym)));
+  const m = j.chart && j.chart.result && j.chart.result[0] && j.chart.result[0].meta;
+  if (!m || m.regularMarketPrice == null) throw new Error('нет цены');
+  const p = m.regularMarketPrice;
+  const pc = m.chartPreviousClose || m.previousClose;
+  return { p, c: (pc && isFinite(pc)) ? (p - pc) / pc * 100 : null };
+}
+function pFmt(v) {
+  if (v == null || !isFinite(v)) return '—';
+  const a = Math.abs(v);
+  const d = a >= 10000 ? 0 : a >= 100 ? 1 : a >= 1 ? 2 : 4;
+  return v.toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+const R = (n, p, c) => ({ n, p: pFmt(p), c: (c == null || !isFinite(c)) ? null : Math.round(c * 100) / 100 });
+
+async function buildPanel() {
+  const G = {
+    'Сырьё':   [null, null, null, null],
+    'Индексы': [null, null, null, null],
+    'Валюты':  [null, null, null, null],
+    'Крипта':  [null, null, null, null],
+    'Акции':   [null, null, null, null],
+  };
+  const jobs = [];
+
+  // мировые площадки — Yahoo, каждый символ отдельно
+  const Y = [
+    ['BZ=F', 'Нефть Brent', 'Сырьё', 0], ['GC=F', 'Золото', 'Сырьё', 1],
+    ['SI=F', 'Серебро', 'Сырьё', 2], ['NG=F', 'Газ (США)', 'Сырьё', 3],
+    ['^GSPC', 'S&P 500', 'Индексы', 0], ['^IXIC', 'Nasdaq', 'Индексы', 1],
+    ['DX-Y.NYB', 'Индекс доллара', 'Индексы', 3],
+    ['EURUSD=X', 'EUR/USD', 'Валюты', 3],
+  ];
+  for (const [sym, name, g, i] of Y)
+    jobs.push(yQuote(sym).then(q => { G[g][i] = R(name, q.p, q.c); }));
+
+  // индекс Мосбиржи
+  jobs.push(fetchUrl('https://iss.moex.com/iss/engines/stock/markets/index/boards/SNDX/securities.json?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,CURRENTVALUE,LASTCHANGEPRC')
+    .then(raw => {
+      const j = JSON.parse(raw);
+      for (const [secid, val, chg] of (j.marketdata && j.marketdata.data) || [])
+        if (secid === 'IMOEX') G['Индексы'][2] = R('МосБиржа', val, chg);
+    }));
+
+  // официальные курсы ЦБ (зеркало в JSON, есть вчерашнее значение)
+  jobs.push(fetchUrl('https://www.cbr-xml-daily.ru/daily_json.js').then(raw => {
+    const v = JSON.parse(raw).Valute || {};
+    const cur = (code, name, i) => {
+      const x = v[code];
+      if (x && x.Value != null) {
+        const chg = x.Previous ? (x.Value - x.Previous) / x.Previous * 100 : null;
+        G['Валюты'][i] = R(name, x.Value / (x.Nominal || 1), chg);
+      }
+    };
+    cur('USD', 'USD/RUB · ЦБ', 0); cur('EUR', 'EUR/RUB · ЦБ', 1); cur('CNY', 'CNY/RUB · ЦБ', 2);
+  }));
+
+  // крипта — CoinGecko
+  jobs.push(fetchUrl('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,the-open-network&vs_currencies=usd&include_24hr_change=true')
+    .then(raw => {
+      const j = JSON.parse(raw);
+      const coin = (id, name, i) => {
+        const x = j[id];
+        if (x && x.usd != null) G['Крипта'][i] = R(name, x.usd, x.usd_24h_change);
+      };
+      coin('bitcoin', 'Bitcoin', 0); coin('ethereum', 'Ethereum', 1);
+      coin('solana', 'Solana', 2); coin('the-open-network', 'Toncoin', 3);
+    }));
+
+  // российские акции — уже собранный /api/quotes
+  jobs.push(getQuotes().then(q => {
+    const st = (sec, name, i) => {
+      const x = q.quotes && q.quotes[sec];
+      if (x && x.last != null) G['Акции'][i] = R(name, x.last, x.chg);
+    };
+    st('SBER', 'Сбер', 0); st('GAZP', 'Газпром', 1); st('LKOH', 'Лукойл', 2); st('GMKN', 'Норникель', 3);
+  }));
+
+  await Promise.allSettled(jobs);
+  const groups = Object.entries(G)
+    .map(([name, rows]) => ({ name, rows: rows.filter(Boolean) }))
+    .filter(g => g.rows.length);
+  return { updated: new Date().toISOString(), groups };
+}
+
+async function getPanel() {
+  const now = Date.now();
+  if (pCache.data && now - pCache.at < 90 * 1000) return pCache.data;
+  if (!pCache.busy) pCache.busy = buildPanel()
+    .then(d => { pCache = { at: Date.now(), data: d, busy: null }; return d; })
+    .catch(e => { pCache.busy = null; return pCache.data || { updated: null, groups: [], error: e.message }; });
+  return pCache.busy;
+}
+
 // ── HTTP-сервер ─────────────────────────────────────────────────────────
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
@@ -608,6 +711,11 @@ const server = http.createServer(async (req, res) => {
       } catch (e) {
         return res.end(JSON.stringify({ items: [], error: e.message }));
       }
+    }
+    if (u.pathname === '/api/panel') {
+      const q = await getPanel();
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=45' });
+      return res.end(JSON.stringify(q));
     }
     if (u.pathname === '/api/quotes') {
       const q = await getQuotes();
