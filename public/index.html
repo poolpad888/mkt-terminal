@@ -532,7 +532,7 @@ function rowHTML(x,fresh){
   const more=long?'<div class="more">'+(open?'свернуть':'развернуть …')+'</div>':'';
   const isFin=x.mark==='fin';const isFed=x.mark==='fed';const isFrs=x.mark==='frs';
   const _band=isFrs?'fedband':isFed?'fedband':isFin?'finband':'regband';
-  const _label=isFrs?'ФРС':isFed?'США':isFin?'МИНФИН':'ЦБ РФ';
+  const _label=isFrs?'ФРС':isFed?'МИНФИН США':isFin?'МИНФИН':'ЦБ РФ';
   const _ico=isFrs?'$':isFed?'$':isFin?'₽':'🏛';
   const regband=x.reg?'<div class="fband '+_band+'"><span class="vtxt">'+_label+'</span><span class="ico">'+_ico+'</span></div>':'';
   
