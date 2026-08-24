@@ -69,7 +69,7 @@ const TG = [
   ['vtbmyinvestments',     'ВТБ Инвестиции'],
 ];
 const RSS = [
-  ['https://rosstat.gov.ru/rss/pressrelease.rss', 'Росстат'],
+  ['https://rosstat.gov.ru/rss/news.rss', 'Росстат'],
   ['https://www.finam.ru/analysis/conews/rsspoint/', 'Финам'],
   ['https://www.moex.com/export/news.aspx?cat=100', 'Мосбиржа'],
 ];
