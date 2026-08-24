@@ -727,7 +727,7 @@ function addSec(res) {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 }
 
-http.createServer(async (req, res) => {
+const server = http.createServer(async (req, res) => {
   addSec(res);
   const clientIp = (req.headers['x-forwarded-for']||'').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
   try {
