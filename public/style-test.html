@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Примерочная — важные новости</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090c; --panel:#0d1117; --line:#1b232e;
+  --amber:#ffb000; --red:#ff5252; --green:#2ee06f; --blue:#4db8ff; --violet:#b48cff;
+  --tx:#c9d4e0; --dim:#5b6b7c;
+  --mono:"IBM Plex Mono","SF Mono",Consolas,monospace;
+  --sans:"IBM Plex Sans","Segoe UI",Arial,sans-serif;
+}
+body{background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:14px;margin:0;padding:24px 16px}
+h2{font-family:var(--mono);color:var(--amber);font-size:12px;letter-spacing:.18em;margin:32px 0 10px;text-transform:uppercase}
+p.note{color:var(--dim);font-size:12px;margin:0 0 8px}
+
+/* ── ВАРИАНТ 1: прямые углы везде, рамка по периметру ── */
+.v1{display:grid;grid-template-columns:22px 52px 1fr;margin:0 0 8px;
+  border:1px solid var(--red);background:rgba(255,82,82,.11)}
+.v1 .band{background:var(--red);display:flex;flex-direction:column;
+  align-items:center;justify-content:space-between;padding:6px 0}
+
+/* ── ВАРИАНТ 2: только полоса слева 3px, без рамки, без плашки ── */
+.v2{display:grid;grid-template-columns:1fr;margin:0 0 8px;
+  border-left:3px solid var(--red);background:rgba(255,82,82,.08);padding:11px 14px}
+.v2 .badge{display:inline-block;font-family:var(--mono);font-size:9px;
+  letter-spacing:.14em;color:var(--red);margin-bottom:4px}
+
+/* ── ВАРИАНТ 3: полоса 3px слева + мягкая заливка, метка сверху рядом со временем ── */
+.v3{display:grid;grid-template-columns:52px 1fr;gap:0 12px;margin:0 0 8px;
+  border-left:3px solid var(--red);background:rgba(255,82,82,.08);padding:11px 14px 11px 11px}
+
+/* ── ВАРИАНТ 4: рамка + янтарный акцент заголовка, без вертикальной плашки ── */
+.v4{display:grid;grid-template-columns:52px 1fr;gap:0 12px;margin:0 0 8px;
+  border:1px solid rgba(255,82,82,.45);background:rgba(255,82,82,.08);
+  padding:11px 14px;position:relative}
+.v4::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--red)}
+
+/* общие */
+.vtxt{writing-mode:vertical-rl;transform:rotate(180deg);color:#fff;font-size:9px;font-weight:700;letter-spacing:.16em}
+.ico{font-size:11px;color:#fff}
+.time{color:var(--red);font-size:12px;font-family:var(--mono);font-weight:600}
+.src{color:var(--blue);font-size:10.5px;letter-spacing:.04em;margin-bottom:3px}
+.txt{color:#ffcf66;font-weight:600;line-height:1.5}
+.imp-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--red);margin-right:8px}
+</style>
+</head>
+<body>
+
+<h2>Вариант 1 — прямые углы, рамка по периметру, вертикальная плашка</h2>
+<p class="note">Строгий терминальный стиль. Скруглений нет совсем.</p>
+<div class="v1">
+  <div class="band"><span class="vtxt">Важно</span><span class="ico">⚡</span></div>
+  <div style="padding:10px 0;color:var(--dim);font-size:12px;font-family:var(--mono)">08:04</div>
+  <div style="padding:10px 14px 10px 0">
+    <div class="src">⚡ РБК</div>
+    <div class="txt">ЦБ внепланово повысил ключевую ставку до 21% — максимум за всю историю</div>
+  </div>
+</div>
+
+<h2>Вариант 2 — только полоса слева, без рамки, метка строкой</h2>
+<p class="note">Минимализм. Никакой вертикальной плашки — только цветная черта и фон.</p>
+<div class="v2">
+  <div><span class="badge">⚡ ВАЖНО</span></div>
+  <div class="src">РБК</div>
+  <div class="txt">ЦБ внепланово повысил ключевую ставку до 21% — максимум за всю историю</div>
+  <div style="color:var(--dim);font-size:12px;font-family:var(--mono);margin-top:5px">08:04 · Москва</div>
+</div>
+
+<h2>Вариант 3 — полоса слева, время и метка в одну строку</h2>
+<p class="note">Похоже на обычную строку ленты, но с красной чертой и заливкой.</p>
+<div class="v3">
+  <div style="padding-top:2px">
+    <div class="time">08:04</div>
+    <div style="color:var(--red);font-size:9px;font-family:var(--mono);letter-spacing:.12em;margin-top:3px">⚡ ВАЖНО</div>
+  </div>
+  <div>
+    <div class="src">РБК</div>
+    <div class="txt">ЦБ внепланово повысил ключевую ставку до 21% — максимум за всю историю</div>
+  </div>
+</div>
+
+<h2>Вариант 4 — рамка + тонкая черта слева, без плашки</h2>
+<p class="note">Рамка даёт вес, черта слева даёт акцент. Компромисс между 1 и 2.</p>
+<div class="v4">
+  <div style="padding-top:2px">
+    <div class="time">08:04</div>
+  </div>
+  <div>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:3px">
+      <span class="src" style="margin:0">РБК</span>
+      <span style="font-family:var(--mono);font-size:9px;color:var(--red);letter-spacing:.12em">⚡ ВАЖНО</span>
+    </div>
+    <div class="txt">ЦБ внепланово повысил ключевую ставку до 21% — максимум за всю историю</div>
+  </div>
+</div>
+
+</body>
+</html>
