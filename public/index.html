@@ -285,6 +285,7 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
   <div class="bbar"><i></i></div>
   <div class="bs">СОЕДИНЕНИЕ С ИСТОЧНИКАМИ…</div>
 </div>
+<button id="toTop" title="Наверх" aria-label="Наверх"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></button>
 <header>
   <span class="logo">FINFACTS</span>
   <span class="live"><span class="dot"></span>LIVE</span>
@@ -686,8 +687,5 @@ const toTop=document.getElementById('toTop');
 window.addEventListener('scroll',()=>{toTop.classList.toggle('vis',window.scrollY>200)},{passive:true});
 toTop.onclick=()=>window.scrollTo({top:0,behavior:'smooth'});   // спрашиваем сервер каждые 15 секунд
 </script>
-<button id="toTop" title="Наверх" aria-label="Наверх">
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-</button>
 </body>
 </html>
