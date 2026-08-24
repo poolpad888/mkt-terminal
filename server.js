@@ -87,12 +87,14 @@ const FAST_TG = [
 // Комментарии представителей ведомств помечаем той же плашкой
 const CBR_NAMES = /(?<![а-яёa-z])(набиуллин|заботкин|тремасов|юдаева|чистюхин|полякова|скоробогатова|данилов|зубарев|цб\s*рф|центробанк|центральн[а-яё]+\s+банк|банк\s+росси)/i;
 const FIN_NAMES = /(?<![а-яёa-z])(силуанов|моисеев|сазанов|чебесков|колычев|иванов\s+ирина|минфин)/i;
+const FED_NAMES = /(?<![а-яёa-z])(фрс(?![а-яё])|пауэлл|уоллер|джефферсон|барр|куглер|(?<![a-z])fed(?![a-z])|(?<![a-z])fomc(?![a-z])|минфин\s+сша|treasury)/i;
 
 function markByName(x) {
   if (x.reg) return x;
   const t = (x.text || '');
   if (CBR_NAMES.test(t)) { x.reg = true; x.mark = 'reg'; }
   else if (FIN_NAMES.test(t)) { x.reg = true; x.mark = 'fin'; }
+  else if (FED_NAMES.test(t)) { x.reg = true; x.mark = 'fed'; }
   return x;
 }
 
