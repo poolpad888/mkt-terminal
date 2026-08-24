@@ -718,7 +718,7 @@ async function getPanel() {
 // ── HTTP-сервер ─────────────────────────────────────────────────────────
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
-const server = process.on('unhandledRejection', r => console.error('[unhandledRejection]', r));
+process.on('unhandledRejection', r => console.error('[unhandledRejection]', r));
 process.on('uncaughtException',  e => console.error('[uncaughtException]', e));
 
 function addSec(res) {
@@ -727,7 +727,7 @@ function addSec(res) {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 }
 
-const server = http.createServer(async (req, res) => {
+http.createServer(async (req, res) => {
   addSec(res);
   const clientIp = (req.headers['x-forwarded-for']||'').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
   try {
