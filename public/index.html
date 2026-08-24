@@ -440,7 +440,7 @@ function sideOpen(on){
   if(on){
     sideAlign();
     sideLoad();
-    if(!sideTimer)sideTimer=setInterval(sideLoad,60000);
+    if(!sideTimer)sideTimer=setInterval(sideLoad,30000);
   }else if(sideTimer){clearInterval(sideTimer);sideTimer=null;}
 }
 document.getElementById('sideBtn').onclick=()=>sideOpen(!document.body.classList.contains('side-on'));
