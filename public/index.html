@@ -641,6 +641,8 @@ async function load(){
       }
     }
     ITEMS=data.items;
+    // чистим knownIds если разросся — оставляем только актуальные
+    if(knownIds.size>3000){knownIds.clear();for(const x of ITEMS)knownIds.add(x.id);}
     renderAll();
     if(anyNew){
       document.querySelectorAll('.row').forEach(el=>{
