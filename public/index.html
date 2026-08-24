@@ -35,7 +35,7 @@ html.light .row.reg.fed:not(.lvl2){border-color:#a8c8da;background:#eaf4f9}
 html.light .fedband{background:#2a6080}
 html.light .tvpop{box-shadow:0 8px 30px rgba(0,0,0,.18)}
 html.light .row.lvl2 .txt{color:#8a5600}
-#toTop{position:fixed;bottom:24px;right:24px;z-index:40;
+#toTop{position:fixed;bottom:24px;right:24px;z-index:90;
   width:36px;height:36px;border-radius:50%;
   background:var(--panel);border:1px solid var(--line);
   color:var(--dim);cursor:pointer;display:none;
@@ -683,7 +683,7 @@ setInterval(load,15000);
 
 // ── кнопка наверх ──
 const toTop=document.getElementById('toTop');
-window.addEventListener('scroll',()=>{toTop.classList.toggle('vis',window.scrollY>400)},{passive:true});
+window.addEventListener('scroll',()=>{toTop.classList.toggle('vis',window.scrollY>200)},{passive:true});
 toTop.onclick=()=>window.scrollTo({top:0,behavior:'smooth'});   // спрашиваем сервер каждые 15 секунд
 </script>
 <button id="toTop" title="Наверх" aria-label="Наверх">
