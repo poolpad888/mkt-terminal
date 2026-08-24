@@ -119,11 +119,10 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
 .share:hover{color:var(--blue)}
 
 /* важные */
-.row.lvl2{grid-template-columns:24px 52px 1fr;border:1px solid var(--red);
-  background:rgba(255,82,82,.13);margin:8px 10px;padding:12px 14px 12px 0;border-radius:4px;
-  overflow:hidden}
+.row.lvl2{grid-template-columns:24px 52px 1fr;border:1px solid var(--red);border-left:none;
+  background:rgba(255,82,82,.13);margin:8px 10px;padding:12px 14px 12px 0;border-radius:0 4px 4px 0}
 .fband{background:var(--red);display:flex;flex-direction:column;align-items:center;justify-content:space-between;
-  padding:6px 0;border-radius:0 7px 7px 0;margin:-1px 0}
+  padding:6px 0;border-radius:3px 0 0 3px}
 .vtxt{writing-mode:vertical-rl;transform:rotate(180deg);color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.18em}
 .ico{font-size:11px}
 .row.lvl2 .time{color:var(--red);font-weight:600}
@@ -134,9 +133,8 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
 @keyframes fr2{0%{background:rgba(255,82,82,.35)}100%{background:rgba(255,82,82,.13)}}
 .row.mark{outline:2px solid var(--amber);outline-offset:-2px}
 /* регулятор: вертикальная плашка слева, как у важного, только синяя */
-.row.reg:not(.lvl2){grid-template-columns:24px 52px 1fr;border:1px solid #2f5aa8;
-  background:#101a2b;margin:8px 10px;padding:12px 14px 12px 0;border-radius:4px;
-  overflow:hidden}
+.row.reg:not(.lvl2){grid-template-columns:24px 52px 1fr;border:1px solid #2f5aa8;border-left:none;
+  background:#101a2b;margin:8px 10px;padding:12px 14px 12px 0;border-radius:0 4px 4px 0}
 .row.reg .time{color:#7fb0ff;font-weight:600}
 .row.reg:not(.lvl2) .txt{color:#cfe0ff;font-weight:600}
 .regband{background:#1e3a8a}
