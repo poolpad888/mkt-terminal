@@ -589,6 +589,14 @@ async function getQuotes() {
 // Кэш 90 сек; каждый источник падает независимо — панель показывает то, что пришло.
 let pCache = { at: 0, data: null, busy: null };
 
+// ── счётчик уникальных посетителей ──
+const visitors = { today: new Set(), total: 0, date: new Date().toDateString() };
+function trackVisit(ip) {
+  const today = new Date().toDateString();
+  if (visitors.date !== today) { visitors.today.clear(); visitors.date = today; }
+  if (!visitors.today.has(ip)) { visitors.today.add(ip); visitors.total++; }
+}
+
 function pFmt(v) {
   if (v == null || !isFinite(v)) return '—';
   const a = Math.abs(v);
@@ -710,8 +718,20 @@ async function getPanel() {
 // ── HTTP-сервер ─────────────────────────────────────────────────────────
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
-const server = http.createServer(async (req, res) => {
+const server = process.on('unhandledRejection', r => console.error('[unhandledRejection]', r));
+process.on('uncaughtException',  e => console.error('[uncaughtException]', e));
+
+function addSec(res) {
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+}
+
+http.createServer(async (req, res) => {
+  addSec(res);
+  const clientIp = (req.headers['x-forwarded-for']||'').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
   const u = new URL(req.url, 'http://x');
+  if (u.pathname === '/') trackVisit(clientIp);
   try {
     if (u.pathname === '/api/feed') {
       const feed = await getFeed();
@@ -752,6 +772,10 @@ const server = http.createServer(async (req, res) => {
       const q = await getQuotes();
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=30' });
       return res.end(JSON.stringify(q));
+    }
+    if (u.pathname === '/api/stats') {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(JSON.stringify({ today: visitors.today.size, total: visitors.total, date: visitors.date }));
     }
     if (u.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
