@@ -39,7 +39,7 @@ const TG = [
   ['stocksi',            'STOCKSI'],
   ['bbbreaking',          'Раньше всех'],
   ['Bonds_lab',           'Bonds lab'],
-  ['PresidentDonaldTrumpRU', 'Трамп'],
+  ['PresidentDonaldTrumpRU', 'Трамп на русском'],
   ['antonchehovanalitk',  'Аналитика Чехова'],
   ['banksta',             'Банкста'],
   ['proeconomics',        'Proeconomics'],
