@@ -727,7 +727,7 @@ function addSec(res) {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 }
 
-http.createServer(async (req, res) => {
+const srv = http.createServer(async (req, res) => {
   addSec(res);
   const clientIp = (req.headers['x-forwarded-for']||'').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
   try {
@@ -801,6 +801,6 @@ http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => console.log('MKT-TERMINAL on :' + PORT));
+srv.listen(PORT, () => console.log('MKT-TERMINAL on :' + PORT));
 // прогреваем кэш при старте
 getFeed().catch(() => {});
