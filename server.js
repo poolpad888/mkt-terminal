@@ -730,9 +730,9 @@ function addSec(res) {
 http.createServer(async (req, res) => {
   addSec(res);
   const clientIp = (req.headers['x-forwarded-for']||'').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
-  const u = new URL(req.url, 'http://x');
-  if (u.pathname === '/') trackVisit(clientIp);
   try {
+    const u = new URL(req.url, 'http://x');
+    if (u.pathname === '/') trackVisit(clientIp);
     if (u.pathname === '/api/feed') {
       const feed = await getFeed();
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
