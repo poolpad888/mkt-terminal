@@ -17,6 +17,7 @@ const API_ID   = parseInt(process.env.TG_API_ID || '0', 10);
 const API_HASH = process.env.TG_API_HASH || '';
 const SESSION_FILE = path.join(__dirname, 'session.txt');
 const TEXT_LIMIT = 1000;
+const DEBUG = process.env.TG_DEBUG === '1';
 
 // ── Каналы: username → отображаемое имя. Заполняется из channels.json,
 // чтобы список правился без правки кода.
@@ -47,6 +48,10 @@ pool.on('error', e => console.log('база, фоновая ошибка: ' + e.
 // Очередь ограничена, чтобы при долгой аварии не съесть память.
 const QUEUE_MAX = 500;
 const queue = [];
+// Отметка последнего события. Объявлена здесь, а не рядом со сторожем:
+// обработчики пишут в неё, и при объявлении ниже по файлу обращение
+// до инициализации уронило бы процесс.
+let lastEvent = Date.now();
 async function withRetry(fn, row, what) {
   try { await fn(row); }
   catch (e) {
@@ -113,8 +118,24 @@ function rowFrom(msg, uname, name) {
     console.log('Сессия сохранена в tg/session.txt — больше вход не понадобится.');
     input.close();
   } else {
-    await client.connect();
+    // Важно: именно start(), а не connect(). При голом connect() gramjs
+    // подключается, но поток обновлений от сервера не запускается —
+    // сообщения в каналах выходят, а обработчик молчит.
+    // С готовой сессией start() ничего не спрашивает.
+    await client.start({
+      phoneNumber: () => { throw new Error('сессия недействительна, нужен повторный вход: node tg/collector.js --login'); },
+      password:    () => { throw new Error('сессия недействительна, нужен повторный вход'); },
+      phoneCode:   () => { throw new Error('сессия недействительна, нужен повторный вход'); },
+      onError:     e  => console.log('ошибка подключения: ' + e.message),
+    });
   }
+
+  // Прогрев: без обращения к списку диалогов сервер может не начать
+  // присылать обновления, а getChat() в обработчике — не найти канал.
+  try {
+    const d = await client.getDialogs({ limit: 200 });
+    console.log('диалогов в кэше: ' + d.length);
+  } catch (e) { console.log('не удалось прогреть список диалогов: ' + e.message); }
 
   const me = await client.getMe();
   console.log('вошёл как ' + (me.username || me.phone) + ', слушаю каналы');
@@ -124,8 +145,11 @@ function rowFrom(msg, uname, name) {
     try {
       const chat = await ev.getChat();
       const uname = chat && chat.username;
-      if (!uname) return;
-      if (Object.keys(CHANNELS).length && !CHANNELS[uname]) return;
+      if (!uname) { if (DEBUG) console.log('· событие без username канала'); return; }
+      if (Object.keys(CHANNELS).length && !CHANNELS[uname]) {
+        if (DEBUG) console.log('· пропущен, нет в списке: ' + uname);
+        return;
+      }
       const row = rowFrom(ev.message, uname, CHANNELS[uname]);
       if (row) await withRetry(insertPost, row, 'новый');
     } catch (e) { console.log('ошибка обработки: ' + e.message); }
@@ -153,7 +177,6 @@ function rowFrom(msg, uname, name) {
 
   // Сторож: если полчаса нет ни одного события, соединение скорее всего
   // повисло. Выходим с ошибкой — systemd поднимет процесс заново.
-  let lastEvent = Date.now();
   setInterval(() => {
     if (Date.now() - lastEvent > 1800000) {
       console.log('полчаса тишины — перезапускаюсь');
