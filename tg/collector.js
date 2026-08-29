@@ -38,6 +38,29 @@ const pool = process.env.DATABASE_URL
   ? new Pool({ connectionString: process.env.DATABASE_URL, max: 2 })
   : null;
 if (!pool) { console.log('нет DATABASE_URL — писать некуда'); process.exit(1); }
+// Разрыв соединения с базой в фоне выбрасывает событие error на пуле.
+// Без этого обработчика Node роняет весь процесс.
+pool.on('error', e => console.log('база, фоновая ошибка: ' + e.message));
+
+// ── Очередь на случай недоступности базы ────────────────────────────────
+// Если запись не удалась, пост не теряем: кладём в очередь и пробуем снова.
+// Очередь ограничена, чтобы при долгой аварии не съесть память.
+const QUEUE_MAX = 500;
+const queue = [];
+async function withRetry(fn, row, what) {
+  try { await fn(row); }
+  catch (e) {
+    console.log('не записалось (' + what + ') ' + row.id + ': ' + e.message);
+    if (queue.length < QUEUE_MAX) queue.push({ fn, row, what });
+    else console.log('очередь переполнена, пост потерян: ' + row.id);
+  }
+}
+setInterval(async () => {
+  if (!queue.length) return;
+  const batch = queue.splice(0, 50);
+  console.log('повторяю ' + batch.length + ' записей из очереди');
+  for (const t of batch) await withRetry(t.fn, t.row, t.what);
+}, 30000);
 
 // Новый пост: вставляем, при конфликте по id ничего не трогаем.
 async function insertPost(row) {
@@ -97,18 +120,20 @@ function rowFrom(msg, uname, name) {
   console.log('вошёл как ' + (me.username || me.phone) + ', слушаю каналы');
 
   client.addEventHandler(async (ev) => {
+    lastEvent = Date.now();
     try {
       const chat = await ev.getChat();
       const uname = chat && chat.username;
       if (!uname) return;
       if (Object.keys(CHANNELS).length && !CHANNELS[uname]) return;
       const row = rowFrom(ev.message, uname, CHANNELS[uname]);
-      if (row) await insertPost(row);
+      if (row) await withRetry(insertPost, row, 'новый');
     } catch (e) { console.log('ошибка обработки: ' + e.message); }
   }, new NewMessage({}));
 
   // Правки приходят отдельным типом апдейта, не через NewMessage.
   client.addEventHandler(async (upd) => {
+    lastEvent = Date.now();
     if (!(upd instanceof Api.UpdateEditChannelMessage)) return;
     try {
       const msg = upd.message;
@@ -117,10 +142,25 @@ function rowFrom(msg, uname, name) {
       if (!uname) return;
       if (Object.keys(CHANNELS).length && !CHANNELS[uname]) return;
       const row = rowFrom(msg, uname, CHANNELS[uname]);
-      if (row) await updatePost(row);
+      if (row) await withRetry(updatePost, row, 'правка');
     } catch (e) { console.log('ошибка правки: ' + e.message); }
   });
 
+  // Необработанный отказ промиса в новых версиях Node роняет процесс.
+  // Для долгоживущей службы лучше записать в журнал и продолжить работу.
+  process.on('unhandledRejection', e => console.log('необработанный отказ: ' + (e && e.message || e)));
+  process.on('uncaughtException',  e => console.log('исключение: ' + (e && e.message || e)));
+
+  // Сторож: если полчаса нет ни одного события, соединение скорее всего
+  // повисло. Выходим с ошибкой — systemd поднимет процесс заново.
+  let lastEvent = Date.now();
+  setInterval(() => {
+    if (Date.now() - lastEvent > 1800000) {
+      console.log('полчаса тишины — перезапускаюсь');
+      process.exit(1);
+    }
+  }, 60000);
+
   for (const sig of ['SIGTERM', 'SIGINT'])
-    process.on(sig, async () => { await pool.end(); process.exit(0); });
+    process.on(sig, async () => { try { await pool.end(); } catch (e) {} process.exit(0); });
 })();
