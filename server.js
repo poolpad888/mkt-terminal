@@ -902,7 +902,7 @@ async function buildPanel() {
 
 async function getPanel() {
   const now = Date.now();
-  if (pCache.data && now - pCache.at < 20 * 1000) return pCache.data;   // было 90 с
+  if (pCache.data && now - pCache.at < 5 * 1000) return pCache.data;   // проба: 5 с
   if (!pCache.busy) pCache.busy = buildPanel()
     .then(d => { pCache = { at: Date.now(), data: d, busy: null }; return d; })
     .catch(e => { pCache.busy = null; return pCache.data || { updated: null, groups: [], error: e.message }; });
@@ -961,7 +961,7 @@ const srv = http.createServer(async (req, res) => {
     }
     if (u.pathname === '/api/panel') {
       const q = await getPanel();
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=10' });
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(JSON.stringify(q));
     }
     if (u.pathname === '/api/quotes') {

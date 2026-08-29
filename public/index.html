@@ -264,8 +264,10 @@ body.side-on #side{transform:translateX(0)}
 /* Изменение котировки: на секунду подкрашиваем сами цифры — зелёным при
    росте, красным при снижении, потом цвет плавно возвращается к обычному.
    Ни фона, ни рамок: экран не рябит, а движение всё равно заметно. */
-.qp.tup{animation:qtu 1.1s ease-out both}
-.qp.tdn{animation:qtd 1.1s ease-out both}
+/* Полсекунды держим цвет, затем плавно, за полторы секунды, гасим до
+   обычного. Кривая ease-in-out делает возврат мягким, без резкого щелчка. */
+.qp.tup{animation:qtu 2s cubic-bezier(.4,0,.3,1) both}
+.qp.tdn{animation:qtd 2s cubic-bezier(.4,0,.3,1) both}
 @keyframes qtu{0%,25%{color:var(--green)}100%{color:var(--tx)}}
 @keyframes qtd{0%,25%{color:var(--red)}100%{color:var(--tx)}}
 .qn{font-size:11.5px;color:var(--tx);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -519,7 +521,7 @@ function sideOpen(on){
   if(on){
     sideAlign();
     sideLoad();
-    if(!sideTimer)sideTimer=setInterval(sideLoad,20000);   // было 30 с
+    if(!sideTimer)sideTimer=setInterval(sideLoad,5000);   // проба: раз в 5 с
   }else if(sideTimer){clearInterval(sideTimer);sideTimer=null;}
 }
 document.getElementById('sideBtn').onclick=()=>sideOpen(!document.body.classList.contains('side-on'));
