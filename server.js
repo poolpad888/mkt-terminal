@@ -787,6 +787,48 @@ function pFmt(v) {
 }
 const R = (n, p, c) => ({ n, p: pFmt(p), c: (c == null || !isFinite(c)) ? null : Math.round(c * 100) / 100 });
 
+// ── HyperLiquid ─────────────────────────────────────────────────────────
+// Биржа бессрочных контрактов. Отдаёт цены в долларах и работает круглосуточно,
+// в отличие от фьючерсов Мосбиржи, которые замирают на выходных.
+// Требует POST с телом JSON, поэтому fetchUrl (только GET) тут не годится.
+// Площадки: '' — основная (крипта), 'xyz' — сторонняя, с сырьём, акциями и индексами.
+function hlInfo(body, ms = 8000) {
+  return new Promise((resolve, reject) => {
+    const data = Buffer.from(JSON.stringify(body));
+    const req = https.request({
+      hostname: 'api.hyperliquid.xyz', path: '/info', method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': data.length },
+      timeout: ms,
+    }, res => {
+      if (res.statusCode !== 200) { res.resume(); return reject(new Error('hl ' + res.statusCode)); }
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch (e) { reject(e); } });
+    });
+    req.on('timeout', () => req.destroy(new Error('hl timeout')));
+    req.on('error', reject);
+    req.end(data);
+  });
+}
+
+// Из ответа metaAndAssetCtxs делаем карту: тикер → { px, chg%, vol }.
+// Процент считаем сами от вчерашнего закрытия — как для курсов ЦБ.
+// Инструменты с нулевым оборотом отбрасываем: там цена стоит на месте
+// и меняться не будет (URANIUM, CORN, WHEAT, VIX, DXY и прочие пустышки).
+function hlMap(resp) {
+  const uni = (resp && resp[0] && resp[0].universe) || [];
+  const ctx = (resp && resp[1]) || [];
+  const out = {};
+  uni.forEach((u, i) => {
+    const c = ctx[i]; if (!c) return;
+    const px = parseFloat(c.markPx), prev = parseFloat(c.prevDayPx);
+    const vol = parseFloat(c.dayNtlVlm) || 0;
+    if (!isFinite(px) || vol <= 0) return;
+    out[u.name] = { px, vol, chg: isFinite(prev) && prev ? (px - prev) / prev * 100 : null };
+  });
+  return out;
+}
+
 // Официальные курсы ЦБ публикуются с четырьмя знаками после запятой —
 // показываем их как есть, не сокращая по величине, как делает pFmt.
 const R4 = (n, p, c) => ({
@@ -798,7 +840,7 @@ const R4 = (n, p, c) => ({
 
 async function buildPanel() {
   const G = {
-    'Сырьё':   new Array(6).fill(null),
+    'Сырьё':   new Array(8).fill(null),
     'Индексы': new Array(5).fill(null),
     'Валюты':  new Array(4).fill(null),
     'Крипта':  new Array(4).fill(null),
@@ -806,45 +848,30 @@ async function buildPanel() {
   };
   const jobs = [];
 
-  // мировые рынки — фьючерсы срочной секции Мосбиржи (Brent, газ, металлы,
-  // S&P 500, Nasdaq, EUR/USD): по каждому базовому активу берём самый
-  // торгуемый контракт
-  const WANT = {
-    BR:   ['Нефть Brent',    'Сырьё',   0],
-    NG:   ['Газ (США)',      'Сырьё',   1],
-    GOLD: ['Золото',         'Сырьё',   2],
-    SILV: ['Серебро',        'Сырьё',   3],
-    PLT:  ['Платина',        'Сырьё',   4],
-    PLD:  ['Палладий',       'Сырьё',   5],
-    SPYF: ['S&P 500 · ф.',   'Индексы', 0],
-    NASD: ['Nasdaq · ф.',    'Индексы', 1],
-    ED:   ['EUR/USD',        'Валюты',  3],
+  // Сырьё, мировые индексы и EUR/USD — HyperLiquid, площадка xyz.
+  // Раньше здесь были фьючерсы Мосбиржи: они в рублях и стоят на выходных.
+  // Взяты только инструменты с живым оборотом; пустышки отсеивает hlMap.
+  const XYZ = {
+    BRENTOIL: ['Нефть Brent',  'Сырьё',   0, R],
+    CL:       ['Нефть WTI',    'Сырьё',   1, R],
+    NATGAS:   ['Газ (США)',    'Сырьё',   2, R],
+    GOLD:     ['Золото',       'Сырьё',   3, R],
+    SILVER:   ['Серебро',      'Сырьё',   4, R],
+    PLATINUM: ['Платина',      'Сырьё',   5, R],
+    PALLADIUM:['Палладий',     'Сырьё',   6, R],
+    COPPER:   ['Медь',         'Сырьё',   7, R],
+    SP500:    ['S&P 500',      'Индексы', 0, R],
+    JP225:    ['Nikkei 225',   'Индексы', 1, R],
+    EUR:      ['EUR/USD',      'Валюты',  3, R4],
   };
-  jobs.push(fetchUrl('https://iss.moex.com/iss/engines/futures/markets/forts/securities.json?iss.meta=off&iss.only=securities,marketdata&securities.columns=SECID,ASSETCODE&marketdata.columns=SECID,LAST,LASTTOPREVPRICE,VALTODAY')
-    .then(raw => {
-      const j = JSON.parse(raw);
-      const sc = Object.fromEntries(j.securities.columns.map((c, i) => [c, i]));
-      const mc = Object.fromEntries(j.marketdata.columns.map((c, i) => [c, i]));
-      const mdBy = {};
-      for (const r of j.marketdata.data) mdBy[r[mc.SECID]] = r;
-      const best = {};
-      for (const r of j.securities.data) {
-        const code = String(r[sc.ASSETCODE] || '').toUpperCase();
-        if (!WANT[code]) continue;
-        const m = mdBy[r[sc.SECID]];
-        if (!m || m[mc.LAST] == null || !m[mc.LAST]) continue;
-        const vol = m[mc.VALTODAY] || 0;
-        if (!best[code] || vol > best[code].vol)
-          best[code] = { vol, last: m[mc.LAST], chg: m[mc.LASTTOPREVPRICE] };
-      }
-      for (const code in best) {
-        const [name, g, i] = WANT[code];
-        // EUR/USD — валютная пара, ей нужны четыре знака после запятой,
-        // как и официальным курсам. Остальные фьючерсы форматируем обычно.
-        const fmt = code === 'ED' ? R4 : R;
-        G[g][i] = fmt(name, best[code].last, best[code].chg);
-      }
-    }));
+  jobs.push(hlInfo({ type: 'metaAndAssetCtxs', dex: 'xyz' }).then(resp => {
+    const m = hlMap(resp);
+    for (const tick in XYZ) {
+      const x = m[tick]; if (!x) continue;
+      const [name, g, i, fmt] = XYZ[tick];
+      G[g][i] = fmt(name, x.px, x.chg);
+    }
+  }));
 
   // индексы Мосбиржи — по всем площадкам секции, чтобы поймать и РТС
   jobs.push(fetchUrl('https://iss.moex.com/iss/engines/stock/markets/index/securities.json?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,CURRENTVALUE,LASTCHANGEPRC')
@@ -871,17 +898,18 @@ async function buildPanel() {
     cur('USD', 'USD/RUB · ЦБ', 0); cur('EUR', 'EUR/RUB · ЦБ', 1); cur('CNY', 'CNY/RUB · ЦБ', 2);
   }));
 
-  // крипта — CoinGecko
-  jobs.push(fetchUrl('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,ripple&vs_currencies=usd&include_24hr_change=true')
-    .then(raw => {
-      const j = JSON.parse(raw);
-      const coin = (id, name, i) => {
-        const x = j[id];
-        if (x && x.usd != null) G['Крипта'][i] = R(name, x.usd, x.usd_24h_change);
-      };
-      coin('bitcoin', 'Bitcoin', 0); coin('ethereum', 'Ethereum', 1);
-      coin('solana', 'Solana', 2); coin('ripple', 'XRP', 3);
-    }));
+  // Крипта — основная площадка HyperLiquid. Раньше был CoinGecko: он на
+  // бесплатном тарифе отказывал при частом опросе и строки пропадали.
+  // Здесь лимиты щедрее, а обороты по этим четырём — крупнейшие на бирже.
+  const COINS = { BTC: ['Bitcoin', 0], ETH: ['Ethereum', 1], SOL: ['Solana', 2], XRP: ['XRP', 3] };
+  jobs.push(hlInfo({ type: 'metaAndAssetCtxs' }).then(resp => {
+    const m = hlMap(resp);
+    for (const tick in COINS) {
+      const x = m[tick]; if (!x) continue;
+      const [name, i] = COINS[tick];
+      G['Крипта'][i] = R(name, x.px, x.chg);
+    }
+  }));
 
   // российские акции — уже собранный /api/quotes
   jobs.push(getQuotes().then(q => {
@@ -902,7 +930,7 @@ async function buildPanel() {
 
 async function getPanel() {
   const now = Date.now();
-  if (pCache.data && now - pCache.at < 10 * 1000) return pCache.data;   // 10 с — компромисс: чаще CoinGecko отдаёт отказы
+  if (pCache.data && now - pCache.at < 2 * 1000) return pCache.data;   // 2 с: HyperLiquid держит такой темп, CoinGecko не держал
   if (!pCache.busy) pCache.busy = buildPanel()
     .then(d => { pCache = { at: Date.now(), data: d, busy: null }; return d; })
     .catch(e => { pCache.busy = null; return pCache.data || { updated: null, groups: [], error: e.message }; });
