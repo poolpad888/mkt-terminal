@@ -247,7 +247,9 @@ body.side-on #side{transform:translateX(0)}
 html.light .qrow:hover{background:rgba(20,30,45,.05)}
 /* нажатие на строку котировки копирует значение: по числу — только число,
    по названию — название и значение через табуляцию (две ячейки в таблице) */
-.qrow .qn,.qrow .qp{cursor:pointer}
+.qrow .qn,.qrow .qp{cursor:pointer;
+  -webkit-user-select:none;user-select:none;              /* не выделять текст пальцем */
+  -webkit-tap-highlight-color:transparent}                /* убрать серую заливку браузера */
 .qrow.copied{animation:qfl .5s ease both}
 @keyframes qfl{0%{background:rgba(255,176,0,.20)}100%{background:transparent}}
 /* нажали на число — подсвечиваем только его: сама ячейка узкая,
@@ -473,7 +475,12 @@ document.addEventListener('click',e=>{
   const row=cell.closest('.qrow'); if(!row) return;
   // по числу — только число; по названию — название и значение в две ячейки
   const onlyNum=cell.classList.contains('qp');
-  const txt=onlyNum ? row.dataset.p : row.dataset.n+'\t'+row.dataset.p;
+  // В буфер отдаём число без разделителей разрядов: русский формат ставит
+  // неразрывный (или узкий) пробел, и в таблице он остаётся символом,
+  // из-за чего значение перестаёт считаться числом. Запятую оставляем —
+  // в русской локали Экселя это правильный дробный разделитель.
+  const num=String(row.dataset.p).replace(/[\s\u00a0\u202f\u2009]/g,'');
+  const txt=onlyNum ? num : row.dataset.n+'\t'+num;
   // мигает то, что скопировали: число — сама ячейка, название — вся строка
   qCopy(txt).then(()=>qFlash(onlyNum ? cell : row)).catch(()=>{});
 });
