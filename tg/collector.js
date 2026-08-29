@@ -179,9 +179,20 @@ function rowFrom(msg, uname, name) {
     if (DEBUG && !/UpdateUserStatus|UpdateUserTyping/.test(cls))
       console.log('· сырое событие: ' + cls);
 
-    const isNew  = /^UpdateNew(Channel)?Message$/.test(cls);
-    const isEdit = /^UpdateEdit(Channel)?Message$/.test(cls);
-    if (!isNew && !isEdit) return;
+    // Имя класса приходит не всегда — в этой версии библиотеки часть
+    // обновлений идёт без него. Поэтому проверяем ещё и по типу объекта.
+    const isNew  = /^UpdateNew(Channel)?Message$/.test(cls)
+      || upd instanceof Api.UpdateNewChannelMessage
+      || upd instanceof Api.UpdateNewMessage;
+    const isEdit = /^UpdateEdit(Channel)?Message$/.test(cls)
+      || upd instanceof Api.UpdateEditChannelMessage
+      || upd instanceof Api.UpdateEditMessage;
+    if (!isNew && !isEdit) {
+      // Запасной путь: тип не опознан, но внутри лежит сообщение с текстом.
+      // Лучше попробовать записать (дубли отсекутся по id), чем потерять.
+      if (!(upd && upd.message && typeof upd.message === 'object' && upd.message.message)) return;
+      if (DEBUG) console.log('· неопознанное событие с сообщением, пробую записать');
+    }
 
     try {
       const msg = upd.message;
@@ -195,8 +206,8 @@ function rowFrom(msg, uname, name) {
       }
       const row = rowFrom(msg, uname, CHANNELS[uname]);
       if (!row) return;
-      if (isNew) await withRetry(insertPost, row, 'новый');
-      else       await withRetry(updatePost, row, 'правка');
+      if (isEdit) await withRetry(updatePost, row, 'правка');
+      else        await withRetry(insertPost, row, 'новый');
     } catch (e) { console.log('ошибка обработки: ' + e.message); }
   });
 
