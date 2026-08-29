@@ -787,6 +787,15 @@ function pFmt(v) {
 }
 const R = (n, p, c) => ({ n, p: pFmt(p), c: (c == null || !isFinite(c)) ? null : Math.round(c * 100) / 100 });
 
+// Официальные курсы ЦБ публикуются с четырьмя знаками после запятой —
+// показываем их как есть, не сокращая по величине, как делает pFmt.
+const R4 = (n, p, c) => ({
+  n,
+  p: (p == null || !isFinite(p)) ? '—'
+     : p.toLocaleString('ru-RU', { minimumFractionDigits: 4, maximumFractionDigits: 4 }),
+  c: (c == null || !isFinite(c)) ? null : Math.round(c * 100) / 100,
+});
+
 async function buildPanel() {
   const G = {
     'Сырьё':   new Array(6).fill(null),
@@ -853,7 +862,7 @@ async function buildPanel() {
       const x = v[code];
       if (x && x.Value != null) {
         const chg = x.Previous ? (x.Value - x.Previous) / x.Previous * 100 : null;
-        G['Валюты'][i] = R(name, x.Value / (x.Nominal || 1), chg);
+        G['Валюты'][i] = R4(name, x.Value / (x.Nominal || 1), chg);
       }
     };
     cur('USD', 'USD/RUB · ЦБ', 0); cur('EUR', 'EUR/RUB · ЦБ', 1); cur('CNY', 'CNY/RUB · ЦБ', 2);
