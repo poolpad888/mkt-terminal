@@ -137,6 +137,13 @@ function rowFrom(msg, uname, name) {
     console.log('диалогов в кэше: ' + d.length);
   } catch (e) { console.log('не удалось прогреть список диалогов: ' + e.message); }
 
+  // Телеграм начинает присылать обновления только после запроса состояния.
+  // Без этого соединение живое, а событий нет — ровно то, что мы видели.
+  try {
+    const st = await client.invoke(new Api.updates.GetState({}));
+    console.log('состояние обновлений получено, pts=' + st.pts);
+  } catch (e) { console.log('не удалось получить состояние: ' + e.message); }
+
   const me = await client.getMe();
   console.log('вошёл как ' + (me.username || me.phone) + ', слушаю каналы');
 
@@ -158,6 +165,7 @@ function rowFrom(msg, uname, name) {
   // Правки приходят отдельным типом апдейта, не через NewMessage.
   client.addEventHandler(async (upd) => {
     lastEvent = Date.now();
+    if (DEBUG) console.log('· сырое событие: ' + (upd && upd.className || typeof upd));
     if (!(upd instanceof Api.UpdateEditChannelMessage)) return;
     try {
       const msg = upd.message;
