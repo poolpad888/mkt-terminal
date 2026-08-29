@@ -242,9 +242,14 @@ body.side-on #side{transform:translateX(0)}
 .mlab #mMid{color:var(--dim);text-transform:uppercase;margin:0 auto;letter-spacing:.14em}
 .qg{padding:1px 0 0}
 .qg-t{font-size:9px;letter-spacing:.14em;color:var(--dim);padding:5px 14px 1px;text-transform:uppercase}
-.qrow{display:flex;align-items:baseline;gap:7px;padding:1.5px 14px}
-.qrow:hover{background:rgba(255,255,255,.05)}
-html.light .qrow:hover{background:rgba(20,30,45,.05)}
+.qrow{display:flex;align-items:baseline;gap:7px;padding:1.5px 14px;
+  -webkit-tap-highlight-color:transparent}
+/* Наведение только для мыши. На тач-экранах :hover «залипает» после тапа —
+   строка остаётся подсвеченной серым, пока не нажмёшь в другое место. */
+@media (hover:hover) and (pointer:fine){
+  .qrow:hover{background:rgba(255,255,255,.05)}
+  html.light .qrow:hover{background:rgba(20,30,45,.05)}
+}
 /* нажатие на строку котировки копирует значение: по числу — только число,
    по названию — название и значение через табуляцию (две ячейки в таблице) */
 .qrow .qn,.qrow .qp{cursor:pointer;
