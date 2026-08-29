@@ -818,7 +818,7 @@ async function buildPanel() {
     PLD:  ['Палладий',       'Сырьё',   5],
     SPYF: ['S&P 500 · ф.',   'Индексы', 0],
     NASD: ['Nasdaq · ф.',    'Индексы', 1],
-    ED:   ['EUR/USD · ф.',   'Валюты',  3],
+    ED:   ['EUR/USD',        'Валюты',  3],
   };
   jobs.push(fetchUrl('https://iss.moex.com/iss/engines/futures/markets/forts/securities.json?iss.meta=off&iss.only=securities,marketdata&securities.columns=SECID,ASSETCODE&marketdata.columns=SECID,LAST,LASTTOPREVPRICE,VALTODAY')
     .then(raw => {
@@ -839,7 +839,10 @@ async function buildPanel() {
       }
       for (const code in best) {
         const [name, g, i] = WANT[code];
-        G[g][i] = R(name, best[code].last, best[code].chg);
+        // EUR/USD — валютная пара, ей нужны четыре знака после запятой,
+        // как и официальным курсам. Остальные фьючерсы форматируем обычно.
+        const fmt = code === 'ED' ? R4 : R;
+        G[g][i] = fmt(name, best[code].last, best[code].chg);
       }
     }));
 
@@ -899,7 +902,7 @@ async function buildPanel() {
 
 async function getPanel() {
   const now = Date.now();
-  if (pCache.data && now - pCache.at < 90 * 1000) return pCache.data;
+  if (pCache.data && now - pCache.at < 20 * 1000) return pCache.data;   // было 90 с
   if (!pCache.busy) pCache.busy = buildPanel()
     .then(d => { pCache = { at: Date.now(), data: d, busy: null }; return d; })
     .catch(e => { pCache.busy = null; return pCache.data || { updated: null, groups: [], error: e.message }; });
@@ -958,7 +961,7 @@ const srv = http.createServer(async (req, res) => {
     }
     if (u.pathname === '/api/panel') {
       const q = await getPanel();
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=45' });
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=10' });
       return res.end(JSON.stringify(q));
     }
     if (u.pathname === '/api/quotes') {

@@ -491,7 +491,7 @@ document.addEventListener('click',e=>{
 });
 async function sideLoad(){
   try{
-    const r=await fetch('/api/panel');
+    const r=await fetch('/api/panel?t='+Date.now(),{cache:'no-store'});   // без кеша, иначе браузер отдаёт старое
     sideRender(await r.json());
   }catch(e){
     if(!sideBody.querySelector('.qrow'))
@@ -504,7 +504,7 @@ function sideOpen(on){
   if(on){
     sideAlign();
     sideLoad();
-    if(!sideTimer)sideTimer=setInterval(sideLoad,30000);
+    if(!sideTimer)sideTimer=setInterval(sideLoad,20000);   // было 30 с
   }else if(sideTimer){clearInterval(sideTimer);sideTimer=null;}
 }
 document.getElementById('sideBtn').onclick=()=>sideOpen(!document.body.classList.contains('side-on'));
