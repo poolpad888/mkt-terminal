@@ -9,6 +9,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 10000;
 const CACHE_SEC = 20;           // как часто обновлять ленту (фоновый опрос)
@@ -161,6 +162,26 @@ const HARD_RE = [
 ];
 const HARD_SIGNS = ['⚠️','💥','🔥','🚨'];
 
+// ── Рутина, которую не подсвечиваем ─────────────────────────────────────
+// Формально попадает под «важные» темы, по сути — техническая публикация.
+// Уровень важности снимается всегда; плашка ведомства — если третьим полем true.
+const MUTE = [
+  ['вакансии и карьера',
+   /карьер[а-яё]*\s+в\s+(банке\s+росси|цб)|(?<![а-яё])ваканси|стажировк|(?<![а-яё])карьерн[а-яё]+|конкурс\s+на\s+замещение|приглашаем\s+на\s+работу/i, true],
+  ['ставка валютного свопа',
+   /валютн[а-яё]+\s+своп|своп[а-яё]*\s+в\s+юан|юанев[а-яё]+\s+своп|своп[а-яё]*\s+с\s+юан/i, true],
+  ['решения по участникам рынка',
+   /решени[а-яё]*\s+банка\s+росси[а-яё]*\s+в\s+отношении\s+участник|в\s+отношении\s+участников\s+финансов[а-яё]+\s+рынка/i, false],
+  ['инсайдерская информация',
+   /инсайдерск[а-яё]+\s+информаци/i, true],
+  ['ставки MIACR',
+   /(?<![a-z])miacr(?![a-z])|(?<![а-яё])миакр(?![а-яё])/i, true],
+];
+function muted(text) {
+  for (const [name, rx, drop] of MUTE) if (rx.test(text)) return { name, drop };
+  return null;
+}
+
 function classify(text) {
   const reasons = [];
   let lvl = 0;
@@ -311,6 +332,18 @@ function stripHtml(s) {
      .replace(/<[^>]+>/g, '')
   ).replace(/\n{3,}/g, '\n\n').trim();
 }
+// Сколько знаков поста показываем в ленте. Режем по концу предложения,
+// а не по счётчику символов, чтобы текст не обрывался на полуслове.
+const TEXT_LIMIT = 1000;
+function cutText(t, max) {
+  t = (t || '').trim();
+  if (t.length <= max) return t;
+  const head = t.slice(0, max);
+  const m = head.match(/^[\s\S]*[.!?…](?=["\u00bb)\s]|$)/);   // до последнего целого предложения
+  if (m && m[0].trim().length >= max * 0.45) return m[0].trim();
+  return head.replace(/\s+\S*$/, '').trim() + '…';
+}
+
 function parseTelegram(html, username, srcName) {
   const items = [];
   const blocks = html.split('tgme_widget_message_wrap');
@@ -330,7 +363,7 @@ function parseTelegram(html, username, srcName) {
       srcName,
       url: 'https://t.me/' + post[1],
       time: dt[1],
-      text: (text.length > 250 ? text.slice(0, 250).replace(/\s+\S*$/, '') + '…' : text),
+      text: cutText(text, TEXT_LIMIT),
     });
   }
   return items.slice(-PER_SOURCE_LIMIT);
@@ -355,7 +388,7 @@ function parseRss(xml, srcName) {
       src: 'rss-' + srcName, srcName,
       url: link,
       time: pub ? new Date(pub).toISOString() : new Date().toISOString(),
-      text: title + (desc && desc !== title ? '\n' + desc.slice(0, 300) : ''),
+      text: title + (desc && desc !== title ? '\n' + cutText(desc, TEXT_LIMIT) : ''),
     });
   }
   return items;
@@ -527,6 +560,11 @@ async function build() {
   for (const x of out) {
     const c = classify(x.text);
     x.lvl = c.lvl; x.reasons = c.reasons;
+    const mu = muted(x.text);
+    if (mu) {                                    // техническая публикация — не выделяем
+      x.lvl = 0; x.reasons = [];
+      if (mu.drop) { x.reg = false; delete x.mark; }
+    }
     x.tk = tickers(x.text);
     x.tags = hashtags(x.text);
   }
@@ -589,13 +627,157 @@ async function getQuotes() {
 // Кэш 90 сек; каждый источник падает независимо — панель показывает то, что пришло.
 let pCache = { at: 0, data: null, busy: null };
 
-// ── счётчик уникальных посетителей ──
-const visitors = { today: new Set(), total: 0, date: new Date().toDateString() };
-function trackVisit(ip) {
-  const today = new Date().toDateString();
-  if (visitors.date !== today) { visitors.today.clear(); visitors.date = today; }
-  if (!visitors.today.has(ip)) { visitors.today.add(ip); visitors.total++; }
+// ── статистика посещений ────────────────────────────────────────────────
+// Онлайн в моменте, уникальные за день / неделю / месяц, время на сайте,
+// источники переходов, устройства и популярные страницы.
+// Всё лежит в stats.json рядом с server.js — переживает рестарт службы.
+// Сами IP не храним: только короткий хэш, обратно адрес из него не получить.
+const STATS_FILE  = path.join(__dirname, 'stats.json');
+const ONLINE_MS   = 120000;   // «в сети» — активность за последние 2 минуты
+const SESSION_GAP = 90000;    // пауза дольше 90 секунд — считаем новым визитом
+const DAYS_KEEP   = 400;      // сколько дней истории держим
+const IPS_KEEP    = 35;       // за сколько дней держим хэши (нужно для окон 7 и 30 дней)
+
+const dayKey = (back = 0) => new Date(Date.now() - back * 86400000)
+  .toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });          // YYYY-MM-DD
+const ipHash = ip => crypto.createHash('sha1').update('finfacts:' + ip).digest('hex').slice(0, 12);
+
+// какие адреса считаем страницами (а не фоновыми запросами)
+const PAGE_NAMES = { '/': 'лента', '/map': 'карта', '/quotes': 'котировки',
+                     '/cbr': 'ЦБ', '/fonts': 'шрифты', '/stats': 'статистика' };
+const PAGE_ALIAS = { '/карта': '/map', '/котировки': '/quotes', '/цб': '/cbr',
+                     '/шрифты': '/fonts', '/статистика': '/stats' };
+function pageOf(pathname) {
+  let x = pathname;
+  try { x = decodeURIComponent(x); } catch (e) {}
+  if (PAGE_ALIAS[x]) x = PAGE_ALIAS[x];
+  return PAGE_NAMES[x] ? x : null;
 }
+
+let S = { date: dayKey(), views: 0, todayIps: [], allIps: [], days: {} };
+try { S = Object.assign(S, JSON.parse(fs.readFileSync(STATS_FILE, 'utf8'))); } catch (e) {}
+let todaySet = new Set(S.todayIps || []);
+const allSet = new Set(S.allIps || []);
+if (S.date !== dayKey()) { S.date = dayKey(); todaySet = new Set(); S.views = 0; }
+const online = new Map();     // хэш ip → время последней активности
+let statsDirty = false;
+
+// запись дня; старый формат {u,v} дополняется новыми полями на месте
+function dayRec(d) {
+  let r = S.days[d];
+  if (!r) r = S.days[d] = {};
+  if (typeof r.u   !== 'number') r.u = 0;      // уникальных
+  if (typeof r.v   !== 'number') r.v = 0;      // открытий страниц
+  if (typeof r.sec !== 'number') r.sec = 0;    // суммарное время на сайте, секунд
+  if (typeof r.ses !== 'number') r.ses = 0;    // визитов (сессий)
+  if (!r.ips) r.ips = [];                      // хэши посетителей этого дня
+  if (!r.ref) r.ref = {};                      // откуда пришли
+  if (!r.dev) r.dev = {};                      // m мобильный, d десктоп, t планшет, b бот
+  if (!r.pg)  r.pg  = {};                      // какие страницы открывали
+  return r;
+}
+
+function refHost(req) {
+  const r = req && req.headers && req.headers.referer;
+  if (!r) return 'прямые заходы';
+  try {
+    const h = new URL(r).hostname.replace(/^www\./, '');
+    if (/(^|\.)finfacts\.ru$/i.test(h)) return 'прямые заходы';
+    return h.slice(0, 60);
+  } catch (e) { return 'прямые заходы'; }
+}
+function devKind(req) {
+  const ua = (req && req.headers && req.headers['user-agent']) || '';
+  if (/bot|crawler|spider|curl|wget|python-requests|headless|yandex|google/i.test(ua)) return 'b';
+  if (/iPad|Tablet|PlayBook|Silk/i.test(ua)) return 't';
+  if (/Mobi|Android|iPhone|iPod|Windows Phone/i.test(ua)) return 'm';
+  return 'd';
+}
+
+// page — адрес открытой страницы, либо null для фонового запроса ленты
+function trackVisit(ip, page, req) {
+  const d = dayKey();
+  if (S.date !== d) { S.date = d; todaySet = new Set(); S.views = 0; }
+  const h = ipHash(ip);
+  const now = Date.now();
+  const r = dayRec(d);
+
+  // время на сайте складываем из промежутков между сигналами живой вкладки
+  const prev = online.get(h);
+  if (prev && now - prev <= SESSION_GAP) r.sec += Math.round((now - prev) / 1000);
+  else r.ses++;
+  online.set(h, now);
+
+  if (page) {
+    S.views++;
+    todaySet.add(h);
+    allSet.add(h);
+    const nm = PAGE_NAMES[page] || page.slice(0, 40);
+    r.pg[nm]  = (r.pg[nm]  || 0) + 1;
+    const src = refHost(req);
+    r.ref[src] = (r.ref[src] || 0) + 1;
+    const dv = devKind(req);
+    r.dev[dv] = (r.dev[dv] || 0) + 1;
+  }
+  r.u = todaySet.size;
+  r.v = S.views;
+  statsDirty = true;
+}
+
+function onlineNow() {
+  const now = Date.now();
+  for (const [h, t] of online) if (now - t > SESSION_GAP * 4) online.delete(h);
+  const cut = now - ONLINE_MS;
+  let n = 0;
+  for (const t of online.values()) if (t >= cut) n++;
+  return n;
+}
+
+// уникальные за скользящее окно в N дней
+function windowUnique(n) {
+  const set = new Set(todaySet);
+  for (let i = 0; i < n; i++) {
+    const r = S.days[dayKey(i)];
+    if (r && r.ips) for (const h of r.ips) set.add(h);
+  }
+  return set.size;
+}
+// сумма словарей (ref / dev / pg) за N дней, отсортированная по убыванию
+function aggr(field, n) {
+  const acc = {};
+  for (let i = 0; i < n; i++) {
+    const r = S.days[dayKey(i)];
+    if (!r || !r[field]) continue;
+    for (const k in r[field]) acc[k] = (acc[k] || 0) + r[field][k];
+  }
+  return Object.entries(acc).sort((a, b) => b[1] - a[1]);
+}
+function spanTime(n) {
+  let sec = 0, ses = 0;
+  for (let i = 0; i < n; i++) {
+    const r = S.days[dayKey(i)];
+    if (r) { sec += r.sec || 0; ses += r.ses || 0; }
+  }
+  return { sec, ses, avg: ses ? Math.round(sec / ses) : 0 };
+}
+
+function saveStats() {
+  if (!statsDirty) return;
+  statsDirty = false;
+  S.todayIps = [...todaySet];
+  S.allIps = [...allSet];
+  dayRec(S.date).ips = [...todaySet];
+  const keys = Object.keys(S.days).sort();
+  while (keys.length > DAYS_KEEP) delete S.days[keys.shift()];
+  for (const k of keys.slice(0, Math.max(0, keys.length - IPS_KEEP)))
+    if (S.days[k]) S.days[k].ips = [];        // старые хэши не нужны, место не занимают
+  try {
+    fs.writeFileSync(STATS_FILE + '.tmp', JSON.stringify(S));
+    fs.renameSync(STATS_FILE + '.tmp', STATS_FILE);
+  } catch (e) {}
+}
+setInterval(saveStats, 20000);
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { saveStats(); process.exit(0); });
 
 function pFmt(v) {
   if (v == null || !isFinite(v)) return '—';
@@ -732,7 +914,9 @@ const srv = http.createServer(async (req, res) => {
   const clientIp = (req.headers['x-forwarded-for']||'').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
   try {
     const u = new URL(req.url, 'http://x');
-    if (u.pathname === '/') trackVisit(clientIp);
+    const _pg = pageOf(u.pathname);
+    if (_pg) trackVisit(clientIp, _pg, req);
+    else if (u.pathname === '/api/feed' || u.pathname === '/api/panel') trackVisit(clientIp, null, req);
     if (u.pathname === '/api/feed') {
       const feed = await getFeed();
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -774,8 +958,30 @@ const srv = http.createServer(async (req, res) => {
       return res.end(JSON.stringify(q));
     }
     if (u.pathname === '/api/stats') {
+      const n = Math.min(Math.max(parseInt(u.searchParams.get('days') || '30', 10) || 30, 1), DAYS_KEEP);
+      const days = Object.keys(S.days).sort().slice(-n).map(d => {
+        const r = S.days[d];
+        return { d, u: r.u || 0, v: r.v || 0, sec: r.sec || 0, ses: r.ses || 0 };
+      });
+      const t  = dayRec(S.date);
+      const dv = {}; for (const [k, c] of aggr('dev', 30)) dv[k] = c;
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-      return res.end(JSON.stringify({ today: visitors.today.size, total: visitors.total, date: visitors.date }));
+      return res.end(JSON.stringify({
+        online: onlineNow(),                              // уникальных за последние 2 минуты
+        today:  todaySet.size,                            // уникальных сегодня (Москва)
+        views:  S.views,                                  // открытий страниц сегодня
+        week:   windowUnique(7),                          // уникальных за 7 дней
+        month:  windowUnique(30),                         // уникальных за 30 дней
+        total:  allSet.size,                              // уникальных за всё время
+        avgSec:   t.ses ? Math.round(t.sec / t.ses) : 0,  // средний визит сегодня, секунд
+        avgSec30: spanTime(30).avg,                       // средний визит за 30 дней
+        todaySec: t.sec,                                  // суммарное время сегодня
+        date: S.date,
+        days,                                             // история по дням
+        ref:   aggr('ref', 30).slice(0, 12),              // источники переходов за 30 дней
+        dev:   dv,                                        // устройства за 30 дней
+        pages: aggr('pg', 30).slice(0, 10)                // страницы за 30 дней
+      }));
     }
     if (u.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -787,6 +993,7 @@ const srv = http.createServer(async (req, res) => {
     if (p === '/map' || p === '/карта' || p === encodeURI('/карта')) p = '/map.html';
     if (p === '/cbr' || p === '/цб' || p === encodeURI('/цб')) p = '/cbr.html';
     if (p === '/quotes' || p === '/котировки' || p === encodeURI('/котировки')) p = '/quotes.html';
+    if (p === '/stats' || p === '/статистика' || p === encodeURI('/статистика')) p = '/stats.html';
     p = path.normalize(p).replace(/^(\.\.[/\\])+/, '');
     const file = path.join(__dirname, 'public', p);
     if (file.startsWith(path.join(__dirname, 'public')) && fs.existsSync(file) && fs.statSync(file).isFile()) {

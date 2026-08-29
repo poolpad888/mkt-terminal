@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Статистика — FINFACTS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090c; --panel:#0d1117; --line:#1b232e;
+  --amber:#ffb000; --red:#ff5252; --green:#2ee06f; --blue:#4db8ff; --violet:#b48cff;
+  --tx:#c9d4e0; --dim:#5b6b7c;
+  --mono:"IBM Plex Mono","SF Mono",Consolas,Menlo,monospace;
+  --sans:"IBM Plex Sans","Segoe UI",Arial,sans-serif;
+}
+html.light{
+  --bg:#f7f8fa; --panel:#ffffff; --line:#dde3ea;
+  --amber:#b06f00; --red:#c62828; --green:#0f7a3d; --blue:#1565c0; --violet:#6a3fb5;
+  --tx:#1c2530; --dim:#6b7a8a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font:12.5px/1.45 var(--sans)}
+a{color:inherit;text-decoration:none}
+header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;padding:9px 14px}
+.logo{color:var(--amber);font-weight:700;letter-spacing:.08em;white-space:nowrap;font-family:var(--mono)}
+.sub{color:var(--dim);font-size:12px}
+.sp{flex:1}
+.hbtn{background:none;border:1px solid var(--line);color:var(--dim);font:inherit;font-size:11px;
+  padding:4px 9px;border-radius:4px;cursor:pointer;white-space:nowrap;display:inline-block}
+.hbtn:hover{color:var(--amber);border-color:var(--amber)}
+#clock{color:var(--dim);font-size:12px;font-family:var(--mono)}
+
+main{max-width:960px;margin:0 auto;padding:16px 14px 60px}
+.top{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.top h1{font-size:15px;font-weight:700;letter-spacing:.02em}
+.top .note{color:var(--dim);font-size:11.5px}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.tile .lb{color:var(--dim);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-family:var(--mono);
+  display:flex;align-items:center;gap:6px}
+.tile .vl{font-family:var(--mono);font-weight:700;font-size:27px;line-height:1.25;margin-top:4px}
+.tile .hint{color:var(--dim);font-size:11px}
+.tile.live{border-color:rgba(46,224,111,.35)}
+.tile.live .vl{color:var(--green)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:bl 1.6s infinite;flex:none}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.25}}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+@media(max-width:700px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px 14px;margin-bottom:12px}
+.card h2{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);
+  font-family:var(--mono);margin-bottom:10px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.card h2 .leg{font-size:10.5px;letter-spacing:.04em;text-transform:none;font-weight:400}
+.card h2 .leg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
+.leg .u{background:var(--amber)} .leg .v{background:var(--blue);opacity:.45}
+
+.rows{display:flex;flex-direction:column;gap:3px}
+.r{display:grid;grid-template-columns:74px 1fr 42px 42px 52px;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:11.5px;padding:2px 0;border-radius:3px}
+.r:hover{background:rgba(120,130,145,.07)}
+.r .dt{color:var(--dim)}
+.r.tdy .dt{color:var(--amber);font-weight:600}
+.bar{position:relative;height:14px;background:rgba(120,130,145,.10);border-radius:3px;overflow:hidden}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;display:block}
+.bar .bv{background:var(--blue);opacity:.28}
+.bar .bu{background:var(--amber)}
+.r .nu{text-align:right;color:var(--amber);font-weight:600}
+.r .nv{text-align:right;color:var(--dim)}
+.r .nt{text-align:right;color:var(--green)}
+.hd{display:grid;grid-template-columns:74px 1fr 42px 42px 52px;gap:8px;font-family:var(--mono);font-size:10px;
+  letter-spacing:.1em;color:var(--dim);text-transform:uppercase;margin-bottom:5px}
+.hd .nu,.hd .nv,.hd .nt{text-align:right}
+
+/* горизонтальные списки: источники, устройства, страницы */
+.lst{display:flex;flex-direction:column;gap:5px}
+.li{display:grid;grid-template-columns:1fr 46px;align-items:center;gap:8px;font-size:11.5px}
+.li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .cn{font-family:var(--mono);text-align:right;color:var(--amber);font-weight:600}
+.lb2{position:relative;height:5px;background:rgba(120,130,145,.10);border-radius:3px;margin-top:2px;grid-column:1/3}
+.lb2 i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--violet);opacity:.65}
+.empty{color:var(--dim);font-size:11.5px;padding:6px 0}
+.foot{color:var(--dim);font-size:11px;text-align:center;margin-top:18px;line-height:1.6}
+@media(max-width:520px){
+  .r,.hd{grid-template-columns:58px 1fr 34px 34px 44px;font-size:10.5px}
+  .tile .vl{font-size:24px}
+}
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">FINFACTS</span>
+  <span class="sub">Статистика посещений</span>
+  <span class="sp"></span>
+  <a class="hbtn" href="/">← лента</a>
+  <a class="hbtn" href="/map">карта</a>
+  <button class="hbtn" id="thBtn" title="светлая / тёмная тема">◑</button>
+  <span id="clock">--:--:--</span>
+</header>
+<main>
+  <div class="top">
+    <h1>Статистика</h1>
+    <span class="note">обновляется каждые 10 секунд · время московское</span>
+  </div>
+
+  <div class="tiles">
+    <div class="tile live">
+      <div class="lb"><span class="dot"></span>сейчас на сайте</div>
+      <div class="vl" id="vOnline">—</div>
+      <div class="hint">активны за 2 минуты</div>
+    </div>
+    <div class="tile">
+      <div class="lb">за сегодня</div>
+      <div class="vl" id="vToday">—</div>
+      <div class="hint" id="vDate">—</div>
+    </div>
+    <div class="tile">
+      <div class="lb">за неделю</div>
+      <div class="vl" id="vWeek">—</div>
+      <div class="hint">уникальных за 7 дней</div>
+    </div>
+    <div class="tile">
+      <div class="lb">за месяц</div>
+      <div class="vl" id="vMonth">—</div>
+      <div class="hint">уникальных за 30 дней</div>
+    </div>
+    <div class="tile">
+      <div class="lb">за всё время</div>
+      <div class="vl" id="vTotal">—</div>
+      <div class="hint">уникальных посетителей</div>
+    </div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile">
+      <div class="lb">средний визит</div>
+      <div class="vl" id="vAvg">—</div>
+      <div class="hint" id="vAvg30">—</div>
+    </div>
+    <div class="tile">
+      <div class="lb">времени сегодня</div>
+      <div class="vl" id="vSum">—</div>
+      <div class="hint">суммарно по всем визитам</div>
+    </div>
+    <div class="tile">
+      <div class="lb">открытий сегодня</div>
+      <div class="vl" id="vViews">—</div>
+      <div class="hint">заходов на страницы</div>
+    </div>
+    <div class="tile">
+      <div class="lb">с телефона</div>
+      <div class="vl" id="vMob">—</div>
+      <div class="hint">доля за 30 дней</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Откуда приходят <span class="leg">за 30 дней</span></h2>
+      <div class="lst" id="refs"><div class="empty">загрузка…</div></div>
+    </div>
+    <div class="card">
+      <h2>Страницы <span class="leg">за 30 дней</span></h2>
+      <div class="lst" id="pages"><div class="empty">загрузка…</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Устройства <span class="leg">за 30 дней</span></h2>
+    <div class="lst" id="devs"><div class="empty">загрузка…</div></div>
+  </div>
+
+  <div class="card">
+    <h2>По дням
+      <span class="leg"><i class="u"></i>уникальные&nbsp;&nbsp;<i class="v"></i>открытия</span>
+    </h2>
+    <div class="hd"><span>дата</span><span></span><span class="nu">уник.</span><span class="nv">откр.</span><span class="nt">визит</span></div>
+    <div class="rows" id="rows"><div class="empty">загрузка…</div></div>
+  </div>
+
+  <div class="foot">
+    Считаются уникальные IP-адреса (сам адрес не сохраняется, только его хэш).<br>
+    Время на сайте — по сигналам открытой вкладки, пауза дольше 90 секунд считается новым визитом.<br>
+    Данные: <a href="/api/stats" style="color:var(--violet)">/api/stats</a>
+  </div>
+</main>
+<script>
+try{const p=JSON.parse(localStorage.getItem('mkt_prefs')||'{}');if(p.light)document.documentElement.classList.add('light')}catch(e){}
+const thBtn=document.getElementById('thBtn');
+const isLight=()=>document.documentElement.classList.contains('light');
+const thLabel=()=>{thBtn.textContent=isLight()?'◕':'◑'};
+thBtn.onclick=()=>{
+  document.documentElement.classList.toggle('light');thLabel();
+  try{const p=JSON.parse(localStorage.getItem('mkt_prefs')||'{}');p.light=isLight();localStorage.setItem('mkt_prefs',JSON.stringify(p))}catch(e){}
+};
+thLabel();
+
+const clock=document.getElementById('clock');
+setInterval(()=>{clock.textContent=new Date().toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow'})},1000);
+
+const MON=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+function human(d){const [y,m,dd]=d.split('-');return dd.replace(/^0/,'')+' '+MON[+m-1];}
+function dur(s){
+  s=Math.max(0,Math.round(s||0));
+  if(s<60)return s+' с';
+  const m=Math.floor(s/60),ss=s%60;
+  if(m<60)return m+' мин'+(ss?' '+ss:'');
+  const h=Math.floor(m/60);return h+' ч '+(m%60)+' мин';
+}
+const DEVN={m:'телефон',d:'компьютер',t:'планшет',b:'роботы и краулеры'};
+const $=id=>document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function drawList(box,pairs,namer){
+  if(!pairs||!pairs.length){box.innerHTML='<div class="empty">пока нет данных</div>';return}
+  const max=Math.max(1,...pairs.map(p=>p[1]));
+  box.innerHTML=pairs.map(p=>
+    '<div class="li"><span class="nm">'+esc(namer?namer(p[0]):p[0])+'</span>'+
+    '<span class="cn">'+p[1]+'</span>'+
+    '<span class="lb2"><i style="width:'+(p[1]/max*100).toFixed(1)+'%"></i></span></div>'
+  ).join('');
+}
+
+async function load(){
+  let s;
+  try{ s=await (await fetch('/api/stats?days=30&t='+Date.now(),{cache:'no-store'})).json(); }
+  catch(e){ return; }
+  $('vOnline').textContent=s.online;
+  $('vToday').textContent=s.today;
+  $('vWeek').textContent=s.week!=null?s.week:'—';
+  $('vMonth').textContent=s.month!=null?s.month:'—';
+  $('vTotal').textContent=s.total;
+  $('vViews').textContent=s.views;
+  $('vDate').textContent=s.date?human(s.date):'—';
+  $('vAvg').textContent=dur(s.avgSec);
+  $('vAvg30').textContent='за 30 дней — '+dur(s.avgSec30);
+  $('vSum').textContent=dur(s.todaySec);
+
+  const dev=s.dev||{};
+  const human_=(dev.m||0)+(dev.d||0)+(dev.t||0);
+  $('vMob').textContent=human_?Math.round((dev.m||0)/human_*100)+'%':'—';
+  drawList($('devs'),Object.entries(dev).sort((a,b)=>b[1]-a[1]),k=>DEVN[k]||k);
+  drawList($('refs'),s.ref||[]);
+  drawList($('pages'),s.pages||[]);
+
+  const days=(s.days||[]).slice().reverse();
+  const box=$('rows');
+  if(!days.length){ box.innerHTML='<div class="empty">пока нет данных — история копится со дня установки</div>'; return; }
+  const max=Math.max(1,...days.map(x=>Math.max(x.u,x.v)));
+  box.innerHTML=days.map(x=>
+    '<div class="r'+(x.d===s.date?' tdy':'')+'">'+
+      '<span class="dt">'+human(x.d)+'</span>'+
+      '<span class="bar">'+
+        '<i class="bv" style="width:'+(x.v/max*100).toFixed(1)+'%"></i>'+
+        '<i class="bu" style="width:'+(x.u/max*100).toFixed(1)+'%"></i>'+
+      '</span>'+
+      '<span class="nu">'+x.u+'</span>'+
+      '<span class="nv">'+x.v+'</span>'+
+      '<span class="nt">'+(x.ses?dur(Math.round(x.sec/x.ses)):'—')+'</span>'+
+    '</div>').join('');
+}
+load();
+setInterval(load,10000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+</script>
+</body>
+</html>
