@@ -261,6 +261,13 @@ body.side-on #side{transform:translateX(0)}
    поэтому чуть расширяем фон, иначе вспышка почти не видна */
 .qp.copied{animation:qfl .5s ease both;border-radius:3px;
   margin:0 -3px;padding:0 3px}
+/* Изменение котировки: на секунду подкрашиваем сами цифры — зелёным при
+   росте, красным при снижении, потом цвет плавно возвращается к обычному.
+   Ни фона, ни рамок: экран не рябит, а движение всё равно заметно. */
+.qp.tup{animation:qtu 1.1s ease-out both}
+.qp.tdn{animation:qtd 1.1s ease-out both}
+@keyframes qtu{0%,25%{color:var(--green)}100%{color:var(--tx)}}
+@keyframes qtd{0%,25%{color:var(--red)}100%{color:var(--tx)}}
 .qn{font-size:11.5px;color:var(--tx);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qp{font-family:var(--mono);font-size:11.5px;color:var(--tx)}
 .qc{font-family:var(--mono);font-size:9.5px;min-width:54px;text-align:right;white-space:nowrap}
@@ -440,6 +447,7 @@ function moodRender(d){
     sh>=.7?'рост по широкому фронту':sh>=.55?'преобладает рост':
     sh>=.45?'рынок смешанный':sh>=.3?'преобладает снижение':'снижение по широкому фронту';
 }
+const qPrev={};   // прошлые значения котировок: название → число
 function sideRender(d){
   if(!d.groups||!d.groups.length){
     sideBody.innerHTML='<div class="sempty">Котировки временно недоступны</div>';return;
@@ -454,8 +462,15 @@ function sideRender(d){
       const arrow=c==null?'':c>0.004?'▲ ':c<-0.004?'▼ ':'';
       const ct=c==null?'—':arrow+Math.abs(c).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
       const bare=String(r.n).split('·')[0].trim();      // имя без пометки «· ЦБ», «· ф.»
+      // Сравниваем с прошлым значением этой же строки: если цифра изменилась,
+      // помечаем её классом — подсветка сыграет один раз после отрисовки.
+      const num=v=>parseFloat(String(v).replace(/[\s\u00a0\u202f\u2009]/g,'').replace(',','.'));
+      const prev=qPrev[r.n], cur=num(r.p);
+      let tc='';
+      if(prev!=null && isFinite(cur) && cur!==prev) tc=cur>prev?' tup':' tdn';
+      if(isFinite(cur)) qPrev[r.n]=cur;
       h+='<div class="qrow" data-n="'+bare.replace(/"/g,'&quot;')+'" data-p="'+String(r.p).replace(/"/g,'&quot;')+'">'+
-         '<span class="qn">'+r.n+'</span><span class="qp">'+r.p+'</span><span class="qc '+cls+'">'+ct+'</span></div>';
+         '<span class="qn">'+r.n+'</span><span class="qp'+tc+'">'+r.p+'</span><span class="qc '+cls+'">'+ct+'</span></div>';
     }
     h+='</div>';
   }
