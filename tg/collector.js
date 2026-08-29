@@ -176,7 +176,7 @@ function rowFrom(msg, uname, name) {
     const cls = (upd && upd.className)
       || (upd && upd.constructor && upd.constructor.name)
       || typeof upd;
-    if (DEBUG && !/UpdateUserStatus|UpdateUserTyping/.test(cls))
+    if (DEBUG && !/UpdateUserStatus|UpdateUserTyping|UpdateConnectionState/.test(cls))
       console.log('· сырое событие: ' + cls);
 
     // Имя класса приходит не всегда — в этой версии библиотеки часть
@@ -215,6 +215,51 @@ function rowFrom(msg, uname, name) {
   // Для долгоживущей службы лучше записать в журнал и продолжить работу.
   process.on('unhandledRejection', e => console.log('необработанный отказ: ' + (e && e.message || e)));
   process.on('uncaughtException',  e => console.log('исключение: ' + (e && e.message || e)));
+
+  // ── Опрос ──────────────────────────────────────────────────────────────
+  // Поток обновлений от Телеграма в этой связке не работает: приходят
+  // только служебные UpdateConnectionState. Поэтому спрашиваем сами.
+  // Один запрос списка диалогов отдаёт последнее сообщение сразу по всем
+  // каналам — это дёшево и не упирается в ограничения.
+  const POLL_MS = parseInt(process.env.TG_POLL_MS || '4000', 10);
+  const seen = new Map();   // username → id последнего обработанного поста
+  let first = true;
+
+  async function poll() {
+    try {
+      const dialogs = await client.getDialogs({ limit: 100 });
+      lastEvent = Date.now();
+      for (const d of dialogs) {
+        const ent = d.entity;
+        const uname = ent && ent.username;
+        if (!uname || !CHANNELS[uname]) continue;
+        const msg = d.message;
+        if (!msg || !msg.id) continue;
+
+        const prev = seen.get(uname);
+        if (prev === undefined) { seen.set(uname, msg.id); continue; }
+        if (msg.id <= prev) continue;
+
+        // Между опросами могло выйти несколько постов — добираем пропущенные.
+        let batch = [msg];
+        if (msg.id > prev + 1) {
+          try {
+            const more = await client.getMessages(uname, { minId: prev, limit: 20 });
+            if (more && more.length) batch = more;
+          } catch (e) { if (DEBUG) console.log('· не добрал ' + uname + ': ' + e.message); }
+        }
+        batch.sort((a, b) => a.id - b.id);
+        for (const m of batch) {
+          const row = rowFrom(m, uname, CHANNELS[uname]);
+          if (row) await withRetry(insertPost, row, 'новый');
+        }
+        seen.set(uname, msg.id);
+      }
+      if (first) { first = false; console.log('опрос запущен, интервал ' + POLL_MS + ' мс'); }
+    } catch (e) { console.log('опрос: ' + e.message); }
+    setTimeout(poll, POLL_MS);
+  }
+  poll();
 
   // Сторож: если полчаса нет ни одного события, соединение скорее всего
   // повисло. Выходим с ошибкой — systemd поднимет процесс заново.
