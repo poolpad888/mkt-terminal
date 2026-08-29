@@ -521,7 +521,7 @@ function sideOpen(on){
   if(on){
     sideAlign();
     sideLoad();
-    if(!sideTimer)sideTimer=setInterval(sideLoad,5000);   // проба: раз в 5 с
+    if(!sideTimer)sideTimer=setInterval(sideLoad,10000);   // 10 с: на 5 с CoinGecko начинал отказывать
   }else if(sideTimer){clearInterval(sideTimer);sideTimer=null;}
 }
 document.getElementById('sideBtn').onclick=()=>sideOpen(!document.body.classList.contains('side-on'));

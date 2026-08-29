@@ -902,7 +902,7 @@ async function buildPanel() {
 
 async function getPanel() {
   const now = Date.now();
-  if (pCache.data && now - pCache.at < 5 * 1000) return pCache.data;   // проба: 5 с
+  if (pCache.data && now - pCache.at < 10 * 1000) return pCache.data;   // 10 с — компромисс: чаще CoinGecko отдаёт отказы
   if (!pCache.busy) pCache.busy = buildPanel()
     .then(d => { pCache = { at: Date.now(), data: d, busy: null }; return d; })
     .catch(e => { pCache.busy = null; return pCache.data || { updated: null, groups: [], error: e.message }; });
