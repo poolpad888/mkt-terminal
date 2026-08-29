@@ -824,7 +824,10 @@ function hlMap(resp) {
     const px = parseFloat(c.markPx), prev = parseFloat(c.prevDayPx);
     const vol = parseFloat(c.dayNtlVlm) || 0;
     if (!isFinite(px) || vol <= 0) return;
-    out[u.name] = { px, vol, chg: isFinite(prev) && prev ? (px - prev) / prev * 100 : null };
+    // На сторонних площадках имя приходит с приставкой — 'xyz:GOLD'.
+    // На основной приставки нет: просто 'BTC'. Отрезаем, чтобы ключ был единым.
+    const key = String(u.name).split(':').pop();
+    out[key] = { px, vol, chg: isFinite(prev) && prev ? (px - prev) / prev * 100 : null };
   });
   return out;
 }
