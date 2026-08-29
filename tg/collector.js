@@ -147,35 +147,57 @@ function rowFrom(msg, uname, name) {
   const me = await client.getMe();
   console.log('вошёл как ' + (me.username || me.phone) + ', слушаю каналы');
 
-  client.addEventHandler(async (ev) => {
+  // Разовая выкачка: node tg/collector.js --backfill [сколько]
+  // Берёт последние сообщения из каждого канала, пишет в базу и выходит.
+  // Нужна для проверки записи и для первичного наполнения ленты.
+  if (process.argv.includes('--backfill')) {
+    const idx = process.argv.indexOf('--backfill');
+    const limit = parseInt(process.argv[idx + 1], 10) || 5;
+    let ok = 0, fail = 0;
+    for (const uname of Object.keys(CHANNELS)) {
+      try {
+        const msgs = await client.getMessages(uname, { limit });
+        for (const m of msgs) {
+          const row = rowFrom(m, uname, CHANNELS[uname]);
+          if (row) { await withRetry(insertPost, row, 'выкачка'); ok++; }
+        }
+      } catch (e) { fail++; console.log('не вышло с ' + uname + ': ' + e.message); }
+      await new Promise(r => setTimeout(r, 1200)); // не частим, чтобы не ловить лимиты
+    }
+    console.log('выкачка завершена: записей ' + ok + ', каналов с ошибкой ' + fail);
+    await pool.end();
+    process.exit(0);
+  }
+
+  // Разбираем сырые обновления сами. Надстройка NewMessage в этой версии
+  // библиотеки событий не отдавала, а сырой поток идёт исправно.
+  client.addEventHandler(async (upd) => {
     lastEvent = Date.now();
+    const cls = (upd && upd.className)
+      || (upd && upd.constructor && upd.constructor.name)
+      || typeof upd;
+    if (DEBUG && !/UpdateUserStatus|UpdateUserTyping/.test(cls))
+      console.log('· сырое событие: ' + cls);
+
+    const isNew  = /^UpdateNew(Channel)?Message$/.test(cls);
+    const isEdit = /^UpdateEdit(Channel)?Message$/.test(cls);
+    if (!isNew && !isEdit) return;
+
     try {
-      const chat = await ev.getChat();
-      const uname = chat && chat.username;
-      if (!uname) { if (DEBUG) console.log('· событие без username канала'); return; }
+      const msg = upd.message;
+      if (!msg || !msg.peerId) return;
+      const ch = await client.getEntity(msg.peerId);
+      const uname = ch && ch.username;
+      if (!uname) { if (DEBUG) console.log('· канал без имени, пропуск'); return; }
       if (Object.keys(CHANNELS).length && !CHANNELS[uname]) {
         if (DEBUG) console.log('· пропущен, нет в списке: ' + uname);
         return;
       }
-      const row = rowFrom(ev.message, uname, CHANNELS[uname]);
-      if (row) await withRetry(insertPost, row, 'новый');
-    } catch (e) { console.log('ошибка обработки: ' + e.message); }
-  }, new NewMessage({}));
-
-  // Правки приходят отдельным типом апдейта, не через NewMessage.
-  client.addEventHandler(async (upd) => {
-    lastEvent = Date.now();
-    if (DEBUG) console.log('· сырое событие: ' + (upd && upd.className || typeof upd));
-    if (!(upd instanceof Api.UpdateEditChannelMessage)) return;
-    try {
-      const msg = upd.message;
-      const ch = await client.getEntity(msg.peerId);
-      const uname = ch && ch.username;
-      if (!uname) return;
-      if (Object.keys(CHANNELS).length && !CHANNELS[uname]) return;
       const row = rowFrom(msg, uname, CHANNELS[uname]);
-      if (row) await withRetry(updatePost, row, 'правка');
-    } catch (e) { console.log('ошибка правки: ' + e.message); }
+      if (!row) return;
+      if (isNew) await withRetry(insertPost, row, 'новый');
+      else       await withRetry(updatePost, row, 'правка');
+    } catch (e) { console.log('ошибка обработки: ' + e.message); }
   });
 
   // Необработанный отказ промиса в новых версиях Node роняет процесс.
