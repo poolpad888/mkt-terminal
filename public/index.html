@@ -108,10 +108,13 @@ nav{position:sticky;top:var(--hh,41px);z-index:19;background:var(--bg);border-bo
 nav::-webkit-scrollbar{display:none}
 nav.off{opacity:.35;pointer-events:none}
 .chip{flex:none;background:var(--panel);border:1px solid var(--line);color:var(--dim);font:inherit;
-  font-size:11.5px;padding:4px 10px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+  font-size:11.5px;padding:4px 10px;border-radius:20px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
 .chip-n{font-size:9.5px;opacity:.55;font-variant-numeric:tabular-nums}
 .chip.on{color:#0b0d10;background:var(--amber);border-color:var(--amber);font-weight:700}
 .chip.imp.on{background:var(--red);border-color:var(--red);color:#fff}
+.chip.cbr.on{background:#1e3a8a;border-color:#1e3a8a;color:#e8f0ff}
+.chip.minfin.on{background:#3f4854;border-color:#3f4854;color:#eef2f6}
+.chip.fed.on{background:#1e3d50;border-color:#1e3d50;color:#a8d4e8}
 
 /* ── лента ── */
 main{max-width:860px;margin:0 auto;padding:8px 0 60px}
@@ -143,7 +146,7 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
   border-left:none;border-right:none;
   overflow:hidden}
 .fband{background:var(--red);display:flex;flex-direction:column;align-items:center;justify-content:space-between;
-  padding:6px 0;border-radius:0 4px 4px 0;margin:-1px 0 -1px 0}
+  padding:6px 0;border-radius:4px;margin:3px 0 3px 3px}
 .vtxt{writing-mode:vertical-rl;transform:rotate(180deg);color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.18em}
 .ico{font-size:11px}
 .row.lvl2 .time{color:var(--red);font-weight:600}
@@ -576,6 +579,9 @@ function beep(){
 function passTag(x){
   if(filterTag==='all')return true;
   if(filterTag==='imp')return x.lvl===2;
+  if(filterTag==='cbr')return !!x.reg&&!x.mark;
+  if(filterTag==='minfin')return !!x.reg&&x.mark==='fin';
+  if(filterTag==='fed')return !!x.reg&&(x.mark==='fed'||x.mark==='frs');
   return (x.tags||[]).includes(filterTag)||x.src===filterTag;
 }
 
@@ -583,16 +589,22 @@ function passTag(x){
 function topTags(){
   const cnt={};
   for(const x of ITEMS)for(const t of (x.tags||[]))cnt[t]=(cnt[t]||0)+1;
-  return Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,7).map(e=>({tag:e[0],n:e[1]}));
+  return Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,30).map(e=>({tag:e[0],n:e[1]}));
 }
 function renderNav(){
   const nav=document.getElementById('nav');
   nav.classList.toggle('off',!!searchQ);
   const allN=ITEMS.length;
   const impN=ITEMS.filter(x=>x.lvl===2).length;
+  // Ведомства — постоянные фильтры, считаем по метке mark.
+  const nMark=m=>ITEMS.filter(x=>x.reg&&(m==='fed'?(x.mark==='fed'||x.mark==='frs'):x.mark===m)).length;
+  const cbN=ITEMS.filter(x=>x.reg&&!x.mark).length;
   const chips=[
     {id:'all',label:'Все',n:allN},
     {id:'imp',label:'⚡ Важно',cls:'imp',n:impN},
+    {id:'cbr',label:'🏛 ЦБ',cls:'cbr',n:cbN},
+    {id:'minfin',label:'₽ Минфин',cls:'minfin',n:nMark('fin')},
+    {id:'fed',label:'$ ФРС',cls:'fed',n:nMark('fed')},
     ...topTags().map(({tag,n})=>({id:tag,label:'#'+tag,n}))
   ];
   nav.innerHTML=
@@ -608,19 +620,20 @@ function fitNav(){
   if(!nav) return;
   const chips=[...nav.querySelectorAll('.chip')];
   if(!chips.length) return;
-  const side=document.body.classList.contains('side-on');
-  const w=window.innerWidth - (side ? (parseInt(getComputedStyle(document.documentElement)
-            .getPropertyValue('--sw')) || 296) : 0);
-  // Сколько фильтров влезает по ширине: узкий экран — только самые нужные,
-  // иначе хвост уезжает за край и до него не докрутиться.
-  let keep;
-  if(w<=380)       keep=2;
-  else if(w<=460)  keep=3;
-  else if(w<=560)  keep=4;
-  else if(w<=680)  keep=5;
-  else if(w<=820)  keep=6;
-  else if(w<=1000) keep=7;
-  else             keep=chips.length;
+  // Меряем по-настоящему: показываем всё, складываем ширины и оставляем
+  // столько чипов, сколько помещается в одну строку без прокрутки.
+  chips.forEach(c=>c.classList.remove('hid'));
+  const cs=getComputedStyle(nav);
+  const gap=parseFloat(cs.columnGap||cs.gap)||6;
+  const avail=nav.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+  let used=0, keep=0;
+  for(const c of chips){
+    const w=c.getBoundingClientRect().width;
+    const need=used?used+gap+w:w;
+    if(need>avail) break;
+    used=need; keep++;
+  }
+  if(keep<2) keep=2;                       // «Все» и «Важно» показываем всегда
   chips.forEach((c,i)=>{
     const mine=c.classList.contains('on');
     c.classList.toggle('hid', !mine && i>=keep);
