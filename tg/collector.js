@@ -161,16 +161,18 @@ function rowFrom(msg, uname, name) {
     const dialogs = await client.getDialogs({ limit: 300 });
     const have = new Set();
     const rows = [];
+    console.log('всего диалогов: ' + dialogs.length);
     for (const d of dialogs) {
       const e = d.entity;
-      if (!e || !e.broadcast) continue;
+      if (!e) { rows.push(['?', '(без сущности)', d.name || '', '—']); continue; }
+      const kind = e.broadcast ? 'канал' : e.megagroup ? 'группа' : e.className || 'иное';
       // У закрытых каналов публичного адреса нет — обращаемся по номеру.
       const key = e.username || ('id:' + e.id);
       have.add(key);
       const last = d.message && d.message.date
         ? new Date(d.message.date * 1000).toISOString().slice(0, 16).replace('T', ' ')
         : '—';
-      rows.push([CHANNELS[key] ? ' ' : '+', key, e.title || '', last]);
+      rows.push([CHANNELS[key] ? ' ' : '+', key, kind + ' · ' + (e.title || ''), last]);
     }
     rows.sort((a, b) => a[1].localeCompare(b[1]));
     console.log('\nПодписки аккаунта (+ = нет в нашем списке):');

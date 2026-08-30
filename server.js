@@ -61,7 +61,7 @@ const TG = [
   ['realnoevremya',       'Реальное время'],
   ['ksonline',            'Континент Сибирь'],
   ['expertsouth',         'Эксперт Юг'],
-  ['dk_ru_news',          'Деловой квартал'],
+  ['DK_RU_news',          'Деловой квартал'],
   ['Full_Time_Trading',    'Full Time Trading'],
   ['xtxixty',              'Твёрдые цифры'],
   ['acirussia',            'ACI Russia'],
