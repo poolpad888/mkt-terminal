@@ -18,7 +18,6 @@
   "spydell_finance": "Spydell Finance",
   "cbonds": "Cbonds",
   "oil_capital": "Нефть и Капитал",
-  "stocksi": "STOCKSI",
   "bbbreaking": "Раньше всех",
   "Bonds_lab": "Bonds lab",
   "PresidentDonaldTrumpRU": "Трамп на русском",
@@ -43,11 +42,12 @@
   "ksonline": "Континент Сибирь",
   "expertsouth": "Эксперт Юг",
   "DK_RU_news": "Деловой квартал",
-  "Full_Time_Trading": "Full Time Trading",
   "xtxixty": "Твёрдые цифры",
   "acirussia": "ACI Russia",
   "if_bonds": "IF Bonds",
   "russianjunkbonds": "ВДО",
   "vtbmyinvestments": "ВТБ Инвестиции",
-  "tass_agency": "ТАСС"
+  "tass_agency": "ТАСС",
+  "id:1292964247": "Full Time Trading",
+  "id:1304023739": "STOCKSI"
 }
