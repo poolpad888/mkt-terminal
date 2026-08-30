@@ -71,7 +71,10 @@ a{color:inherit;text-decoration:none}
 
 /* ── шапка ── */
 header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
-  display:flex;align-items:center;gap:10px;padding:9px 14px}
+  display:flex;align-items:center;gap:10px;padding:0 14px;
+  /* Высота задана явно, вертикальных отступов нет: тогда flex центрирует
+     содержимое строго по середине и ничто не может увести его вверх. */
+  height:44px;box-sizing:border-box}
 .logo{color:var(--amber);font-weight:700;letter-spacing:.08em;white-space:nowrap;font-family:var(--mono)}
 .live{display:flex;align-items:center;gap:6px;color:var(--green);font-size:11px;letter-spacing:.12em;font-family:var(--mono)}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:bl 1.6s infinite}
@@ -220,7 +223,7 @@ body.compact .row.lvl2,body.compact .row.reg:not(.lvl2){padding:6px 14px;margin:
 @media(max-width:640px){
   body{font-size:12px}
   /* nowrap: раньше шапка переносила часы на вторую строку */
-  header{padding:8px 10px;gap:6px;flex-wrap:nowrap}
+  header{padding:0 10px;gap:6px;flex-wrap:nowrap;height:40px}
   .live{display:none}
   /* Поиск свёрнут до лупы и раскрывается по нажатию — так всё влезает в строку */
   #q{width:32px;min-width:32px;max-width:32px;font-size:12px;padding:4px 6px;
