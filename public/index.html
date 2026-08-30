@@ -84,7 +84,12 @@ header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1p
 .hbtn{background:none;border:1px solid var(--line);color:var(--dim);font:inherit;font-size:11px;
   padding:4px 9px;border-radius:4px;cursor:pointer;white-space:nowrap}
 .hbtn.on{color:var(--amber);border-color:var(--amber)}
-.hbtn{height:24px;display:inline-flex;align-items:center;justify-content:center}
+.hbtn{height:24px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
+/* Единая высота всей шапки: кнопки, ссылки и поиск ровно 24px.
+   Раньше поиск считал высоту от своих отступов, а эмодзи звука тянуло строку. */
+#q{height:24px;box-sizing:border-box;padding-top:0;padding-bottom:0;line-height:22px}
+header .hbtn{line-height:1}
+#sndBtn{font-size:12px;line-height:1}
 button#sideBtn{color:var(--dim);border-color:var(--line);padding:0 9px;font-size:11px;line-height:1}
 button#sideBtn svg{width:13px;height:11px;display:block;fill:currentColor}
 @media(hover:hover){
@@ -219,7 +224,8 @@ body.compact .row.lvl2,body.compact .row.reg:not(.lvl2){padding:6px 14px;margin:
   /* с введённым запросом поле остаётся раскрытым, иначе текст не виден */
   #q:not(:placeholder-shown){width:52vw;min-width:52vw;max-width:52vw;
      text-align:left;padding:4px 10px;background-image:none}
-  .hbtn{padding:4px 7px;font-size:10.5px}
+  .hbtn{padding:0 7px;font-size:10.5px;height:24px}
+  #q{height:24px;line-height:22px}
   nav{padding:6px 10px;top:38px}
   .row{grid-template-columns:42px 1fr;gap:0 9px;padding:10px 10px}
   main{margin-left:0}
@@ -548,6 +554,7 @@ async function sideLoad(){
 }
 function sideOpen(on){
   document.body.classList.toggle('side-on',on);
+  fitNavSoon();                       // пересчитать, сколько чипов влезает
   fitNav();
   savePrefs();
   if(on){
@@ -649,6 +656,9 @@ function fitNav(){
   });
 }
 window.addEventListener('resize',fitNav);
+// Ширина ленты меняется и при открытии боковой панели, а не только при resize.
+// Мерим после того, как раскладка перестроилась, иначе высота шапки скачет.
+function fitNavSoon(){requestAnimationFrame(()=>requestAnimationFrame(fitNav))}
 
 // ── сворачивание по границе предложения ──
 function collapseText(t){
