@@ -661,9 +661,15 @@ async function quickPull() {
     await dbPull();
     if (dbBuf.length === before) return;               // ничего нового
     const have = new Set(cache.feed.items.map(x => x.id));
+    // Отпечатки уже показанного: сборка склеивает пересказы одной новости,
+    // и без этой проверки мы возвращали бы в ленту то, что она законно убрала.
+    const haveFp = new Set(cache.feed.items.map(x => fingerprint(x.text)));
+    const newest = cache.feed.items.length ? new Date(cache.feed.items[0].time).getTime() : 0;
     const add = [];
     for (const r of dbBuf) {
       if (have.has(r.id)) continue;
+      if (new Date(r.time).getTime() <= newest - 60 * 1000) continue;   // не тянем старое
+      if (haveFp.has(fingerprint(r.text))) continue;
       const c = classify(r.text);
       const mu = muted(r.text);
       const x = Object.assign({}, r, { lvl: c.lvl, reasons: c.reasons, tk: tickers(r.text), tags: hashtags(r.text) });
@@ -671,7 +677,7 @@ async function quickPull() {
       add.push(x);
     }
     if (!add.length) return;
-    const items = add.concat(cache.feed.items).sort((a, b) => new Date(b.ts) - new Date(a.ts));
+    const items = add.concat(cache.feed.items).sort((a, b) => new Date(b.time) - new Date(a.time));
     cache = { at: Date.now(), feed: { updated: new Date().toISOString(), count: items.length, items } };
     console.log('QUICK: +' + add.length);
     ssePush(add.length);
