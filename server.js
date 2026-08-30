@@ -702,13 +702,15 @@ setInterval(quickPull, 1000);
 fastPoll();
 setInterval(fastPoll, FAST_SEC * 1000);     // регулятор — отдельно и часто
 
-// Самоокрик: раз в 10 минут заходим на собственный публичный адрес,
-// чтобы бесплатный тариф Render не усыплял сервер и новости копились круглосуточно.
-const SELF_URL = process.env.SELF_URL || 'https://mkt-terminal.onrender.com/api/health';
-setInterval(() => {
-  fetchUrl(SELF_URL).then(() => console.log('WAKE: ok'))
-                    .catch(e => console.log('WAKE: ' + e.message));
-}, 10 * 60 * 1000);
+// Самоокрик нужен был только бесплатному тарифу Render, который усыплял сервер.
+// На своём VPS служба работает постоянно, поэтому окрик выключен: включается
+// обратно, только если явно задать SELF_URL.
+if (process.env.SELF_URL) {
+  setInterval(() => {
+    fetchUrl(process.env.SELF_URL).then(() => console.log('WAKE: ok'))
+                                  .catch(e => console.log('WAKE: ' + e.message));
+  }, 10 * 60 * 1000);
+}
 
 async function getFeed() {
   if (!cache.feed) await refresh();         // первый заход после пробуждения — собираем сразу
