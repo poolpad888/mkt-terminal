@@ -195,10 +195,21 @@ body.compact .row.lvl2{padding:6px 10px 6px 0;margin:4px 10px}
 
 @media(max-width:640px){
   body{font-size:12px}
-  header{padding:8px 10px;gap:7px;flex-wrap:wrap}
+  /* nowrap: раньше шапка переносила часы на вторую строку */
+  header{padding:8px 10px;gap:6px;flex-wrap:nowrap}
   .live{display:none}
-  #q{width:104px;max-width:34vw;font-size:12px}
-  #q:focus{width:150px}
+  /* Поиск свёрнут до лупы и раскрывается по нажатию — так всё влезает в строку */
+  #q{width:32px;min-width:32px;max-width:32px;font-size:12px;padding:4px 6px;
+     text-align:center;cursor:pointer;
+     background:var(--bg) no-repeat center/13px 13px;
+     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%235b6b7c' stroke-width='1.8'%3E%3Ccircle cx='6.6' cy='6.6' r='4.6'/%3E%3Cpath d='M10.2 10.2 14 14'/%3E%3C/svg%3E")}
+  #q::placeholder{color:transparent}
+  #q:focus{width:52vw;min-width:52vw;max-width:52vw;text-align:left;
+     padding:4px 10px;background-image:none;cursor:text}
+  /* с введённым запросом поле остаётся раскрытым, иначе текст не виден */
+  #q:not(:placeholder-shown){width:52vw;min-width:52vw;max-width:52vw;
+     text-align:left;padding:4px 10px;background-image:none}
+  .hbtn{padding:4px 7px;font-size:10.5px}
   nav{padding:6px 10px;top:38px}
   .row{grid-template-columns:42px 1fr;gap:0 9px;padding:10px 10px}
   .row.lvl2{grid-template-columns:20px 42px 1fr;margin:6px 6px;padding:10px 10px 10px 0}
@@ -283,12 +294,19 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
 }
 /* панель открыта на нешироком экране — поиск компактнее, LIVE прячем */
 @media(max-width:1100px){
-  body.side-on header .live{display:none}
   body.side-on #q{width:120px}
 }
 @media(max-width:860px){
   body.side-on #q{width:96px}
   body.side-on #q:focus{width:150px}
+}
+/* Панель котировок отняла ширину — прячем хвост фильтров, чтобы они не
+   уезжали за край. Скрытие плавное, при закрытии панели чипы возвращаются. */
+.chip{transition:max-width .28s ease, opacity .2s ease, padding .28s ease, margin .28s ease;
+  max-width:220px;overflow:hidden}
+@media(max-width:1240px){
+  body.side-on .chip.hid{max-width:0;opacity:0;padding-left:0;padding-right:0;
+    margin-left:-6px;border-width:0}
 }
 /* узкая ширина: панель поверх, с затемнением */
 @media(max-width:719px){
@@ -517,6 +535,7 @@ async function sideLoad(){
 }
 function sideOpen(on){
   document.body.classList.toggle('side-on',on);
+  fitNav();
   savePrefs();
   if(on){
     sideAlign();
@@ -578,7 +597,28 @@ function renderNav(){
   nav.innerHTML=
     chips.map(c=>'<button class="chip '+(c.cls||'')+(filterTag===c.id?' on':'')+'" data-t="'+c.id+'">'+c.label+'<span class="chip-n">'+c.n+'</span></button>').join('');
   nav.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{filterTag=b.dataset.t;savePrefs();renderAll();window.scrollTo({top:0})});
+  fitNav();
 }
+
+// Сколько фильтров показывать: при открытой панели ширины меньше, лишние
+// помечаем — стили убирают их плавно. Выбранный фильтр не прячем никогда.
+function fitNav(){
+  const nav=document.getElementById('nav');
+  if(!nav) return;
+  const chips=[...nav.querySelectorAll('.chip')];
+  if(!chips.length) return;
+  const side=document.body.classList.contains('side-on');
+  let keep=chips.length;
+  if(side){
+    const w=window.innerWidth;
+    keep = w<=760 ? 3 : w<=900 ? 4 : w<=1050 ? 5 : w<=1240 ? 6 : chips.length;
+  }
+  chips.forEach((c,i)=>{
+    const mine=c.classList.contains('on');
+    c.classList.toggle('hid', !mine && i>=keep);
+  });
+}
+window.addEventListener('resize',fitNav);
 
 // ── сворачивание по границе предложения ──
 function collapseText(t){
