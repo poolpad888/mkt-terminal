@@ -81,8 +81,11 @@ header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1p
   padding:0 10px;border-radius:4px;width:200px;max-width:38vw;outline:none}
 /* Единая высота шапки. Меряем вместе с рамкой (border-box), иначе бордюр
    добавляется сверху и элемент оказывается выше соседей. */
-header #q,header .hbtn{height:26px;box-sizing:border-box;padding-top:0;padding-bottom:0}
-header #q{line-height:24px}
+header #q,header .hbtn{height:26px;min-height:26px;max-height:26px;
+  box-sizing:border-box;padding-top:0;padding-bottom:0;align-self:center;flex-shrink:0}
+header #q{line-height:24px;font-size:12.5px;vertical-align:middle}
+/* логотип, LIVE и часы тоже по центру строки, чтобы ничего не тянуло вверх */
+header>*{align-self:center}
 header .hbtn{display:inline-flex;align-items:center;justify-content:center;line-height:1}
 #q:focus{border-color:var(--amber)}
 #q::placeholder{color:var(--dim)}
