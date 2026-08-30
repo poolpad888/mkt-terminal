@@ -139,7 +139,7 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
 
 /* важные */
 .row.lvl2{grid-template-columns:24px 52px 1fr;border:1px solid var(--red);
-  background:rgba(255,82,82,.13);margin:8px 0;padding:12px 14px 12px 0;border-radius:0;
+  background:rgba(255,82,82,.13);margin:-1px 0 0;padding:12px 14px 12px 0;border-radius:0;
   border-left:none;border-right:none;
   overflow:hidden}
 .fband{background:var(--red);display:flex;flex-direction:column;align-items:center;justify-content:space-between;
@@ -152,10 +152,11 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
 @keyframes fr{0%{background:rgba(255,176,0,.25)}100%{background:transparent}}
 .row.lvl2.fresh{animation:fr2 2.4s ease both}
 @keyframes fr2{0%{background:rgba(255,82,82,.35)}100%{background:rgba(255,82,82,.13)}}
+.row.lvl2,.row.reg:not(.lvl2){position:relative;z-index:1}
 .row.mark{outline:2px solid var(--amber);outline-offset:-2px}
 /* регулятор: вертикальная плашка слева, как у важного, только синяя */
 .row.reg:not(.lvl2){grid-template-columns:24px 52px 1fr;border:1px solid #2f5aa8;
-  background:#101a2b;margin:8px 0;padding:12px 14px 12px 0;border-radius:0;
+  background:#101a2b;margin:-1px 0 0;padding:12px 14px 12px 0;border-radius:0;
   border-left:none;border-right:none;
   overflow:hidden}
 .row.reg .time{color:#7fb0ff;font-weight:600}
@@ -193,7 +194,7 @@ body.compact .row{padding:5px 14px}
 body.compact .row .meta{margin-top:3px}
 body.compact .tkline{margin:2px 0 3px}
 body.compact .row.open .txt{display:block;overflow:visible}
-body.compact .row.lvl2{padding:6px 10px 6px 0;margin:4px 0}
+body.compact .row.lvl2{padding:6px 10px 6px 0;margin:-1px 0 0}
 
 @media(max-width:640px){
   body{font-size:12px}
@@ -214,8 +215,8 @@ body.compact .row.lvl2{padding:6px 10px 6px 0;margin:4px 0}
   .hbtn{padding:4px 7px;font-size:10.5px}
   nav{padding:6px 10px;top:38px}
   .row{grid-template-columns:42px 1fr;gap:0 9px;padding:10px 10px}
-  .row.lvl2{grid-template-columns:20px 42px 1fr;margin:6px 0;padding:10px 10px 10px 0}
-  .row.reg:not(.lvl2){grid-template-columns:20px 42px 1fr;margin:6px 0;padding:10px 10px 10px 0}
+  .row.lvl2{grid-template-columns:20px 42px 1fr;margin:-1px 0 0;padding:10px 10px 10px 0}
+  .row.reg:not(.lvl2){grid-template-columns:20px 42px 1fr;margin:-1px 0 0;padding:10px 10px 10px 0}
   .row .time{font-size:11px}
 }
 .note{color:var(--dim);text-align:center;padding:40px 20px;font-size:12.5px}
