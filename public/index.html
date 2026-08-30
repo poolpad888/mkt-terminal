@@ -304,10 +304,8 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
    уезжали за край. Скрытие плавное, при закрытии панели чипы возвращаются. */
 .chip{transition:max-width .28s ease, opacity .2s ease, padding .28s ease, margin .28s ease;
   max-width:220px;overflow:hidden}
-@media(max-width:1240px){
-  body.side-on .chip.hid{max-width:0;opacity:0;padding-left:0;padding-right:0;
-    margin-left:-6px;border-width:0}
-}
+.chip.hid{max-width:0;opacity:0;padding-left:0;padding-right:0;
+  margin-left:-6px;border-width:0}
 /* узкая ширина: панель поверх, с затемнением */
 @media(max-width:719px){
   #side{width:min(296px,86vw);
@@ -608,11 +606,18 @@ function fitNav(){
   const chips=[...nav.querySelectorAll('.chip')];
   if(!chips.length) return;
   const side=document.body.classList.contains('side-on');
-  let keep=chips.length;
-  if(side){
-    const w=window.innerWidth;
-    keep = w<=760 ? 3 : w<=900 ? 4 : w<=1050 ? 5 : w<=1240 ? 6 : chips.length;
-  }
+  const w=window.innerWidth - (side ? (parseInt(getComputedStyle(document.documentElement)
+            .getPropertyValue('--sw')) || 296) : 0);
+  // Сколько фильтров влезает по ширине: узкий экран — только самые нужные,
+  // иначе хвост уезжает за край и до него не докрутиться.
+  let keep;
+  if(w<=380)       keep=2;
+  else if(w<=460)  keep=3;
+  else if(w<=560)  keep=4;
+  else if(w<=680)  keep=5;
+  else if(w<=820)  keep=6;
+  else if(w<=1000) keep=7;
+  else             keep=chips.length;
   chips.forEach((c,i)=>{
     const mine=c.classList.contains('on');
     c.classList.toggle('hid', !mine && i>=keep);
