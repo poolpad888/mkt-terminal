@@ -377,6 +377,9 @@ let sound = false;
 let searchQ = '';           // строка живого поиска
 let searchOld = false;      // искать глубже 24 часов
 let archItems = null;       // результаты из архива (база); null — не запрашивали
+let deepItems = [];         // лента, догруженная вглубь кнопкой «более старые»
+let deepBusy  = false;
+let deepEnd   = false;      // архив кончился
 let archBusy = false;       // идёт запрос к архиву
 const knownIds = new Set();
 let firstLoad = true;
@@ -579,7 +582,7 @@ function beep(){
 function passTag(x){
   if(filterTag==='all')return true;
   if(filterTag==='imp')return x.lvl===2;
-  if(filterTag==='cbr')return !!x.reg&&!x.mark;
+  if(filterTag==='cbr')return !!x.reg&&(!x.mark||x.mark==='reg');
   if(filterTag==='minfin')return !!x.reg&&x.mark==='fin';
   if(filterTag==='fed')return !!x.reg&&(x.mark==='fed'||x.mark==='frs');
   return (x.tags||[]).includes(filterTag)||x.src===filterTag;
@@ -598,7 +601,7 @@ function renderNav(){
   const impN=ITEMS.filter(x=>x.lvl===2).length;
   // Ведомства — постоянные фильтры, считаем по метке mark.
   const nMark=m=>ITEMS.filter(x=>x.reg&&(m==='fed'?(x.mark==='fed'||x.mark==='frs'):x.mark===m)).length;
-  const cbN=ITEMS.filter(x=>x.reg&&!x.mark).length;
+  const cbN=ITEMS.filter(x=>x.reg&&(!x.mark||x.mark==='reg')).length;
   const chips=[
     {id:'all',label:'Все',n:allN},
     {id:'imp',label:'⚡ Важно',cls:'imp',n:impN},
@@ -704,11 +707,23 @@ function renderAll(){
       vis.sort((a,b)=>new Date(b.time)-new Date(a.time));
     }
   }else{
-    vis=ITEMS.filter(x=>passTag(x));
+    // К свежей ленте подклеиваем догруженное из архива, без повторов.
+    let base=ITEMS;
+    if(deepItems.length){
+      const have=new Set(ITEMS.map(x=>x.id));
+      base=ITEMS.concat(deepItems.filter(x=>!have.has(x.id)));
+      base.sort((a,b)=>new Date(b.time)-new Date(a.time));
+    }
+    vis=base.filter(x=>passTag(x));
   }
   let html=vis.length?vis.map(x=>rowHTML(x,false)).join(''):'<div class="note">'+(searchQ?(searchOld?'В архиве тоже ничего не нашлось.':'Ничего не нашлось за последние сутки.'):'По этому фильтру пока пусто.')+'</div>';
   if(searchQ&&!searchOld)html+='<button class="oldbtn" id="oldBtn">поискать в архиве</button>';
   if(searchQ&&archBusy)html+='<div class="note">Ищу в архиве…</div>';
+  if(!searchQ){
+    if(deepBusy)      html+='<div class="note">Загружаю…</div>';
+    else if(deepEnd)  html+='<div class="note">Это всё, что есть в архиве.</div>';
+    else              html+='<button class="oldbtn" id="deepBtn">более старые новости</button>';
+  }
   feed.innerHTML=html;
   const ob=document.getElementById('oldBtn');
   if(ob)ob.onclick=async()=>{
@@ -718,6 +733,22 @@ function renderAll(){
       const d=await r.json();archItems=d.items||[];
     }catch(e){archItems=[]}
     archBusy=false;renderAll();
+  };
+  const db=document.getElementById('deepBtn');
+  if(db)db.onclick=async()=>{
+    // Просим записи старше самой старой из уже показанных.
+    const all=ITEMS.concat(deepItems);
+    let oldest=null;
+    for(const x of all){const t=new Date(x.time).getTime();if(!oldest||t<oldest)oldest=t}
+    if(!oldest)return;
+    deepBusy=true;renderAll();
+    try{
+      const r=await fetch('/api/history?before='+encodeURIComponent(new Date(oldest).toISOString()));
+      const d=await r.json();
+      const got=d.items||[];
+      if(!got.length)deepEnd=true; else deepItems=deepItems.concat(got);
+    }catch(e){deepEnd=true}
+    deepBusy=false;renderAll();
   };
   bindRowEvents();
 }
