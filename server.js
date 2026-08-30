@@ -533,9 +533,12 @@ async function dbPull() {
       dbBuf.push({ id: w.id, time: new Date(w.ts).toISOString(), src: w.src,
                    srcName: w.src_name || w.src, url: w.url, text: w.body });
     }
+    // Буфер держим полным окном: сборка идёт раз в 20 секунд, подклейка — раз
+    // в секунду, и обе читают отсюда. Если бы буфер вычищался по факту чтения,
+    // сборка не увидела бы то, что подклейка уже забрала, и затирала бы её.
     const m = new Map();
     for (const x of dbBuf) if (new Date(x.time).getTime() > winStart) m.set(x.id, x);
-    dbBuf = [...m.values()];
+    dbBuf = [...m.values()].sort((a, b) => new Date(b.time) - new Date(a.time));
   } catch (e) { console.log('DB read: ' + e.message); }
 }
 
@@ -624,6 +627,19 @@ async function refresh() {
   try {
     const had = cache.feed ? new Set(cache.feed.items.map(x => x.id)) : null;
     const feed = await build();
+    if (had && cache.feed && feed.count > 0) {
+      const now = new Set(feed.items.map(x => x.id));
+      // Только свежие: старьё и настоящие пересказы сборка убирает по делу,
+      // мигают же именно недавние посты, которых парсер ещё не увидел.
+      const edge = Date.now() - 10 * 60 * 1000;
+      const keepBack = cache.feed.items.filter(x =>
+        !now.has(x.id) && new Date(x.time).getTime() > edge);
+      if (keepBack.length) {
+        feed.items = keepBack.concat(feed.items).sort((a, b) => new Date(b.time) - new Date(a.time));
+        feed.count = feed.items.length;
+        console.log('KEEP: вернул ' + keepBack.length);
+      }
+    }
     if (feed.count > 0 || !cache.feed) cache = { at: Date.now(), feed };
     if (had && feed.count > 0) {
       let fresh = 0;
@@ -657,9 +673,7 @@ async function quickPull() {
   if (quickBusy || building || !cache.feed) return;
   quickBusy = true;
   try {
-    const before = dbBuf.length;
     await dbPull();
-    if (dbBuf.length === before) return;               // ничего нового
     const have = new Set(cache.feed.items.map(x => x.id));
     // Отпечатки уже показанного: сборка склеивает пересказы одной новости,
     // и без этой проверки мы возвращали бы в ленту то, что она законно убрала.
