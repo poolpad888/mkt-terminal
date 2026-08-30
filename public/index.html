@@ -111,6 +111,7 @@ nav.off{opacity:.35;pointer-events:none}
   font-size:11.5px;padding:4px 10px;border-radius:20px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
 .chip-n{font-size:9.5px;opacity:.55;font-variant-numeric:tabular-nums}
 .coin{vertical-align:-2px;margin-right:1px}
+.coin2{display:block}
 .chip.on{color:#0b0d10;background:var(--amber);border-color:var(--amber);font-weight:700}
 .chip.imp.on{background:var(--red);border-color:var(--red);color:#fff}
 .chip.cbr.on{background:#1e3a8a;border-color:#1e3a8a;color:#e8f0ff}
@@ -611,8 +612,8 @@ function renderNav(){
     {id:'all',label:'Все',n:allN},
     {id:'imp',label:'⚡ Важно',cls:'imp',n:impN},
     {id:'cbr',label:'🏛 ЦБ РФ',cls:'cbr',n:cbN},
-    {id:'minfin',label:'<svg class="coin" viewBox="0 0 24 24" width="13" height="13"><circle cx="12" cy="12" r="10" fill="currentColor"/><text x="12" y="12.5" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans,Arial,sans-serif" font-size="15" font-weight="700" fill="var(--panel)">&#8381;</text></svg> Минфин',cls:'minfin',n:nMark('fin')},
-    {id:'fed',label:'<svg class="coin" viewBox="0 0 24 24" width="13" height="13"><circle cx="12" cy="12" r="10" fill="currentColor"/><text x="12" y="12.5" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans,Arial,sans-serif" font-size="15" font-weight="700" fill="var(--panel)">$</text></svg> ФРС',cls:'fed',n:nMark('fed')},
+    {id:'minfin',label:'<svg class="coin" viewBox="0 0 24 24" width="13" height="13"><circle cx="12" cy="12" r="10" fill="currentColor"/><text x="12" y="12.5" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans,Arial,sans-serif" font-size="15" font-weight="700" fill="#1e63c8">&#8381;</text></svg> Минфин',cls:'minfin',n:nMark('fin')},
+    {id:'fed',label:'<svg class="coin" viewBox="0 0 24 24" width="13" height="13"><circle cx="12" cy="12" r="10" fill="currentColor"/><text x="12" y="12.5" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans,Arial,sans-serif" font-size="15" font-weight="700" fill="#c62828">$</text></svg> ФРС',cls:'fed',n:nMark('fed')},
     ...topTags().map(({tag,n})=>({id:tag,label:'#'+tag,n}))
   ];
   nav.innerHTML=
@@ -685,7 +686,7 @@ function rowHTML(x,fresh){
   const isFin=x.mark==='fin';const isFed=x.mark==='fed';const isFrs=x.mark==='frs';
   const _band=isFrs?'fedband':isFed?'fedband':isFin?'finband':'regband';
   const _label=isFrs?'ФРС':isFed?'МИНФИН США':isFin?'МИНФИН':'ЦБ РФ';
-  const _ico=isFrs?'$':isFed?'$':isFin?'₽':'🏛';
+  const _ico=isFrs?'<svg class="coin2" viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="11" fill="#eef2f6"/><text x="12" y="12.5" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans,Arial,sans-serif" font-size="16" font-weight="700" fill="#c62828">$</text></svg>':isFed?'<svg class="coin2" viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="11" fill="#eef2f6"/><text x="12" y="12.5" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans,Arial,sans-serif" font-size="16" font-weight="700" fill="#c62828">$</text></svg>':isFin?'<svg class="coin2" viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="11" fill="#eef2f6"/><text x="12" y="12.5" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans,Arial,sans-serif" font-size="16" font-weight="700" fill="#1e63c8">&#8381;</text></svg>':'🏛';
   const regband=x.reg?'<div class="fband '+_band+'"><span class="vtxt">'+_label+'</span><span class="ico">'+_ico+'</span></div>':'';
   
   return '<article class="row'+(x.lvl===2&&!x.reg?' lvl2':'')+(x.reg?(isFrs?' reg fed':isFed?' reg fed':isFin?' reg fin':' reg'):'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+band+regband+
