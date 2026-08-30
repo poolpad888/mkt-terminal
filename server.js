@@ -74,6 +74,7 @@ const RSS = [
   // Минфин: старый адрес /rss отдавал 503, этот работает. Третий элемент —
   // плашка: иначе новость с сайта ведомства осталась бы без пометки.
   ['https://minfin.gov.ru/rss_news?mod=news&lim=50', 'Минфин России', 'fin'],
+  ['https://minfin.gov.ru/rss_news?mod=lib&lim=50', 'Минфин документы', 'fin'],
   ['https://www.finam.ru/analysis/conews/rsspoint/', 'Финам'],
   ['https://www.moex.com/export/news.aspx?cat=100', 'Мосбиржа'],
 ];
