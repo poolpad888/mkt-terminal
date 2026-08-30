@@ -138,11 +138,9 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
 .share:hover{opacity:1}
 
 /* важные */
-.row.lvl2{grid-template-columns:52px 1fr 24px;border:1px solid var(--red);
-  background:rgba(255,82,82,.13);margin:8px 10px;padding:12px 0 12px 14px;border-radius:4px;
+.row.lvl2{grid-template-columns:24px 52px 1fr;border:1px solid var(--red);
+  background:rgba(255,82,82,.13);margin:8px 10px;padding:12px 14px 12px 0;border-radius:4px;
   overflow:hidden}
-/* плашка «важно» справа: время и текст остаются вровень с обычной лентой */
-.row.lvl2 .fband{border-radius:7px 0 0 7px}
 .fband{background:var(--red);display:flex;flex-direction:column;align-items:center;justify-content:space-between;
   padding:6px 0;border-radius:0 7px 7px 0;margin:-1px 0}
 .vtxt{writing-mode:vertical-rl;transform:rotate(180deg);color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.18em}
@@ -193,7 +191,7 @@ body.compact .row{padding:5px 14px}
 body.compact .row .meta{margin-top:3px}
 body.compact .tkline{margin:2px 0 3px}
 body.compact .row.open .txt{display:block;overflow:visible}
-body.compact .row.lvl2{padding:6px 0 6px 10px;margin:4px 10px}
+body.compact .row.lvl2{padding:6px 10px 6px 0;margin:4px 10px}
 
 @media(max-width:640px){
   body{font-size:12px}
@@ -214,7 +212,7 @@ body.compact .row.lvl2{padding:6px 0 6px 10px;margin:4px 10px}
   .hbtn{padding:4px 7px;font-size:10.5px}
   nav{padding:6px 10px;top:38px}
   .row{grid-template-columns:42px 1fr;gap:0 9px;padding:10px 10px}
-  .row.lvl2{grid-template-columns:42px 1fr 20px;margin:6px 6px;padding:10px 0 10px 10px}
+  .row.lvl2{grid-template-columns:20px 42px 1fr;margin:6px 6px;padding:10px 10px 10px 0}
   .row.reg:not(.lvl2){grid-template-columns:20px 42px 1fr;margin:6px 6px;padding:10px 10px 10px 0}
   .row .time{font-size:11px}
 }
@@ -666,7 +664,7 @@ function rowHTML(x,fresh){
   const _ico=isFrs?'$':isFed?'$':isFin?'₽':'🏛';
   const regband=x.reg?'<div class="fband '+_band+'"><span class="vtxt">'+_label+'</span><span class="ico">'+_ico+'</span></div>':'';
   
-  return '<article class="row'+(x.lvl===2&&!x.reg?' lvl2':'')+(x.reg?(isFrs?' reg fed':isFed?' reg fed':isFin?' reg fin':' reg'):'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+(x.reg?band+regband:'')+
+  return '<article class="row'+(x.lvl===2&&!x.reg?' lvl2':'')+(x.reg?(isFrs?' reg fed':isFed?' reg fed':isFin?' reg fin':' reg'):'')+(fresh?' fresh':'')+(long?' clickable':'')+(open?' open':'')+'" id="n-'+x.id+'">'+band+regband+
     '<div class="time">'+hhmm(x.time)+'</div>'+
     '<div><div class="src">'+esc(x.srcName)+srcs+reso+'</div>'+
     (tks?'<div class="tkline">'+tks+'</div>':'')+
@@ -674,7 +672,7 @@ function rowHTML(x,fresh){
     '<div class="meta">'+tags+
       '<a class="lnk" target="_blank" rel="noopener" href="'+x.url+'">первоисточник ↗</a>'+
       '<button class="share" data-id="'+x.id+'" title="поделиться"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>'+
-    '</div></div>'+(x.lvl===2&&!x.reg?band:'')+'</article>';
+    '</div></div></article>';
 }
 function renderAll(){
   renderNav();
