@@ -78,8 +78,12 @@ header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1p
 @keyframes bl{0%,100%{opacity:1}50%{opacity:.25}}
 .sp{flex:1}
 #q{background:var(--bg);border:1px solid var(--line);color:var(--tx);font:inherit;font-size:12.5px;transition:width .18s ease;
-  padding:0 10px;border-radius:4px;width:200px;max-width:38vw;outline:none;
-  height:24px;box-sizing:border-box;line-height:normal}
+  padding:0 10px;border-radius:4px;width:200px;max-width:38vw;outline:none}
+/* Единая высота шапки. Меряем вместе с рамкой (border-box), иначе бордюр
+   добавляется сверху и элемент оказывается выше соседей. */
+header #q,header .hbtn{height:26px;box-sizing:border-box;padding-top:0;padding-bottom:0}
+header #q{line-height:24px}
+header .hbtn{display:inline-flex;align-items:center;justify-content:center;line-height:1}
 #q:focus{border-color:var(--amber)}
 #q::placeholder{color:var(--dim)}
 .hbtn{background:none;border:1px solid var(--line);color:var(--dim);font:inherit;font-size:11px;
@@ -106,15 +110,16 @@ header{flex-wrap:nowrap}
 
 /* ── фильтры ── */
 nav{position:sticky;top:var(--hh,41px);z-index:19;background:var(--bg);border-bottom:1px solid var(--line);
-  display:flex;align-items:center;gap:6px;padding:7px 14px;overflow-x:auto;scrollbar-width:none;
-  flex-wrap:nowrap}
+  display:flex;align-items:center;gap:6px;padding:0 14px;overflow-x:auto;scrollbar-width:none;
+  flex-wrap:nowrap;height:38px;box-sizing:border-box}
 /* Во время пересчёта гасим анимацию чипов: иначе ширина мерится посреди
    движения и строка мигает, то влезая, то нет. */
 nav.measuring .chip{transition:none !important}
 nav::-webkit-scrollbar{display:none}
 nav.off{opacity:.35;pointer-events:none}
 .chip{flex:none;background:var(--panel);border:1px solid var(--line);color:var(--dim);font:inherit;
-  font-size:11.5px;padding:4px 10px;border-radius:20px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+  font-size:11.5px;padding:0 10px;border-radius:20px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;
+  height:24px;box-sizing:border-box;white-space:nowrap}
 .chip-n{font-size:9.5px;opacity:.55;font-variant-numeric:tabular-nums}
 .coin{vertical-align:-3px;margin-right:1px}
 .coin2{display:block}
@@ -226,7 +231,7 @@ body.compact .row.lvl2,body.compact .row.reg:not(.lvl2){padding:6px 14px;margin:
   #q:not(:placeholder-shown){width:52vw;min-width:52vw;max-width:52vw;
      text-align:left;padding:4px 10px;background-image:none}
   .hbtn{padding:4px 7px;font-size:10.5px}
-  nav{padding:6px 10px;top:38px}
+  nav{padding:0 10px;top:38px;height:34px}
   .row{grid-template-columns:42px 1fr;gap:0 9px;padding:10px 10px}
   main{margin-left:0}
   .fband{position:static;width:20px;margin:3px 0 3px 10px}
