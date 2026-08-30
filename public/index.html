@@ -751,7 +751,24 @@ async function load(){
   }
 }
 load();
-setInterval(load,3000);
+setInterval(load,15000);          // страховка: если линия оборвётся, лента всё равно живая
+
+// ── живая линия: сервер сам сообщает о новых постах, лента обновляется мгновенно ──
+let liveEs=null, liveBusy=false;
+function liveConnect(){
+  if(liveEs) return;
+  try{ liveEs=new EventSource('/api/live'); }catch(e){ return; }
+  liveEs.onmessage=()=>{                 // пришёл сигнал — тянем ленту без ожидания
+    if(liveBusy) return;
+    liveBusy=true;
+    load().finally(()=>{liveBusy=false});
+  };
+  liveEs.onerror=()=>{                    // оборвалось — браузер сам переподключится
+    if(liveEs&&liveEs.readyState===2){liveEs.close();liveEs=null;setTimeout(liveConnect,5000)}
+  };
+}
+liveConnect();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){liveConnect();load()}});
 
 // ── кнопка наверх ──
 const toTop=document.getElementById('toTop');

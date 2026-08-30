@@ -622,8 +622,14 @@ async function refresh() {
   if (building) return;
   building = true;
   try {
+    const had = cache.feed ? new Set(cache.feed.items.map(x => x.id)) : null;
     const feed = await build();
     if (feed.count > 0 || !cache.feed) cache = { at: Date.now(), feed };
+    if (had && feed.count > 0) {
+      let fresh = 0;
+      for (const x of feed.items) if (!had.has(x.id)) fresh++;
+      if (fresh) ssePush(fresh);
+    }
     if (feed.count > 0) saveToDb(feed.items);   // в базу — не дожидаясь, фоном
   } catch (e) {
     if (!cache.feed) cache = { at: Date.now(), feed: { updated: null, count: 0, items: [], error: e.message } };
@@ -634,6 +640,18 @@ setInterval(refresh, CACHE_SEC * 1000);     // фоновый опрос: лен
 // Быстрая подклейка: раз в секунду читаем только базу (сборщик пишет туда сразу)
 // и вставляем новые записи в готовую ленту. Сеть не трогаем — обход источников
 // остаётся редким, здесь лишь один запрос к локальной базе.
+// ── открытые линии к браузерам: сервер сам сообщает о новых постах ──
+// Держим список подключений и на каждую новость пишем в них короткий сигнал.
+// Браузер, получив его, сразу дёргает ленту — ждать опроса не нужно.
+const sseClients = new Set();
+function ssePush(n) {
+  const msg = 'data: ' + JSON.stringify({ n, at: Date.now() }) + '\n\n';
+  for (const c of sseClients) { try { c.write(msg); } catch (e) { sseClients.delete(c); } }
+}
+setInterval(() => {                      // раз в 25 с — двоеточие-пустышка, чтобы линия не закрылась
+  for (const c of sseClients) { try { c.write(': ping\n\n'); } catch (e) { sseClients.delete(c); } }
+}, 25000);
+
 let quickBusy = false;
 async function quickPull() {
   if (quickBusy || building || !cache.feed) return;
@@ -656,6 +674,7 @@ async function quickPull() {
     const items = add.concat(cache.feed.items).sort((a, b) => new Date(b.ts) - new Date(a.ts));
     cache = { at: Date.now(), feed: { updated: new Date().toISOString(), count: items.length, items } };
     console.log('QUICK: +' + add.length);
+    ssePush(add.length);
   } catch (e) {
   } finally { quickBusy = false; }
 }
@@ -1034,6 +1053,19 @@ const srv = http.createServer(async (req, res) => {
     const _pg = pageOf(u.pathname);
     if (_pg) trackVisit(clientIp, _pg, req);
     else if (u.pathname === '/api/feed' || u.pathname === '/api/panel') trackVisit(clientIp, null, req);
+    if (u.pathname === '/api/live') {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no'
+      });
+      res.write('retry: 3000\n\n');
+      res.write(': hello\n\n');
+      sseClients.add(res);
+      req.on('close', () => sseClients.delete(res));
+      return;
+    }
     if (u.pathname === '/api/feed') {
       const feed = await getFeed();
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
