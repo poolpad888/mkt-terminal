@@ -75,8 +75,11 @@ header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1p
   /* Высота задана явно, вертикальных отступов нет: тогда flex центрирует
      содержимое строго по середине и ничто не может увести его вверх. */
   height:44px;box-sizing:border-box}
-.logo{color:var(--amber);font-weight:700;letter-spacing:.08em;white-space:nowrap;font-family:var(--mono)}
-.live{display:flex;align-items:center;gap:6px;color:var(--green);font-size:11px;letter-spacing:.12em;font-family:var(--mono)}
+.logo{color:var(--amber);font-weight:700;letter-spacing:.08em;white-space:nowrap;font-family:var(--mono);
+  /* Надпись набрана заглавными: у них нет свисающих хвостов, поэтому буквенный
+     блок сидит выше середины строки. Опускаем на пиксель — оптическая правка. */
+  position:relative;top:1px}
+.live{display:flex;align-items:center;gap:6px;color:var(--green);font-size:11px;letter-spacing:.12em;font-family:var(--mono);position:relative;top:1px}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:bl 1.6s infinite}
 @keyframes bl{0%,100%{opacity:1}50%{opacity:.25}}
 .sp{flex:1}
@@ -105,7 +108,7 @@ button#sideBtn svg{width:13px;height:11px;display:block;fill:currentColor}
 button#sideBtn:focus{outline:none}
 body.side-on button#sideBtn{color:var(--amber);border-color:var(--amber)}
 a.hbtn{display:inline-flex}   /* ссылка ведёт себя как кнопка: текст по центру */
-#clock{color:var(--dim);font-size:12px;min-width:66px;text-align:right;font-family:var(--mono);flex:none}
+#clock{color:var(--dim);font-size:12px;min-width:66px;text-align:right;font-family:var(--mono);flex:none;position:relative;top:1px}
 /* поиск отдаёт место первым, время и кнопки не сжимаются */
 #q{flex:0 1 auto;width:320px;min-width:60px;text-align:right}
 #q::placeholder{text-align:right}
