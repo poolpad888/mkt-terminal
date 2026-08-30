@@ -59,8 +59,16 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 60px}
 .card h2 .leg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
 .leg .u{background:var(--amber)} .leg .v{background:var(--blue);opacity:.45}
 
-.rows{display:flex;align-items:flex-end;gap:4px;overflow-x:auto;padding:6px 2px 0;min-height:190px}
-.col{flex:1 0 22px;min-width:16px;display:flex;flex-direction:column;align-items:center;gap:5px;
+.li{display:grid;grid-template-columns:1fr 52px 96px;align-items:center;gap:12px;
+  font-family:var(--mono);font-size:11.5px;padding:3px 0;border-radius:3px}
+.li:hover{background:rgba(120,130,145,.07)}
+.li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .cn{text-align:right;color:var(--amber);font-weight:600}
+.li .lb2{position:relative;height:8px;background:rgba(120,130,145,.10);border-radius:3px;overflow:hidden}
+.li .lb2 i{position:absolute;left:0;top:0;bottom:0;background:var(--blue);opacity:.45;border-radius:3px;display:block}
+
+.rows{display:flex;align-items:flex-end;gap:4px;overflow-x:auto;padding:6px 2px 6px;min-height:190px;scrollbar-width:thin}
+.col{flex:1 0 calc((100% - 116px)/30);min-width:22px;display:flex;flex-direction:column;align-items:center;gap:5px;
   font-family:var(--mono);font-size:10.5px;cursor:default}
 .col .stack{position:relative;width:100%;height:130px;display:flex;align-items:flex-end;justify-content:center}
 .col .bv,.col .bu{position:absolute;bottom:0;border-radius:3px 3px 0 0;display:block}
@@ -70,9 +78,18 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 60px}
 .col .dt{color:var(--dim);font-size:9.5px;white-space:nowrap;line-height:1.1;text-align:center}
 .col:hover .bv{opacity:.45}
 .col.tdy .dt{color:var(--amber);font-weight:600}
+
+.chart{position:relative;width:100%;height:200px}
+.chart svg{width:100%;height:100%;display:block;overflow:visible}
+.chart .gr{stroke:var(--line);stroke-width:1}
+.chart .lu{fill:none;stroke:var(--amber);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart .lv{fill:none;stroke:var(--blue);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;opacity:.75}
+.chart .au{fill:var(--amber);opacity:.10}
+.chart .ax{fill:var(--dim);font-family:var(--mono);font-size:9.5px}
 .empty{color:var(--dim);font-size:11.5px;padding:6px 0}
 .foot{color:var(--dim);font-size:11px;text-align:center;margin-top:18px;line-height:1.6}
 @media(max-width:520px){
+  .li{grid-template-columns:1fr 40px 54px;gap:8px;font-size:10.5px}
   .col{flex:1 0 16px;min-width:12px}
   .col .stack{height:104px}
   .tile .vl{font-size:24px}
@@ -167,6 +184,12 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 60px}
       <span class="leg"><i class="u"></i>уникальные&nbsp;&nbsp;<i class="v"></i>открытия</span>
     </h2>
     <div class="rows" id="rows"><div class="empty">загрузка…</div></div>
+  <div class="card" style="margin-top:14px">
+    <h2>Динамика
+      <span class="leg"><i class="u"></i>уникальные&nbsp;&nbsp;<i class="v"></i>открытия</span>
+    </h2>
+    <div class="chart" id="chart"></div>
+  </div>
   </div>
 
   <div class="foot">
@@ -212,9 +235,34 @@ function drawList(box,pairs,namer){
   ).join('');
 }
 
+
+// Линейный график: две линии по дням. Считаем в координатах вьюбокса 1000 на 200.
+function drawChart(days){
+  const box=$('chart');
+  if(!days.length){box.innerHTML='<div class="empty">пока нет данных</div>';return}
+  const W=1000,H=200,PL=38,PR=8,PT=10,PB=22;
+  const d=days.slice(-30);
+  const max=Math.max(1,...d.map(x=>Math.max(x.u,x.v)));
+  const X=i=>PL+(d.length<2?(W-PL-PR)/2:i*(W-PL-PR)/(d.length-1));
+  const Y=v=>PT+(1-v/max)*(H-PT-PB);
+  const line=k=>d.map((x,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(x[k]).toFixed(1)).join(' ');
+  const area=line('u')+' L'+X(d.length-1).toFixed(1)+' '+Y(0)+' L'+X(0).toFixed(1)+' '+Y(0)+' Z';
+  let g='',lb='';
+  for(let k=0;k<=2;k++){
+    const v=Math.round(max*k/2), y=Y(v).toFixed(1);
+    g+='<line class="gr" x1="'+PL+'" y1="'+y+'" x2="'+(W-PR)+'" y2="'+y+'"/>';
+    lb+='<text class="ax" x="'+(PL-6)+'" y="'+(+y+3).toFixed(1)+'" text-anchor="end">'+v+'</text>';
+  }
+  const step=Math.ceil(d.length/8);
+  d.forEach((x,i)=>{ if(i%step===0||i===d.length-1)
+    lb+='<text class="ax" x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle">'+human(x.d)+'</text>'; });
+  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+g+
+    '<path class="au" d="'+area+'"/><path class="lv" d="'+line('v')+'"/><path class="lu" d="'+line('u')+'"/>'+lb+'</svg>';
+}
+
 async function load(){
   let s;
-  try{ s=await (await fetch('/api/stats?days=30&t='+Date.now(),{cache:'no-store'})).json(); }
+  try{ s=await (await fetch('/api/stats?days=400&t='+Date.now(),{cache:'no-store'})).json(); }
   catch(e){ return; }
   $('vOnline').textContent=s.online;
   $('vToday').textContent=s.today;
@@ -251,6 +299,7 @@ async function load(){
     '</div>';
   }).join('');
   box.scrollLeft=box.scrollWidth;
+  drawChart(days);
 }
 load();
 setInterval(load,10000);
