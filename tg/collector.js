@@ -147,6 +147,33 @@ function rowFrom(msg, uname, name) {
   const me = await client.getMe();
   console.log('вошёл как ' + (me.username || me.phone) + ', слушаю каналы');
 
+  // Сверка списка с подписками: node tg/collector.js --list
+  // Выводит все каналы, на которые подписан аккаунт, с настоящими адресами,
+  // и отдельно — записи нашего списка, которых среди подписок нет.
+  // Нужно, чтобы ловить опечатки в адресах и мёртвые каналы-двойники.
+  if (process.argv.includes('--list')) {
+    const dialogs = await client.getDialogs({ limit: 300 });
+    const have = new Set();
+    const rows = [];
+    for (const d of dialogs) {
+      const e = d.entity;
+      if (!e || !e.username || !e.broadcast) continue;
+      have.add(e.username);
+      const last = d.message && d.message.date
+        ? new Date(d.message.date * 1000).toISOString().slice(0, 16).replace('T', ' ')
+        : '—';
+      rows.push([CHANNELS[e.username] ? ' ' : '+', e.username, e.title || '', last]);
+    }
+    rows.sort((a, b) => a[1].localeCompare(b[1]));
+    console.log('\nПодписки аккаунта (+ = нет в нашем списке):');
+    for (const [f, u, t, l] of rows) console.log(f + ' ' + u.padEnd(28) + l + '  ' + t);
+    const miss = Object.keys(CHANNELS).filter(u => !have.has(u));
+    console.log('\nВ списке есть, а в подписках нет — ' + miss.length + ':');
+    for (const u of miss) console.log('  ' + u + '  (' + CHANNELS[u] + ')');
+    await client.disconnect();
+    process.exit(0);
+  }
+
   // Разовая выкачка: node tg/collector.js --backfill [сколько]
   // Берёт последние сообщения из каждого канала, пишет в базу и выходит.
   // Нужна для проверки записи и для первичного наполнения ленты.
