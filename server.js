@@ -71,6 +71,9 @@ const TG = [
 ];
 const RSS = [
   ['https://rosstat.gov.ru/rss/news.rss', 'Росстат'],
+  // Минфин: старый адрес /rss отдавал 503, этот работает. Третий элемент —
+  // плашка: иначе новость с сайта ведомства осталась бы без пометки.
+  ['https://minfin.gov.ru/rss_news?mod=news&lim=50', 'Минфин России', 'fin'],
   ['https://www.finam.ru/analysis/conews/rsspoint/', 'Финам'],
   ['https://www.moex.com/export/news.aspx?cat=100', 'Мосбиржа'],
 ];
@@ -548,8 +551,10 @@ async function build() {
     ...TG.map(([u, n]) => fetchUrl('https://t.me/s/' + u)
       .then(h => { const it = parseTelegram(h, u, n); health[u] = { ok: true, n: it.length }; return it; })
       .catch(e => { health[u] = { ok: false, err: e.message }; return []; })),
-    ...RSS.map(([url, n]) => fetchUrl(url)
-      .then(x => { const it = parseRss(x, n); health[n] = { ok: true, n: it.length }; return it; })
+    ...RSS.map(([url, n, mark]) => fetchUrl(url)
+      .then(x => { const it = parseRss(x, n);
+                   if (mark) for (const y of it) { y.mark = mark; y.reg = true; }
+                   health[n] = { ok: true, n: it.length }; return it; })
       .catch(e => { health[n] = { ok: false, err: e.message }; return []; })),
   ];
   // Один и тот же пост приходит и от парсера, и от сборщика — номер поста
