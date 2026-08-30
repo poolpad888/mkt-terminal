@@ -86,11 +86,17 @@ async function updatePost(row) {
 function rowFrom(msg, uname, name) {
   const text = (msg.message || '').trim();
   if (!text || text.length < 15) return null;
+  // У закрытых каналов вместо адреса номер: ссылка на пост тогда вида
+  // t.me/c/<номер>/<пост> — она открывается только у подписчиков канала.
+  const priv = uname.startsWith('id:');
+  const url = priv
+    ? 'https://t.me/c/' + uname.slice(3) + '/' + msg.id
+    : 'https://t.me/' + uname + '/' + msg.id;
   return {
-    id:      uname + '-' + msg.id,
+    id:      uname.replace('id:', 'c') + '-' + msg.id,
     src:     uname,
     srcName: name || uname,
-    url:     'https://t.me/' + uname + '/' + msg.id,
+    url,
     time:    new Date(msg.date * 1000).toISOString(),
     text:    cutText(text, TEXT_LIMIT),
   };
@@ -157,12 +163,14 @@ function rowFrom(msg, uname, name) {
     const rows = [];
     for (const d of dialogs) {
       const e = d.entity;
-      if (!e || !e.username || !e.broadcast) continue;
-      have.add(e.username);
+      if (!e || !e.broadcast) continue;
+      // У закрытых каналов публичного адреса нет — обращаемся по номеру.
+      const key = e.username || ('id:' + e.id);
+      have.add(key);
       const last = d.message && d.message.date
         ? new Date(d.message.date * 1000).toISOString().slice(0, 16).replace('T', ' ')
         : '—';
-      rows.push([CHANNELS[e.username] ? ' ' : '+', e.username, e.title || '', last]);
+      rows.push([CHANNELS[key] ? ' ' : '+', key, e.title || '', last]);
     }
     rows.sort((a, b) => a[1].localeCompare(b[1]));
     console.log('\nПодписки аккаунта (+ = нет в нашем списке):');
@@ -258,8 +266,9 @@ function rowFrom(msg, uname, name) {
       lastEvent = Date.now();
       for (const d of dialogs) {
         const ent = d.entity;
-        const uname = ent && ent.username;
-        if (!uname || !CHANNELS[uname]) continue;
+        if (!ent) continue;
+        const uname = ent.username || ('id:' + ent.id);
+        if (!CHANNELS[uname]) continue;
         const msg = d.message;
         if (!msg || !msg.id) continue;
 
@@ -271,7 +280,7 @@ function rowFrom(msg, uname, name) {
         let batch = [msg];
         if (msg.id > prev + 1) {
           try {
-            const more = await client.getMessages(uname, { minId: prev, limit: 20 });
+            const more = await client.getMessages(ent, { minId: prev, limit: 20 });
             if (more && more.length) batch = more;
           } catch (e) { if (DEBUG) console.log('· не добрал ' + uname + ': ' + e.message); }
         }
