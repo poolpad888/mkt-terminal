@@ -61,6 +61,8 @@ const TG = [
   ['ksonline',            'Континент Сибирь'],
   ['expertsouth',         'Эксперт Юг'],
   ['DK_RU_news',          'Деловой квартал'],
+  ['TheEconomisto',       'The Economist'],
+  ['dmitrypolevoy',       'Полевой'],
   ['xtxixty',              'Твёрдые цифры'],
   ['acirussia',            'ACI Russia'],
   ['if_bonds',             'IF Bonds'],
