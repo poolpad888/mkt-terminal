@@ -74,7 +74,9 @@ const RSS = [
   // Минфин: старый адрес /rss отдавал 503, этот работает. Третий элемент —
   // плашка: иначе новость с сайта ведомства осталась бы без пометки.
   ['https://minfin.gov.ru/rss_news?mod=news&lim=50', 'Минфин России', 'fin'],
-  ['https://minfin.gov.ru/rss_news?mod=lib&lim=50', 'Минфин документы', 'fin'],
+  // Лента документов: приказы и проекты актов. Плашку ведомства ставим,
+  // но важными такие публикации не выделяем — иначе лента в красных рамках.
+  ['https://minfin.gov.ru/rss_news?mod=lib&lim=50', 'Минфин документы', 'fin', true],
   ['https://www.finam.ru/analysis/conews/rsspoint/', 'Финам'],
   ['https://www.moex.com/export/news.aspx?cat=100', 'Мосбиржа'],
 ];
@@ -552,9 +554,12 @@ async function build() {
     ...TG.map(([u, n]) => fetchUrl('https://t.me/s/' + u)
       .then(h => { const it = parseTelegram(h, u, n); health[u] = { ok: true, n: it.length }; return it; })
       .catch(e => { health[u] = { ok: false, err: e.message }; return []; })),
-    ...RSS.map(([url, n, mark]) => fetchUrl(url)
+    ...RSS.map(([url, n, mark, plain]) => fetchUrl(url)
       .then(x => { const it = parseRss(x, n);
-                   if (mark) for (const y of it) { y.mark = mark; y.reg = true; }
+                   for (const y of it) {
+                     if (mark) { y.mark = mark; y.reg = true; }
+                     if (plain) y.plain = true;      // никогда не выделять как важное
+                   }
                    health[n] = { ok: true, n: it.length }; return it; })
       .catch(e => { health[n] = { ok: false, err: e.message }; return []; })),
   ];
@@ -612,7 +617,8 @@ async function build() {
 
   for (const x of out) {
     const c = classify(x.text);
-    x.lvl = c.lvl; x.reasons = c.reasons;
+    x.lvl = x.plain ? 0 : c.lvl;
+    x.reasons = x.plain ? [] : c.reasons;
     const mu = muted(x.text);
     if (mu) {                                    // техническая публикация — не выделяем
       x.lvl = 0; x.reasons = [];
