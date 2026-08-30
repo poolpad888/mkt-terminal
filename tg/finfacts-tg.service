@@ -8,7 +8,7 @@ Type=simple
 WorkingDirectory=/opt/finfacts
 Environment=TG_API_ID=37598766
 Environment=TG_API_HASH=0a952239efd4866c8f619288942229df
-Environment=TG_POLL_MS=1000
+Environment=TG_POLL_MS=4000
 Environment=DATABASE_URL=postgres://finfacts:faf91788f3f773479f1a954426ed894f@127.0.0.1:5432/finfacts
 ExecStart=/usr/bin/node /opt/finfacts/tg/collector.js
 Restart=always
