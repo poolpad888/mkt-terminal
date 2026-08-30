@@ -507,7 +507,40 @@ async function saveToDb(items) {
 let cache = { at: 0, feed: null };
 const health = {};
 
+// ── Записи от сборщика Телеграма ────────────────────────────────────────
+// Отдельная служба finfacts-tg читает каналы через личный аккаунт и кладёт
+// посты в ту же таблицу news. Здесь мы их оттуда забираем и подмешиваем в
+// ленту: только так до сайта доходят закрытые каналы, куда веб-парсер не
+// попадает. Первый заход тянет всё окно, дальше — только новое, с запасом
+// в 10 минут назад (пост мог прийти позже своего времени публикации).
+let dbBuf = [];
+let dbSince = null;
+
+async function dbPull() {
+  if (!pool) return;
+  const winStart = Date.now() - KEEP_HOURS * 3600 * 1000;
+  const from = dbSince
+    ? new Date(Math.max(winStart, dbSince - 10 * 60 * 1000))
+    : new Date(winStart);
+  try {
+    const r = await pool.query(
+      'SELECT id, ts, src, src_name, url, body FROM news WHERE ts > $1 ORDER BY ts DESC LIMIT 4000',
+      [from.toISOString()]);
+    for (const w of r.rows) {
+      if (!w.body || !w.src) continue;
+      const t = new Date(w.ts).getTime();
+      if (!dbSince || t > dbSince) dbSince = t;
+      dbBuf.push({ id: w.id, time: new Date(w.ts).toISOString(), src: w.src,
+                   srcName: w.src_name || w.src, url: w.url, text: w.body });
+    }
+    const m = new Map();
+    for (const x of dbBuf) if (new Date(x.time).getTime() > winStart) m.set(x.id, x);
+    dbBuf = [...m.values()];
+  } catch (e) { console.log('DB read: ' + e.message); }
+}
+
 async function build() {
+  await dbPull();
   const jobs = [
     ...TG.map(([u, n]) => fetchUrl('https://t.me/s/' + u)
       .then(h => { const it = parseTelegram(h, u, n); health[u] = { ok: true, n: it.length }; return it; })
@@ -516,7 +549,18 @@ async function build() {
       .then(x => { const it = parseRss(x, n); health[n] = { ok: true, n: it.length }; return it; })
       .catch(e => { health[n] = { ok: false, err: e.message }; return []; })),
   ];
-  const all = (await Promise.all(jobs)).flat().concat(fastItems);
+  // Один и тот же пост приходит и от парсера, и от сборщика — номер поста
+  // у них общий, поэтому склеиваем по нему заранее. Иначе дальше новость
+  // сочли бы двумя разными и приписали ей два источника.
+  const raw = (await Promise.all(jobs)).flat().concat(fastItems, dbBuf);
+  const byId = new Map();
+  for (const x of raw) {
+    const p = byId.get(x.id);
+    if (!p) { byId.set(x.id, x); continue; }
+    if (x.reg && !p.reg) { p.reg = true; p.mark = p.mark || x.mark; }
+    if (x.text && x.text.length > (p.text || '').length) p.text = x.text;
+  }
+  const all = [...byId.values()];
   for (const x of all) markByName(x);
   const bad = Object.entries(health).filter(([,v]) => !v.ok).map(([k,v]) => k + '(' + v.err + ')');
   console.log('BUILD: items=' + all.length + ' okSources=' + Object.values(health).filter(v=>v.ok).length + '/' + Object.keys(health).length + (bad.length ? ' fail: ' + bad.join(', ') : ''));
