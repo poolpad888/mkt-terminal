@@ -630,6 +630,36 @@ async function refresh() {
   } finally { building = false; }
 }
 setInterval(refresh, CACHE_SEC * 1000);     // фоновый опрос: лента свежая, пока сервер не спит
+
+// Быстрая подклейка: раз в секунду читаем только базу (сборщик пишет туда сразу)
+// и вставляем новые записи в готовую ленту. Сеть не трогаем — обход источников
+// остаётся редким, здесь лишь один запрос к локальной базе.
+let quickBusy = false;
+async function quickPull() {
+  if (quickBusy || building || !cache.feed) return;
+  quickBusy = true;
+  try {
+    const before = dbBuf.length;
+    await dbPull();
+    if (dbBuf.length === before) return;               // ничего нового
+    const have = new Set(cache.feed.items.map(x => x.id));
+    const add = [];
+    for (const r of dbBuf) {
+      if (have.has(r.id)) continue;
+      const c = classify(r.text);
+      const mu = muted(r.text);
+      const x = Object.assign({}, r, { lvl: c.lvl, reasons: c.reasons, tk: tickers(r.text), tags: hashtags(r.text) });
+      if (mu) { x.lvl = 0; x.reasons = []; if (mu.drop) { x.reg = false; delete x.mark; } }
+      add.push(x);
+    }
+    if (!add.length) return;
+    const items = add.concat(cache.feed.items).sort((a, b) => new Date(b.ts) - new Date(a.ts));
+    cache = { at: Date.now(), feed: { updated: new Date().toISOString(), count: items.length, items } };
+    console.log('QUICK: +' + add.length);
+  } catch (e) {
+  } finally { quickBusy = false; }
+}
+setInterval(quickPull, 1000);
 fastPoll();
 setInterval(fastPoll, FAST_SEC * 1000);     // регулятор — отдельно и часто
 
