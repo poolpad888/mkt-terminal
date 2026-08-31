@@ -1018,9 +1018,9 @@ async function buildPanel() {
       for (const [secid, last, chg] of (j.marketdata && j.marketdata.data) || []) {
         if (last == null || !isFinite(last) || last <= 0) continue;
         if ((secid === 'USD000UTSTOM' || secid === 'USDRUB_TOM') && !G['Валюты'][4])
-          G['Валюты'][4] = R4('USD/RUB · MOEX', last, chg);
+          G['Валюты'][4] = R4('USDRUB_TOM', last, chg);
         if (secid === 'CNYRUB_TOM' && !G['Валюты'][5])
-          G['Валюты'][5] = R4('CNY/RUB · MOEX', last, chg);
+          G['Валюты'][5] = R4('CNYRUB_TOM', last, chg);
       }
     }));
 
