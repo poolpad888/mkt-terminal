@@ -6,6 +6,7 @@
 
 const http = require('http');
 const https = require('https');
+const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
@@ -981,12 +982,30 @@ const RY = (n, p, c) => ({
 const TSY = [['DGS2', 'UST 2 года'], ['DGS5', 'UST 5 лет'], ['DGS10', 'UST 10 лет'], ['DGS30', 'UST 30 лет']];
 const tsyCache = { at: 0, busy: false, rows: new Array(4).fill(null) };
 
+// База ФРБ Сент-Луиса стоит за защитой, которая рвёт соединение встроенного
+// загрузчика Node по рукопожатию TLS: тот же адрес curl открывает кодом 200,
+// а https.get получает обрыв. Поэтому именно для неё зовём curl — он есть в
+// системе и рукопожатие проходит. Если его вдруг нет, пробуем обычный путь.
+function fetchViaCurl(url) {
+  return new Promise((resolve, reject) => {
+    execFile('curl', ['-sS', '-m', '20', '-L',
+      '-A', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
+      url], { maxBuffer: 8 * 1024 * 1024 }, (err, out) => {
+      if (err) return reject(new Error(err.code === 'ENOENT' ? 'curl не найден' : err.message));
+      if (!out || !out.trim()) return reject(new Error('пустой ответ'));
+      resolve(out);
+    });
+  });
+}
+
 function tsyRefresh() {
   if (tsyCache.busy || Date.now() - tsyCache.at < 30 * 60 * 1000) return;
   tsyCache.busy = true;
   const from = new Date(Date.now() - 25 * 864e5).toISOString().slice(0, 10);
   Promise.allSettled(TSY.map(([id, name], i) =>
-    fetchUrl('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id + '&cosd=' + from).then(raw => {
+    fetchViaCurl('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id + '&cosd=' + from)
+      .catch(() => fetchUrl('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id + '&cosd=' + from))
+      .then(raw => {
       // в выгрузке пропуски за выходные помечены точкой — отбрасываем их
       const v = String(raw).trim().split('\n').slice(1)
         .map(l => parseFloat(l.split(',')[1]))
