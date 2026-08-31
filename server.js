@@ -994,9 +994,12 @@ function tsyRefresh() {
       if (!v.length) return;
       const last = v[v.length - 1], prev = v.length > 1 ? v[v.length - 2] : null;
       tsyCache.rows[i] = RY(name, last, prev ? (last - prev) / prev * 100 : null);
-    })
-  )).then(() => { tsyCache.at = Date.now(); tsyCache.busy = false; })
-    .catch(() => { tsyCache.busy = false; });
+    }).catch(e => { console.log('TSY fail:', id, e.message); })
+  )).then(() => {
+    const ok = tsyCache.rows.filter(Boolean).length;
+    console.log('TSY: получено ' + ok + ' из ' + TSY.length);
+    tsyCache.at = Date.now(); tsyCache.busy = false;
+  }).catch(() => { tsyCache.busy = false; });
 }
 tsyRefresh();
 
