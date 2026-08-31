@@ -988,10 +988,11 @@ const tsyCache = { at: 0, busy: false, rows: new Array(4).fill(null) };
 // системе и рукопожатие проходит. Если его вдруг нет, пробуем обычный путь.
 function fetchViaCurl(url) {
   return new Promise((resolve, reject) => {
-    execFile('curl', ['-sS', '-m', '20', '-L',
+    const bin = fs.existsSync('/usr/bin/curl') ? '/usr/bin/curl' : 'curl';
+    execFile(bin, ['-sS', '-m', '20', '-L',
       '-A', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
       url], { maxBuffer: 8 * 1024 * 1024 }, (err, out) => {
-      if (err) return reject(new Error(err.code === 'ENOENT' ? 'curl не найден' : err.message));
+      if (err) return reject(new Error('curl: ' + (err.code === 'ENOENT' ? 'не найден' : (err.message || '').trim())));
       if (!out || !out.trim()) return reject(new Error('пустой ответ'));
       resolve(out);
     });
@@ -1004,7 +1005,7 @@ function tsyRefresh() {
   const from = new Date(Date.now() - 25 * 864e5).toISOString().slice(0, 10);
   Promise.allSettled(TSY.map(([id, name], i) =>
     fetchViaCurl('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id + '&cosd=' + from)
-      .catch(() => fetchUrl('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id + '&cosd=' + from))
+      .catch(e => { console.log('TSY curl:', id, e.message); return fetchUrl('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id + '&cosd=' + from); })
       .then(raw => {
       // в выгрузке пропуски за выходные помечены точкой — отбрасываем их
       const v = String(raw).trim().split('\n').slice(1)
