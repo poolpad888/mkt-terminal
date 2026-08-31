@@ -982,14 +982,14 @@ const RY = (n, p, c) => ({
 const TSY = [['DGS2', 'UST 2 года'], ['DGS5', 'UST 5 лет'], ['DGS10', 'UST 10 лет'], ['DGS30', 'UST 30 лет']];
 const tsyCache = { at: 0, busy: false, rows: new Array(4).fill(null) };
 
-// База ФРБ Сент-Луиса стоит за защитой, которая рвёт соединение встроенного
-// загрузчика Node по рукопожатию TLS: тот же адрес curl открывает кодом 200,
-// а https.get получает обрыв. Поэтому именно для неё зовём curl — он есть в
-// системе и рукопожатие проходит. Если его вдруг нет, пробуем обычный путь.
+// База ФРБ Сент-Луиса капризна к транспорту: по HTTP/2 она обрывает поток
+// внутренней ошибкой, а встроенный загрузчик Node не умеет откатываться на
+// HTTP/1.1 и получает обрыв соединения. Поэтому зовём curl с явным HTTP/1.1 —
+// так источник отдаёт выгрузку нормально. Если curl нет, пробуем обычный путь.
 function fetchViaCurl(url) {
   return new Promise((resolve, reject) => {
     const bin = fs.existsSync('/usr/bin/curl') ? '/usr/bin/curl' : 'curl';
-    execFile(bin, ['-sS', '-m', '20', '-L',
+    execFile(bin, ['-sS', '--http1.1', '-m', '20', '-L',
       '-A', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
       url], { maxBuffer: 8 * 1024 * 1024 }, (err, out, errOut) => {
       if (err) {
