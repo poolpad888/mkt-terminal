@@ -486,9 +486,12 @@ _ro.observe(document.querySelector('header'));
 function moodRender(d){
   const box=document.getElementById('smood');
   let up=0,dn=0;
-  for(const g of d.groups||[])for(const r of g.rows){
+  for(const g of d.groups||[]){
+   if(g.name==='Трежерис')continue;   // рост ставок — не рост рынка, в настроение не берём
+   for(const r of g.rows){
     if(r.c==null)continue;
     if(r.c>0.004)up++;else if(r.c<-0.004)dn++;
+   }
   }
   const tot=up+dn;
   if(!tot){box.hidden=true;return;}

@@ -966,6 +966,40 @@ function hlMap(resp) {
   return out;
 }
 
+// Доходности гособлигаций США. Показываем в процентах годовых с двумя знаками.
+const RY = (n, p, c) => ({
+  n,
+  p: (p == null || !isFinite(p)) ? '—'
+     : p.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%',
+  c: (c == null || !isFinite(c)) ? null : Math.round(c * 100) / 100,
+});
+
+// Кривая доходности берётся из базы ФРБ Сент-Луиса: открытая выгрузка в CSV,
+// без ключей и регистрации. Данные суточные, поэтому держим их в отдельном
+// кэше на полчаса — панель опрашивается раз в две секунды, дёргать источник
+// так часто незачем и невежливо.
+const TSY = [['DGS2', 'UST 2 года'], ['DGS5', 'UST 5 лет'], ['DGS10', 'UST 10 лет'], ['DGS30', 'UST 30 лет']];
+const tsyCache = { at: 0, busy: false, rows: new Array(4).fill(null) };
+
+function tsyRefresh() {
+  if (tsyCache.busy || Date.now() - tsyCache.at < 30 * 60 * 1000) return;
+  tsyCache.busy = true;
+  const from = new Date(Date.now() - 25 * 864e5).toISOString().slice(0, 10);
+  Promise.allSettled(TSY.map(([id, name], i) =>
+    fetchUrl('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id + '&cosd=' + from).then(raw => {
+      // в выгрузке пропуски за выходные помечены точкой — отбрасываем их
+      const v = String(raw).trim().split('\n').slice(1)
+        .map(l => parseFloat(l.split(',')[1]))
+        .filter(x => isFinite(x) && x > 0);
+      if (!v.length) return;
+      const last = v[v.length - 1], prev = v.length > 1 ? v[v.length - 2] : null;
+      tsyCache.rows[i] = RY(name, last, prev ? (last - prev) / prev * 100 : null);
+    })
+  )).then(() => { tsyCache.at = Date.now(); tsyCache.busy = false; })
+    .catch(() => { tsyCache.busy = false; });
+}
+tsyRefresh();
+
 // Официальные курсы ЦБ публикуются с четырьмя знаками после запятой —
 // показываем их как есть, не сокращая по величине, как делает pFmt.
 const R4 = (n, p, c) => ({
@@ -979,11 +1013,15 @@ async function buildPanel() {
   const G = {
     'Сырьё':   new Array(8).fill(null),
     'Индексы': new Array(5).fill(null),
+    'Трежерис': new Array(4).fill(null),
     'Валюты':  new Array(6).fill(null),
     'Крипта':  new Array(4).fill(null),
     'Акции':   new Array(8).fill(null),
   };
   const jobs = [];
+
+  tsyRefresh();                                   // обновится в фоне, панель не ждёт
+  G['Трежерис'] = tsyCache.rows.slice();
 
   // Сырьё, мировые индексы и EUR/USD — HyperLiquid, площадка xyz.
   // Раньше здесь были фьючерсы Мосбиржи: они в рублях и стоят на выходных.
