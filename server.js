@@ -966,7 +966,7 @@ async function buildPanel() {
   const G = {
     'Сырьё':   new Array(8).fill(null),
     'Индексы': new Array(5).fill(null),
-    'Валюты':  new Array(4).fill(null),
+    'Валюты':  new Array(6).fill(null),
     'Крипта':  new Array(4).fill(null),
     'Акции':   new Array(8).fill(null),
   };
@@ -1006,6 +1006,21 @@ async function buildPanel() {
         if (secid === 'IMOEX' && !G['Индексы'][2]) G['Индексы'][2] = R('МосБиржа', val, chg);
         if (secid === 'RTSI'  && !G['Индексы'][3]) G['Индексы'][3] = R('РТС', val, chg);
         if (secid === 'RGBI'  && !G['Индексы'][4]) G['Индексы'][4] = R('ОФЗ · RGBI', val, chg);
+      }
+    }));
+
+  // биржевые курсы валютного рынка Мосбиржи (режим CETS, расчёты «завтра»).
+  // Доллар вернулся в биржевой режим 16 февраля 2026 года; тикер в разных
+  // источниках зовут по-разному, поэтому принимаем оба написания.
+  jobs.push(fetchUrl('https://iss.moex.com/iss/engines/currency/markets/selt/boards/CETS/securities.json?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST,LASTCHANGEPRCNT')
+    .then(raw => {
+      const j = JSON.parse(raw);
+      for (const [secid, last, chg] of (j.marketdata && j.marketdata.data) || []) {
+        if (last == null || !isFinite(last) || last <= 0) continue;
+        if ((secid === 'USD000UTSTOM' || secid === 'USDRUB_TOM') && !G['Валюты'][4])
+          G['Валюты'][4] = R4('USD/RUB · MOEX', last, chg);
+        if (secid === 'CNYRUB_TOM' && !G['Валюты'][5])
+          G['Валюты'][5] = R4('CNY/RUB · MOEX', last, chg);
       }
     }));
 
