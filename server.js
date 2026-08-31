@@ -991,8 +991,12 @@ function fetchViaCurl(url) {
     const bin = fs.existsSync('/usr/bin/curl') ? '/usr/bin/curl' : 'curl';
     execFile(bin, ['-sS', '-m', '20', '-L',
       '-A', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
-      url], { maxBuffer: 8 * 1024 * 1024 }, (err, out) => {
-      if (err) return reject(new Error('curl: ' + (err.code === 'ENOENT' ? 'не найден' : (err.message || '').trim())));
+      url], { maxBuffer: 8 * 1024 * 1024 }, (err, out, errOut) => {
+      if (err) {
+        if (err.code === 'ENOENT') return reject(new Error('curl не найден'));
+        const why = String(errOut || '').trim().split('\n')[0] || ('код выхода ' + err.code);
+        return reject(new Error(why));
+      }
       if (!out || !out.trim()) return reject(new Error('пустой ответ'));
       resolve(out);
     });
