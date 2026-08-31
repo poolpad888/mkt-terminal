@@ -666,12 +666,20 @@ setInterval(refresh, CACHE_SEC * 1000);     // фоновый опрос: лен
 // Держим список подключений и на каждую новость пишем в них короткий сигнал.
 // Браузер, получив его, сразу дёргает ленту — ждать опроса не нужно.
 const sseClients = new Set();
+const sseIp = new Map();   // соединение → адрес: пока канал открыт, вкладка открыта
 function ssePush(n) {
   const msg = 'data: ' + JSON.stringify({ n, at: Date.now() }) + '\n\n';
   for (const c of sseClients) { try { c.write(msg); } catch (e) { sseClients.delete(c); } }
 }
 setInterval(() => {                      // раз в 25 с — двоеточие-пустышка, чтобы линия не закрылась
-  for (const c of sseClients) { try { c.write(': ping\n\n'); } catch (e) { sseClients.delete(c); } }
+  for (const c of sseClients) {
+    try { c.write(': ping\n\n'); } catch (e) { sseClients.delete(c); sseIp.delete(c); continue; }
+    // вкладка открыта — значит человек на сайте, даже если она в фоне и опрос
+    // ленты браузером приторможен. Заодно засчитываем заход в новые сутки,
+    // если страницу не закрывали через полночь.
+    const ip = sseIp.get(c);
+    if (ip) trackVisit(ip, null, null, true);
+  }
 }, 25000);
 
 let quickBusy = false;
@@ -816,7 +824,7 @@ function devKind(req) {
 }
 
 // page — адрес открытой страницы, либо null для фонового запроса ленты
-function trackVisit(ip, page, req) {
+function trackVisit(ip, page, req, countUnique) {
   const d = dayKey();
   if (S.date !== d) { S.date = d; todaySet = new Set(); S.views = 0; }
   const h = ipHash(ip);
@@ -828,6 +836,8 @@ function trackVisit(ip, page, req) {
   if (prev && now - prev <= SESSION_GAP) r.sec += Math.round((now - prev) / 1000);
   else r.ses++;
   online.set(h, now);
+
+  if (countUnique && !page) { todaySet.add(h); allSet.add(h); }
 
   if (page) {
     S.views++;
@@ -849,9 +859,12 @@ function onlineNow() {
   const now = Date.now();
   for (const [h, t] of online) if (now - t > SESSION_GAP * 4) online.delete(h);
   const cut = now - ONLINE_MS;
-  let n = 0;
-  for (const t of online.values()) if (t >= cut) n++;
-  return n;
+  const set = new Set();
+  for (const [h, t] of online) if (t >= cut) set.add(h);
+  // главный признак: открытый канал живой линии. Он держится всё время, пока
+  // вкладка не закрыта, поэтому долго открытая страница из счётчика не выпадает.
+  for (const ip of sseIp.values()) set.add(ipHash(ip));
+  return set.size;
 }
 
 // уникальные за скользящее окно в N дней
@@ -1106,7 +1119,9 @@ const srv = http.createServer(async (req, res) => {
       res.write('retry: 3000\n\n');
       res.write(': hello\n\n');
       sseClients.add(res);
-      req.on('close', () => sseClients.delete(res));
+      sseIp.set(res, clientIp);
+      trackVisit(clientIp, null, req, true);
+      req.on('close', () => { sseClients.delete(res); sseIp.delete(res); });
       return;
     }
     if (u.pathname === '/api/feed') {
