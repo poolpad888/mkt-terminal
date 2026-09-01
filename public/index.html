@@ -147,7 +147,8 @@ header{flex-wrap:nowrap}
 .verbox .vprev{margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
 .verbox .vprev h4{color:var(--dim)}
 .verbox .vprev li{color:var(--dim)}
-.verbox{max-height:70vh;overflow-y:auto}
+.verbox{max-height:none;overflow:visible}
+@media(max-height:520px){.verbox{max-height:82vh;overflow-y:auto}}
 @media(max-width:640px){.verbox{max-width:calc(100vw - 24px)}}
 nav{position:sticky;top:var(--hh,41px);z-index:19;background:var(--bg);border-bottom:1px solid var(--line);
   display:flex;align-items:center;gap:6px;padding:0 14px;overflow-x:auto;scrollbar-width:none;
