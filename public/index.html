@@ -518,18 +518,35 @@ setInterval(()=>{clock.textContent=new Date().toLocaleTimeString('ru-RU',{timeZo
   }
   function place(){
     const r=el.getBoundingClientRect(), b=build();
-    b.style.top=(r.bottom+8)+'px';
+    b.style.top=(r.bottom+5)+'px';
     const w=Math.min(340,window.innerWidth-24);
     let left=r.left;
     if(left+w>window.innerWidth-12) left=window.innerWidth-12-w;
     b.style.left=Math.max(12,left)+'px';
     b.style.width=w+'px';
   }
-  function open(){ if(!data)return; fill(); place(); build().classList.add('on'); }
-  function close(){ if(box)box.classList.remove('on'); }
+  // Между меткой и окошком есть зазор: если закрывать сразу, мышь не успевает
+  // до него дойти. Поэтому закрываем с небольшой задержкой, а наведение на само
+  // окно её отменяет — так по списку можно спокойно водить и прокручивать его.
+  let таймер=null;
+  function отменить(){ if(таймер){ clearTimeout(таймер); таймер=null; } }
+  function закрытьПотом(){ отменить(); таймер=setTimeout(close,220); }
+
+  function open(){
+    if(!data)return;
+    отменить(); fill(); place();
+    const b=build();
+    b.classList.add('on');
+    if(!b._hooked){
+      b._hooked=true;
+      b.addEventListener('mouseenter',отменить);
+      b.addEventListener('mouseleave',закрытьПотом);
+    }
+  }
+  function close(){ отменить(); if(box)box.classList.remove('on'); }
 
   el.addEventListener('mouseenter',open);
-  el.addEventListener('mouseleave',e=>{ if(!box||!box.matches(':hover'))close(); });
+  el.addEventListener('mouseleave',закрытьПотом);
   el.addEventListener('click',e=>{ e.stopPropagation(); (box&&box.classList.contains('on'))?close():open(); });
   el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();open();} if(e.key==='Escape')close(); });
   document.addEventListener('click',e=>{ if(box&&!box.contains(e.target)&&e.target!==el)close(); });
