@@ -120,9 +120,13 @@ header .hbtn,header .logo,header .live,header #clock{flex:none}
 header{flex-wrap:nowrap}
 
 /* ── фильтры ── */
-.ver{font-family:var(--mono);font-size:10px;color:var(--dim);cursor:pointer;
-  border:1px solid var(--line);border-radius:4px;padding:1px 5px;position:relative;top:1px;
-  user-select:none;white-space:nowrap}
+/* Рамка не должна зависеть от межстрочного интервала: задаём высоту и
+   центрируем содержимое, как у надписи LIVE. Тогда цифры встают на ту же
+   линию, что FINFACTS и LIVE, а не пляшут от кегля шрифта. */
+.ver{display:inline-flex;align-items:center;height:17px;line-height:1;
+  font-family:var(--mono);font-size:10px;color:var(--dim);cursor:pointer;
+  border:1px solid var(--line);border-radius:4px;padding:0 5px;box-sizing:border-box;
+  position:relative;top:1px;flex-shrink:0;user-select:none;white-space:nowrap}
 .ver:hover,.ver:focus{color:var(--tx);border-color:var(--dim);outline:none}
 .verbox{position:fixed;z-index:60;max-width:340px;background:var(--panel);
   border:1px solid var(--line);border-radius:8px;padding:10px 12px;
