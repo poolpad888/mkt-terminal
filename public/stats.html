@@ -39,11 +39,14 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 60px}
 .top h1{font-size:15px;font-weight:700;letter-spacing:.02em}
 .top .note{color:var(--dim);font-size:11.5px}
 
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px}
-.tile{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(184px,1fr));gap:10px;margin-bottom:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;
+  min-width:0;overflow:hidden}
+.tile .lb,.tile .hint{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .lb{color:var(--dim);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-family:var(--mono);
   display:flex;align-items:center;gap:6px}
-.tile .vl{font-family:var(--mono);font-weight:700;font-size:27px;line-height:1.25;margin-top:4px}
+.tile .vl{font-family:var(--mono);font-weight:700;font-size:27px;line-height:1.25;margin-top:4px;
+  white-space:nowrap}
 .tile .hint{color:var(--dim);font-size:11px}
 .tile.live{border-color:rgba(46,224,111,.35)}
 .tile.live .vl{color:var(--green)}
@@ -92,7 +95,8 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 60px}
   .li{grid-template-columns:1fr 40px 54px;gap:8px;font-size:10.5px}
   .col{flex:1 0 16px;min-width:12px}
   .col .stack{height:104px}
-  .tile .vl{font-size:24px}
+  .tile .vl{font-size:22px}
+  .tiles{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 }
 </style>
 </head>
@@ -175,6 +179,31 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 60px}
       <div class="lb">открытий за визит</div>
       <div class="vl" id="vPer">—</div>
       <div class="hint">глубина просмотра</div>
+    </div>
+    <div class="tile">
+      <div class="lb">было вчера</div>
+      <div class="vl" id="vYest">—</div>
+      <div class="hint" id="vDelta">уникальных за сутки</div>
+    </div>
+    <div class="tile">
+      <div class="lb">в среднем за день</div>
+      <div class="vl" id="vAvgDay">—</div>
+      <div class="hint">уникальных, за 30 дней</div>
+    </div>
+    <div class="tile">
+      <div class="lb">лучший день</div>
+      <div class="vl" id="vBest">—</div>
+      <div class="hint" id="vBestD">за 30 дней</div>
+    </div>
+    <div class="tile">
+      <div class="lb">открытий за 30 дней</div>
+      <div class="vl" id="vViews30">—</div>
+      <div class="hint" id="vDays">всего страниц</div>
+    </div>
+    <div class="tile">
+      <div class="lb">доля роботов</div>
+      <div class="vl" id="vBots">—</div>
+      <div class="hint">поисковики и сканеры</div>
     </div>
   </div>
 
@@ -310,6 +339,19 @@ async function load(){
   $('vRet').textContent=(s.retToday||0)+' вернулись';
   $('vPer').textContent=s.perVisit!=null?String(s.perVisit).replace('.',','):'—';
   drawHours(s.hours||[]);
+  $('vYest').textContent=s.yesterday!=null?s.yesterday:'—';
+  if(s.dayDelta==null){ $('vDelta').textContent='уникальных за сутки'; }
+  else {
+    const z=s.dayDelta;
+    $('vDelta').textContent=(z>0?'сегодня +':'сегодня ')+z+'% к вчера';
+    $('vDelta').style.color=z>0?'var(--green)':(z<0?'var(--red)':'');
+  }
+  $('vAvgDay').textContent=s.avgDay30!=null?s.avgDay30:'—';
+  $('vBest').textContent=s.bestDay?s.bestDay.u:'—';
+  $('vBestD').textContent=s.bestDay?human(s.bestDay.d):'за 30 дней';
+  $('vViews30').textContent=s.views30!=null?s.views30:'—';
+  $('vDays').textContent=(s.activeDays||0)+' дней наблюдений';
+  $('vBots').textContent=(s.botShare!=null?s.botShare:0)+'%';
   $('vDate').textContent=s.date?human(s.date):'—';
   $('vAvg').textContent=dur(s.avgSec);
   $('vAvg30').textContent='за 30 дней — '+dur(s.avgSec30);

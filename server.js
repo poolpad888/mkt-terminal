@@ -980,6 +980,39 @@ function trackVisit(ip, page, req, countUnique) {
   statsDirty = true;
 }
 
+// Сводки, которые считаются по истории дней: сравнение с вчера, средние,
+// рекордный день, доля автоматических обращений.
+function extraStats() {
+  const keys = Object.keys(S.days).sort();
+  const last30 = keys.slice(-30);
+  const yd = S.days[dayKey(1)] || {};
+  const today = S.days[S.date] || {};
+
+  let sumU = 0, sumV = 0, best = { d: null, u: 0 };
+  for (const k of last30) {
+    const r = S.days[k] || {};
+    sumU += r.u || 0;
+    sumV += r.v || 0;
+    if ((r.u || 0) > best.u) best = { d: k, u: r.u || 0 };
+  }
+  // доля автоматических обращений за 30 дней
+  let bots = 0, allDev = 0;
+  for (const k of last30) {
+    const dv = (S.days[k] || {}).dev || {};
+    for (const kind in dv) { allDev += dv[kind]; if (kind === 'b') bots += dv[kind]; }
+  }
+  const tu = today.u || 0, yu = yd.u || 0;
+  return {
+    yesterday: yu,
+    dayDelta: yu ? Math.round((tu - yu) / yu * 100) : null,   // рост к вчера, процентов
+    avgDay30: last30.length ? Math.round(sumU / last30.length) : 0,
+    views30: sumV,
+    bestDay: best.d ? { d: best.d, u: best.u } : null,
+    botShare: allDev ? Math.round(bots / allDev * 100) : 0,
+    activeDays: keys.length,
+  };
+}
+
 function onlineNow() {
   const now = Date.now();
   for (const [h, t] of online) if (now - t > SESSION_GAP * 4) online.delete(h);
@@ -1435,7 +1468,8 @@ const srv = http.createServer(async (req, res) => {
         newToday: t.nw || 0,                              // впервые пришедшие сегодня
         retToday: Math.max(0, (t.u || 0) - (t.nw || 0)),  // вернувшиеся
         perVisit: t.ses ? Math.round((t.v || 0) / t.ses * 10) / 10 : 0,  // открытий за визит
-        hours: t.hh || new Array(24).fill(0)              // активность по часам
+        hours: t.hh || new Array(24).fill(0),             // активность по часам
+        ...extraStats()                                   // сравнения и итоги за 30 дней
       }));
     }
     if (u.pathname === '/health') {
