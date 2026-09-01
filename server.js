@@ -789,6 +789,7 @@ try { S = Object.assign(S, JSON.parse(fs.readFileSync(STATS_FILE, 'utf8'))); } c
 let todaySet = new Set(S.todayIps || []);
 const allSet = new Set(S.allIps || []);
 if (S.date !== dayKey()) { S.date = dayKey(); todaySet = new Set(); S.views = 0; }
+let ipSrc = 'н/д';            // откуда берётся адрес посетителя, для диагностики
 const online = new Map();     // хэш ip → время последней активности
 let statsDirty = false;
 
@@ -1168,7 +1169,14 @@ function addSec(res) {
 
 const srv = http.createServer(async (req, res) => {
   addSec(res);
-  const clientIp = (req.headers['x-forwarded-for']||'').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  // Если перед сайтом стоит nginx, настоящий адрес приходит заголовком. Когда
+  // ни один из них не проставлен, мы видим всех как localhost и склеиваем в
+  // одного человека — поэтому запоминаем, откуда взяли адрес, и показываем это
+  // в /api/stats полем ipSrc.
+  const _xff = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const _real = (req.headers['x-real-ip'] || '').trim();
+  const clientIp = _xff || _real || req.socket.remoteAddress || 'unknown';
+  ipSrc = _xff ? 'x-forwarded-for' : (_real ? 'x-real-ip' : 'socket:' + (req.socket.remoteAddress || '?'));
   try {
     const u = new URL(req.url, 'http://x');
     const _pg = pageOf(u.pathname);
@@ -1249,7 +1257,9 @@ const srv = http.createServer(async (req, res) => {
       const dv = {}; for (const [k, c] of aggr('dev', 30)) dv[k] = c;
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(JSON.stringify({
-        online: onlineNow(),                              // уникальных за последние 2 минуты
+        online: onlineNow(),
+        live: sseIp.size,                                 // сколько вкладок держит связь
+        ipSrc,                              // уникальных за последние 2 минуты
         today:  todaySet.size,                            // уникальных сегодня (Москва)
         views:  S.views,                                  // открытий страниц сегодня
         week:   windowUnique(7),                          // уникальных за 7 дней
