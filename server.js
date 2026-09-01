@@ -466,14 +466,54 @@ function wordSet(text) {
     });
   return new Set(w);
 }
-function similar(a, b) {
+const WS = new WeakMap();
+function wsOf(x) {
+  let v = WS.get(x);
+  if (!v) { v = wordSet(x.text); WS.set(x, v); }
+  return v;
+}
+
+// Схожесть по словам путает противоположные сообщения: «повысил до 18» и
+// «снизил до 16» состоят почти из одних и тех же слов. Поэтому перед склейкой
+// сверяем то, что несёт смысл: числа и направление движения.
+const ANTI = [
+  [/повыси|подня|увеличи|рост|вырос|подорожа|укрепи/i, /снизи|сократи|уменьши|паден|упал|подешеве|ослаб/i],
+  [/прибыл|доход/i, /убыт|потер/i],
+  [/разреши|одобри|подписа|утверди/i, /запрети|отклони|заблокирова|наложи/i],
+];
+function numsOf(t) {
+  const out = new Set();
+  for (const m of String(t).matchAll(/\d+(?:[.,]\d+)?/g)) {
+    const v = m[0].replace(',', '.');
+    if (parseFloat(v) >= 1) out.add(v);          // мелочь вроде «1» в датах не считаем значимой
+  }
+  return out;
+}
+function conflicts(t1, t2) {
+  for (const [a, b] of ANTI) {
+    if ((a.test(t1) && b.test(t2)) || (b.test(t1) && a.test(t2))) return true;
+  }
+  const n1 = numsOf(t1), n2 = numsOf(t2);
+  if (n1.size && n2.size) {
+    let common = 0;
+    for (const v of n1) if (n2.has(v)) common++;
+    if (!common) return true;                    // ни одного общего числа — вероятно разные события
+  }
+  return false;
+}
+
+function similar(a, b, near) {
   if (!a.size || !b.size) return false;
   let inter = 0;
   const [small, big] = a.size <= b.size ? [a, b] : [b, a];
   for (const t of small) if (big.has(t)) inter++;
   const contain = inter / small.size;                // маленький почти целиком внутри большого
   const jacc = inter / (a.size + b.size - inter);
-  return jacc >= 0.38 || contain >= 0.62;   // порог снижен: ловим более вольные пересказы
+  // В пределах четверти часа один и тот же сюжет расходится по каналам почти
+  // всегда, поэтому там судим мягче. Дальше по времени требуем большего
+  // сходства, чтобы не склеить два разных события на одну тему.
+  return near ? (jacc >= 0.26 || contain >= 0.48)
+              : (jacc >= 0.38 || contain >= 0.62);
 }
 
 // ── База данных (история новостей) ─────────────────────────────────────
@@ -612,6 +652,7 @@ async function build() {
   const seen = new Map();
   const out = [];
   const WINDOW = 6 * 3600 * 1000;          // было 3 часа — растянули, пересказы приходят с задержкой
+  const NEAR = 15 * 60 * 1000;            // «рядом» — четверть часа
   for (let i = fresh.length - 1; i >= 0; i--) {   // от старых к новым
     const x = fresh[i];
     const fp = fingerprint(x.text);
@@ -623,7 +664,8 @@ async function build() {
         const y = out[j];
         if (t - new Date(y.time).getTime() > WINDOW) break;
         if (y.src === x.src) continue;             // внутри одного канала не склеиваем
-        if (similar(ws, y._ws)) { keep = y; break; }
+        const near = t - new Date(y.time).getTime() <= NEAR;
+        if (similar(ws, y._ws, near) && !conflicts(x.text, y.text)) { keep = y; break; }
       }
       if (!keep) {
         x._ws = ws;
@@ -725,15 +767,40 @@ async function quickPull() {
     // и без этой проверки мы возвращали бы в ленту то, что она законно убрала.
     const haveFp = new Set(cache.feed.items.map(x => fingerprint(x.text)));
     const newest = cache.feed.items.length ? new Date(cache.feed.items[0].time).getTime() : 0;
+    // Между полными сборками новости подклеиваются здесь, поэтому те же проверки
+    // нужны и тут: иначе пересказ из другого канала висит в ленте до сборки.
+    const recent = cache.feed.items.slice(0, 200);
+
     const add = [];
     for (const r of dbBuf) {
       if (have.has(r.id)) continue;
       if (new Date(r.time).getTime() <= newest - 60 * 1000) continue;   // не тянем старое
       if (haveFp.has(fingerprint(r.text))) continue;
+      if (!r.reg && offTopic(r.text)) continue;                         // не наша тема
+
+      const ws = wordSet(r.text);
+      const rt = new Date(r.time).getTime();
+      let twin = null;
+      for (const y of recent) {
+        const dt = rt - new Date(y.time).getTime();
+        if (Math.abs(dt) > 6 * 3600 * 1000) continue;
+        if (y.src === r.src) continue;                                  // внутри канала не склеиваем
+        if (similar(ws, wsOf(y), Math.abs(dt) <= 15 * 60 * 1000) && !conflicts(r.text, y.text)) { twin = y; break; }
+      }
+      if (twin) {                        // дубль: саму новость не публикуем,
+        twin.srcCount = (twin.srcCount || 1) + 1;                       // а источник дописываем
+        if (!twin.alsoIn) twin.alsoIn = [];
+        if (!twin.alsoIn.includes(r.srcName) && twin.srcName !== r.srcName) twin.alsoIn.push(r.srcName);
+        if (r.reg) { twin.reg = true; twin.mark = twin.mark || r.mark; }
+        have.add(r.id);
+        continue;
+      }
       const c = classify(r.text);
       const mu = muted(r.text);
       const x = Object.assign({}, r, { lvl: c.lvl, reasons: c.reasons, tk: tickers(r.text), tags: hashtags(r.text) });
       if (mu) { x.lvl = 0; x.reasons = []; if (mu.drop) { x.reg = false; delete x.mark; } }
+      WS.set(x, ws);
+      recent.unshift(x);                 // чтобы следующий дубль в этой же пачке поймался
       add.push(x);
     }
     if (!add.length) return;
