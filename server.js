@@ -1042,11 +1042,11 @@ const R4 = (n, p, c) => ({
 async function buildPanel() {
   const G = {
     'Сырьё':   new Array(8).fill(null),
-    'Индексы': new Array(5).fill(null),
+    'Индексы': new Array(4).fill(null),
     'Трежерис': new Array(4).fill(null),
     'Валюты':  new Array(6).fill(null),
     'Крипта':  new Array(4).fill(null),
-    'Акции':   new Array(8).fill(null),
+    'Акции':   new Array(7).fill(null),
   };
   const jobs = [];
 
@@ -1066,7 +1066,10 @@ async function buildPanel() {
     PALLADIUM:['Палладий',     'Сырьё',   6, R],
     COPPER:   ['Медь',         'Сырьё',   7, R],
     SP500:    ['S&P 500',      'Индексы', 0, R],
-    JP225:    ['Nikkei 225',   'Индексы', 1, R],
+    NAS100:   ['Nasdaq 100',   'Индексы', 1, R],
+    NDX:      ['Nasdaq 100',   'Индексы', 1, R],
+    US100:    ['Nasdaq 100',   'Индексы', 1, R],
+    USTEC:    ['Nasdaq 100',   'Индексы', 1, R],
     EUR:      ['EUR/USD',      'Валюты',  3, R4],
   };
   jobs.push(hlInfo({ type: 'metaAndAssetCtxs', dex: 'xyz' }).then(resp => {
@@ -1074,6 +1077,7 @@ async function buildPanel() {
     for (const tick in XYZ) {
       const x = m[tick]; if (!x) continue;
       const [name, g, i, fmt] = XYZ[tick];
+      if (G[g][i]) continue;                 // слот уже занят: у Nasdaq несколько написаний
       G[g][i] = fmt(name, x.px, x.chg);
     }
   }));
@@ -1085,8 +1089,7 @@ async function buildPanel() {
       for (const [secid, val, chg] of (j.marketdata && j.marketdata.data) || []) {
         if (val == null) continue;
         if (secid === 'IMOEX' && !G['Индексы'][2]) G['Индексы'][2] = R('МосБиржа', val, chg);
-        if (secid === 'RTSI'  && !G['Индексы'][3]) G['Индексы'][3] = R('РТС', val, chg);
-        if (secid === 'RGBI'  && !G['Индексы'][4]) G['Индексы'][4] = R('ОФЗ · RGBI', val, chg);
+        if (secid === 'RGBI'  && !G['Индексы'][3]) G['Индексы'][3] = R('ОФЗ · RGBI', val, chg);
       }
     }));
 
@@ -1138,7 +1141,7 @@ async function buildPanel() {
       if (x && x.last != null) G['Акции'][i] = R(name, x.last, x.chg);
     };
     st('SBER', 'Сбер', 0); st('GAZP', 'Газпром', 1); st('LKOH', 'Лукойл', 2); st('ROSN', 'Роснефть', 3);
-    st('GMKN', 'Норникель', 4); st('VTBR', 'ВТБ', 5); st('TATN', 'Татнефть', 6); st('YDEX', 'Яндекс', 7);
+    st('GMKN', 'Норникель', 4); st('VTBR', 'ВТБ', 5); st('YDEX', 'Яндекс', 6);
   }));
 
   await Promise.allSettled(jobs);
