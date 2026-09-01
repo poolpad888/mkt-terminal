@@ -1010,6 +1010,18 @@ function extraStats() {
     bestDay: best.d ? { d: best.d, u: best.u } : null,
     botShare: allDev ? Math.round(bots / allDev * 100) : 0,
     activeDays: keys.length,
+    liveNow: sseIp.size,                                     // вкладок держат связь
+    returnShare: (function () {                              // доля вернувшихся за 30 дней
+      let u = 0, nw = 0;
+      for (const k of last30) { const r = S.days[k] || {}; u += r.u || 0; nw += r.nw || 0; }
+      return u ? Math.round((u - nw) / u * 100) : 0;
+    })(),
+    busiestHour: (function () {                              // самый людный час сегодня
+      const hh = today.hh || [];
+      let bi = -1, bv = 0;
+      for (let i = 0; i < hh.length; i++) if (hh[i] > bv) { bv = hh[i]; bi = i; }
+      return bi < 0 ? null : { h: bi, v: bv };
+    })(),
   };
 }
 

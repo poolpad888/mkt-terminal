@@ -39,7 +39,8 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 60px}
 .top h1{font-size:15px;font-weight:700;letter-spacing:.02em}
 .top .note{color:var(--dim);font-size:11.5px}
 
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(184px,1fr));gap:10px;margin-bottom:12px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+@media(max-width:900px){.tiles{grid-template-columns:repeat(2,1fr)}}
 .tile{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;
   min-width:0;overflow:hidden}
 .tile .lb,.tile .hint{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -95,8 +96,8 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 60px}
   .li{grid-template-columns:1fr 40px 54px;gap:8px;font-size:10.5px}
   .col{flex:1 0 16px;min-width:12px}
   .col .stack{height:104px}
-  .tile .vl{font-size:22px}
-  .tiles{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .tile .vl{font-size:20px}
+  .tile{padding:10px 11px}
 }
 </style>
 </head>
@@ -142,9 +143,6 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 60px}
       <div class="vl" id="vTotal">—</div>
       <div class="hint">уникальных посетителей</div>
     </div>
-  </div>
-
-  <div class="tiles">
     <div class="tile">
       <div class="lb">средний визит</div>
       <div class="vl" id="vAvg">—</div>
@@ -204,6 +202,21 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 60px}
       <div class="lb">доля роботов</div>
       <div class="vl" id="vBots">—</div>
       <div class="hint">поисковики и сканеры</div>
+    </div>
+    <div class="tile">
+      <div class="lb">вкладок открыто</div>
+      <div class="vl" id="vLive">—</div>
+      <div class="hint">держат связь прямо сейчас</div>
+    </div>
+    <div class="tile">
+      <div class="lb">возвращаются</div>
+      <div class="vl" id="vRetSh">—</div>
+      <div class="hint">доля за 30 дней</div>
+    </div>
+    <div class="tile">
+      <div class="lb">людный час</div>
+      <div class="vl" id="vBusy">—</div>
+      <div class="hint" id="vBusyN">сегодня по Москве</div>
     </div>
   </div>
 
@@ -352,6 +365,10 @@ async function load(){
   $('vViews30').textContent=s.views30!=null?s.views30:'—';
   $('vDays').textContent=(s.activeDays||0)+' дней наблюдений';
   $('vBots').textContent=(s.botShare!=null?s.botShare:0)+'%';
+  $('vLive').textContent=s.liveNow!=null?s.liveNow:'—';
+  $('vRetSh').textContent=(s.returnShare!=null?s.returnShare:0)+'%';
+  $('vBusy').textContent=s.busiestHour?(s.busiestHour.h+':00'):'—';
+  $('vBusyN').textContent=s.busiestHour?(s.busiestHour.v+' открытий'):'сегодня по Москве';
   $('vDate').textContent=s.date?human(s.date):'—';
   $('vAvg').textContent=dur(s.avgSec);
   $('vAvg30').textContent='за 30 дней — '+dur(s.avgSec30);
