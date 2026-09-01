@@ -1006,6 +1006,36 @@ function fetchViaCurl(url) {
   });
 }
 
+// Один дневной ряд из базы ФРБ: последнее значение и предыдущее для расчёта
+// изменения. Пропуски за выходные помечены точкой — отбрасываем их.
+function fredSeries(id, from) {
+  const url = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + id + '&cosd=' + from;
+  return fetchViaCurl(url)
+    .catch(e => { console.log('FRED curl:', id, e.message); return fetchUrl(url); })
+    .then(raw => {
+      const v = String(raw).trim().split('\n').slice(1)
+        .map(l => parseFloat(l.split(',')[1]))
+        .filter(x => isFinite(x) && x > 0);
+      if (!v.length) throw new Error('нет значений');
+      return { last: v[v.length - 1], prev: v.length > 1 ? v[v.length - 2] : null };
+    });
+}
+
+// Nasdaq 100. На площадке xyz его нет — там свой индекс XYZ100, это другая
+// корзина. Поэтому берём настоящий индекс из той же базы; данные дневные.
+const nasCache = { at: 0, busy: false, row: null };
+function nasRefresh() {
+  if (nasCache.busy || Date.now() - nasCache.at < 30 * 60 * 1000) return;
+  nasCache.busy = true;
+  const from = new Date(Date.now() - 25 * 864e5).toISOString().slice(0, 10);
+  fredSeries('NASDAQ100', from).then(({ last, prev }) => {
+    nasCache.row = R('Nasdaq 100', last, prev ? (last - prev) / prev * 100 : null);
+    console.log('NAS: ' + last);
+  }).catch(e => console.log('NAS fail:', e.message))
+    .then(() => { nasCache.at = Date.now(); nasCache.busy = false; });
+}
+nasRefresh();
+
 function tsyRefresh() {
   if (tsyCache.busy || Date.now() - tsyCache.at < 30 * 60 * 1000) return;
   tsyCache.busy = true;
@@ -1052,6 +1082,8 @@ async function buildPanel() {
 
   tsyRefresh();                                   // обновится в фоне, панель не ждёт
   G['Трежерис'] = tsyCache.rows.slice();
+  nasRefresh();
+  if (nasCache.row) G['Индексы'][1] = nasCache.row;
 
   // Сырьё, мировые индексы и EUR/USD — HyperLiquid, площадка xyz.
   // Раньше здесь были фьючерсы Мосбиржи: они в рублях и стоят на выходных.
@@ -1066,10 +1098,6 @@ async function buildPanel() {
     PALLADIUM:['Палладий',     'Сырьё',   6, R],
     COPPER:   ['Медь',         'Сырьё',   7, R],
     SP500:    ['S&P 500',      'Индексы', 0, R],
-    NAS100:   ['Nasdaq 100',   'Индексы', 1, R],
-    NDX:      ['Nasdaq 100',   'Индексы', 1, R],
-    US100:    ['Nasdaq 100',   'Индексы', 1, R],
-    USTEC:    ['Nasdaq 100',   'Индексы', 1, R],
     EUR:      ['EUR/USD',      'Валюты',  3, R4],
   };
   jobs.push(hlInfo({ type: 'metaAndAssetCtxs', dex: 'xyz' }).then(resp => {
