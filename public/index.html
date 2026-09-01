@@ -463,9 +463,21 @@ const sideBody=document.getElementById('sideBody');
 const sideUpd=document.getElementById('sideUpd');
 let sideTimer=null;
 // высота шапки панели = высоте шапки сайта минус отступ карточки
+// Правый край часов подводим к правому краю ленты: лента центрирована и уже
+// шапки, поэтому считаем по факту — так выравнивание переживает и открытие
+// боковой панели, и появление полосы прокрутки.
+function clockAlign(){
+  const h=document.querySelector('header'), m=document.querySelector('main');
+  if(!h||!m)return;
+  const hr=h.getBoundingClientRect(), mr=m.getBoundingClientRect();
+  const pad=Math.max(14,Math.round(hr.right-mr.right));
+  if(h.style.paddingRight!==pad+'px')h.style.paddingRight=pad+'px';   // без лишних перерисовок
+}
+
 function sideAlign(){
   const h=document.querySelector('header');
   if(!h)return;
+  clockAlign();
   document.documentElement.style.setProperty('--hh',h.getBoundingClientRect().height+'px');
   const nv=document.getElementById('nav');
   if(nv)document.documentElement.style.setProperty('--navh2',nv.getBoundingClientRect().height+'px');
