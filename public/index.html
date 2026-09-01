@@ -120,14 +120,14 @@ header .hbtn,header .logo,header .live,header #clock{flex:none}
 header{flex-wrap:nowrap}
 
 /* ── фильтры ── */
-/* Рамка не должна зависеть от межстрочного интервала: задаём высоту и
-   центрируем содержимое, как у надписи LIVE. Тогда цифры встают на ту же
-   линию, что FINFACTS и LIVE, а не пляшут от кегля шрифта. */
-.ver{display:inline-flex;align-items:center;height:17px;line-height:1;
-  font-family:var(--mono);font-size:10px;color:var(--dim);cursor:pointer;
-  border:1px solid var(--line);border-radius:4px;padding:0 5px;box-sizing:border-box;
+/* Рамка вокруг версии сидела ниже строки и выступала вниз сильнее, чем вверх,
+   отчего вся метка казалась просевшей. Оставляем только текст — он встаёт в
+   один ряд с FINFACTS и LIVE, с тем же оптическим сдвигом на пиксель. */
+.ver{display:inline-flex;align-items:center;line-height:1;
+  font-family:var(--mono);font-size:10.5px;color:var(--dim);cursor:pointer;
   position:relative;top:1px;flex-shrink:0;user-select:none;white-space:nowrap}
-.ver:hover,.ver:focus{color:var(--tx);border-color:var(--dim);outline:none}
+.ver:hover,.ver:focus{color:var(--tx);outline:none;text-decoration:underline;
+  text-underline-offset:3px;text-decoration-color:var(--line)}
 .verbox{position:fixed;z-index:60;max-width:340px;background:var(--panel);
   border:1px solid var(--line);border-radius:8px;padding:10px 12px;
   box-shadow:0 8px 26px rgba(0,0,0,.45);font-size:11px;line-height:1.5;display:none}
