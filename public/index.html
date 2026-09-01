@@ -125,7 +125,9 @@ header{flex-wrap:nowrap}
    один ряд с FINFACTS и LIVE, с тем же оптическим сдвигом на пиксель. */
 .ver{display:inline-flex;align-items:center;line-height:1;
   font-family:var(--mono);font-size:10.5px;color:var(--dim);cursor:pointer;
-  position:relative;top:1px;flex-shrink:0;user-select:none;white-space:nowrap}
+  /* Кегль меньше, чем у соседей, поэтому блок цифр садится выше их середины:
+     нужен сдвиг на пиксель больше, чем у логотипа. */
+  position:relative;top:2px;flex-shrink:0;user-select:none;white-space:nowrap}
 .ver:hover,.ver:focus{color:var(--tx);outline:none;text-decoration:underline;
   text-underline-offset:3px;text-decoration-color:var(--line)}
 .verbox{position:fixed;z-index:60;max-width:340px;background:var(--panel);
