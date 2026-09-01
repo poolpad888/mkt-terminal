@@ -374,9 +374,8 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
   <span class="live"><span class="dot"></span>LIVE</span>
   <span class="sp"></span>
   <input id="q" type="search" placeholder="поиск" autocomplete="off" size="1">
-  <button class="hbtn" id="sndBtn" title="звук важных новостей">🔇</button>
   <!-- <a class="hbtn" href="/quotes">котировки</a> --><!-- страница котировок скрыта; вернуть при необходимости -->
-  <a class="hbtn" href="/map">карта</a>
+  <!-- <a class="hbtn" href="/map">карта</a> --><!-- ссылка убрана из шапки; страница живёт по адресу /map -->
   <button class="hbtn" id="sideBtn" title="панель котировок" aria-label="панель котировок"><svg viewBox="0 0 14 12" aria-hidden="true"><rect x="0.5" y="7" width="3" height="5" rx="1"/><rect x="5.5" y="4" width="3" height="8" rx="1"/><rect x="10.5" y="0.5" width="3" height="11.5" rx="1"/></svg></button>
   <button class="hbtn" id="thBtn" title="светлая / тёмная тема">◑</button>
   <span id="clock">--:--:--</span>
@@ -450,8 +449,9 @@ const clock=document.getElementById('clock');
 setInterval(()=>{clock.textContent=new Date().toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow'})},1000);
 
 // ── кнопки шапки ──
+// кнопки звука в шапке больше нет; сам звук остаётся выключенным
 const sndBtn=document.getElementById('sndBtn');
-sndBtn.onclick=()=>{sound=!sound;sndBtn.textContent=sound?'🔊':'🔇';sndBtn.classList.toggle('on',sound)};
+if(sndBtn)sndBtn.onclick=()=>{sound=!sound;sndBtn.textContent=sound?'🔊':'🔇';sndBtn.classList.toggle('on',sound)};
 
 const thBtn=document.getElementById('thBtn');
 function thLabel(){thBtn.textContent=document.documentElement.classList.contains('light')?'◕':'◑'}
