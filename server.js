@@ -990,8 +990,10 @@ const tsyCache = { at: 0, busy: false, rows: new Array(4).fill(null) };
 function fetchViaCurl(url) {
   return new Promise((resolve, reject) => {
     const bin = fs.existsSync('/usr/bin/curl') ? '/usr/bin/curl' : 'curl';
+    // Никакой подделки под браузер: источник душит именно такие запросы —
+    // с признаком браузера соединение висит до тайм-аута, без него отвечает
+    // за полсекунды. Идём как есть, обычным curl.
     execFile(bin, ['-sS', '--http1.1', '-m', '20', '-L',
-      '-A', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
       url], { maxBuffer: 8 * 1024 * 1024 }, (err, out, errOut) => {
       if (err) {
         if (err.code === 'ENOENT') return reject(new Error('curl не найден'));
