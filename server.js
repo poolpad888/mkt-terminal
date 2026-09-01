@@ -182,6 +182,27 @@ const MUTE = [
   ['ставки MIACR',
    /(?<![a-z])miacr(?![a-z])|(?<![а-яё])миакр(?![а-яё])/i, true],
 ];
+// ── Тематический отбор ─────────────────────────────────────────────────
+// Региональные и общие каналы вперемешку с финансами дают городскую хронику:
+// уборка снега, ДТП, спорт, культура. Отсекаем такое, но только когда в тексте
+// нет ни одного денежного или политического признака. Правило намеренно
+// осторожное: при малейшем сомнении новость остаётся в ленте.
+const OFF_TOPIC = [
+  ['быт и город',    /уборк[а-яё]* снега|снегоуборочн|благоустройств|субботник|ямочн[а-яё]* ремонт|гололёд|отключени[а-яё]* (?:воды|горячей|отоплени)|расчистк|коммунальн[а-яё]* служб/i],
+  ['происшествия',   /ДТП|столкнули?с[а-яё]* (?:авто|машин)|наезд на пешеход|пожар в (?:доме|квартире|школе|ТЦ)|утонул|пропал без вести|поножовщин|изнасилован|зарезал|застрелил|задержан[а-яё]* за (?:кражу|грабёж|разбой)/i],
+  ['спорт',          /матч[ае]?[ ,.:;]|чемпионат|сборная России по|футбол|хоккей|биатлон|олимпиад|турнир[ае]? по|забил гол|тренер команды/i],
+  ['культура и шоу', /премьера (?:фильма|сериала)|сериал[ае]?[ ,.:;]|кинопрокат|концерт[ае]?[ ,.:;]|актёр|актрис|певиц|рэпер|блогер|фестивал/i],
+  ['быт и советы',   /гороскоп|знак[а-яё]* зодиака|рецепт[ыа]?[ ,.:;]|похуде|диет[аыуой]|витамин|врач[а-яё]* (?:рассказал|назвал|предупредил)/i],
+];
+// Денежные, деловые и политические признаки — «якоря темы».
+const ON_TOPIC = /рубл|доллар|евро|юан|процент|ставк|инфляц|бюджет|налог|акци[ийюя]|облигац|бирж|Банк России|ЦБ|ВВП|экспорт|импорт|санкц|выручк|прибыл|убыт|инвест|кредит|ипотек|тариф|подорожа|подешеве|рынок|курс|IPO|дивиденд|капитализац|котиров|нефт|газа|президент|министр|правительств|Госдума|Совфед|закон|указ|переговор|саммит|пошлин|эмбарго|дефицит|профицит|[$₽€]|\d+[.,]?\d*\s?(?:%|млрд|млн|трлн|тыс)/i;
+
+function offTopic(text) {
+  if (ON_TOPIC.test(text)) return null;          // есть якорь темы — не трогаем
+  for (const [name, rx] of OFF_TOPIC) if (rx.test(text)) return name;
+  return null;
+}
+
 function muted(text) {
   for (const [name, rx, drop] of MUTE) if (rx.test(text)) return { name, drop };
   return null;
@@ -452,7 +473,7 @@ function similar(a, b) {
   for (const t of small) if (big.has(t)) inter++;
   const contain = inter / small.size;                // маленький почти целиком внутри большого
   const jacc = inter / (a.size + b.size - inter);
-  return jacc >= 0.45 || contain >= 0.7;
+  return jacc >= 0.38 || contain >= 0.62;   // порог снижен: ловим более вольные пересказы
 }
 
 // ── База данных (история новостей) ─────────────────────────────────────
@@ -576,13 +597,21 @@ async function build() {
   console.log('BUILD: items=' + all.length + ' okSources=' + Object.values(health).filter(v=>v.ok).length + '/' + Object.keys(health).length + (bad.length ? ' fail: ' + bad.join(', ') : ''));
 
   const cutoff = Date.now() - KEEP_HOURS * 3600 * 1000;
-  const fresh = all.filter(x => new Date(x.time).getTime() > cutoff);
+  let offN = 0;
+  const offBy = {};
+  const fresh = all.filter(x => {
+    if (new Date(x.time).getTime() <= cutoff) return false;
+    if (x.reg) return true;                      // сообщения ведомств не фильтруем
+    const off = offTopic(x.text);
+    if (off) { offN++; offBy[off] = (offBy[off] || 0) + 1; return false; }
+    return true;
+  });
   fresh.sort((a, b) => new Date(b.time) - new Date(a.time));
 
   // дедупликация: точные дубли + похожие по смыслу в окне 3 часов
   const seen = new Map();
   const out = [];
-  const WINDOW = 3 * 3600 * 1000;
+  const WINDOW = 6 * 3600 * 1000;          // было 3 часа — растянули, пересказы приходят с задержкой
   for (let i = fresh.length - 1; i >= 0; i--) {   // от старых к новым
     const x = fresh[i];
     const fp = fingerprint(x.text);
@@ -624,6 +653,8 @@ async function build() {
   }
   const dups = fresh.length - out.length;
   console.log('DEDUP: kept=' + out.length + ' merged=' + dups);
+  if (offN) console.log('OFFTOPIC: убрано ' + offN + ' — ' +
+    Object.entries(offBy).map(([k, v]) => k + ' ' + v).join(', '));
   return { updated: new Date().toISOString(), count: out.length, items: out };
 }
 
