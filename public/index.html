@@ -120,6 +120,19 @@ header .hbtn,header .logo,header .live,header #clock{flex:none}
 header{flex-wrap:nowrap}
 
 /* ── фильтры ── */
+.ver{font-family:var(--mono);font-size:10px;color:var(--dim);cursor:pointer;
+  border:1px solid var(--line);border-radius:4px;padding:1px 5px;position:relative;top:1px;
+  user-select:none;white-space:nowrap}
+.ver:hover,.ver:focus{color:var(--tx);border-color:var(--dim);outline:none}
+.verbox{position:fixed;z-index:60;max-width:340px;background:var(--panel);
+  border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+  box-shadow:0 8px 26px rgba(0,0,0,.45);font-size:11px;line-height:1.5;display:none}
+.verbox.on{display:block}
+.verbox h4{margin:0 0 6px;font-family:var(--mono);font-size:11px;color:var(--amber);font-weight:700}
+.verbox ul{margin:0;padding-left:16px}
+.verbox li{margin:3px 0;color:var(--tx)}
+.verbox .vd{color:var(--dim);font-size:10px;margin-top:7px}
+@media(max-width:640px){.verbox{max-width:calc(100vw - 24px)}}
 nav{position:sticky;top:var(--hh,41px);z-index:19;background:var(--bg);border-bottom:1px solid var(--line);
   display:flex;align-items:center;gap:6px;padding:0 14px;overflow-x:auto;scrollbar-width:none;
   flex-wrap:nowrap;height:38px;box-sizing:border-box}
@@ -372,6 +385,7 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
 <header>
   <span class="logo">FINFACTS</span>
   <span class="live"><span class="dot"></span>LIVE</span>
+  <span class="ver" id="ver" tabindex="0" role="button" aria-label="версия сайта">—</span>
   <span class="sp"></span>
   <input id="q" type="search" placeholder="поиск" autocomplete="off" size="1">
   <!-- <a class="hbtn" href="/quotes">котировки</a> --><!-- страница котировок скрыта; вернуть при необходимости -->
@@ -450,6 +464,52 @@ setInterval(()=>{clock.textContent=new Date().toLocaleTimeString('ru-RU',{timeZo
 
 // ── кнопки шапки ──
 // кнопки звука в шапке больше нет; сам звук остаётся выключенным
+// Версия сайта и что изменилось. На телефоне наведения нет, поэтому список
+// открывается и по нажатию; закрывается повторным нажатием или кликом мимо.
+(function(){
+  const el=document.getElementById('ver');
+  if(!el)return;
+  let box=null, data=null;
+
+  fetch('/version.json?t='+Date.now(),{cache:'no-store'})
+    .then(r=>r.json())
+    .then(d=>{ data=d; el.textContent='v'+d.v; })
+    .catch(()=>{ el.style.display='none'; });
+
+  function build(){
+    if(box)return box;
+    box=document.createElement('div');
+    box.className='verbox';
+    document.body.appendChild(box);
+    return box;
+  }
+  function fill(){
+    const b=build();
+    const li=(data.changes||[]).map(t=>'<li>'+esc(t)+'</li>').join('');
+    b.innerHTML='<h4>версия '+esc(data.v)+'</h4><ul>'+li+'</ul>'+
+      '<div class="vd">обновлено '+esc(data.date||'')+'</div>';
+  }
+  function place(){
+    const r=el.getBoundingClientRect(), b=build();
+    b.style.top=(r.bottom+8)+'px';
+    const w=Math.min(340,window.innerWidth-24);
+    let left=r.left;
+    if(left+w>window.innerWidth-12) left=window.innerWidth-12-w;
+    b.style.left=Math.max(12,left)+'px';
+    b.style.width=w+'px';
+  }
+  function open(){ if(!data)return; fill(); place(); build().classList.add('on'); }
+  function close(){ if(box)box.classList.remove('on'); }
+
+  el.addEventListener('mouseenter',open);
+  el.addEventListener('mouseleave',e=>{ if(!box||!box.matches(':hover'))close(); });
+  el.addEventListener('click',e=>{ e.stopPropagation(); (box&&box.classList.contains('on'))?close():open(); });
+  el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();open();} if(e.key==='Escape')close(); });
+  document.addEventListener('click',e=>{ if(box&&!box.contains(e.target)&&e.target!==el)close(); });
+  window.addEventListener('resize',()=>{ if(box&&box.classList.contains('on'))place(); });
+  window.addEventListener('scroll',close,{passive:true});
+})();
+
 const sndBtn=document.getElementById('sndBtn');
 if(sndBtn)sndBtn.onclick=()=>{sound=!sound;sndBtn.textContent=sound?'🔊':'🔇';sndBtn.classList.toggle('on',sound)};
 
