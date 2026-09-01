@@ -903,6 +903,9 @@ function dayRec(d) {
   if (!r.ref) r.ref = {};                      // откуда пришли
   if (!r.dev) r.dev = {};                      // m мобильный, d десктоп, t планшет, b бот
   if (!r.pg)  r.pg  = {};                      // какие страницы открывали
+  if (typeof r.peak !== 'number') r.peak = 0;  // наибольший онлайн за день
+  if (typeof r.nw   !== 'number') r.nw = 0;    // впервые пришедшие
+  if (!Array.isArray(r.hh) || r.hh.length !== 24) r.hh = new Array(24).fill(0);  // активность по часам
   return r;
 }
 
@@ -924,9 +927,29 @@ function devKind(req) {
 }
 
 // page — адрес открытой страницы, либо null для фонового запроса ленты
-function trackVisit(ip, page, req, countUnique) {
+// Перевод суток. Раньше он случался только при заходе посетителя: если ночью
+// никого не было, вчерашние «открытия сегодня» висели до первого события.
+// Теперь зовём это ещё и по таймеру, и перед выдачей статистики.
+function rollDay() {
   const d = dayKey();
-  if (S.date !== d) { S.date = d; todaySet = new Set(); S.views = 0; }
+  if (S.date === d) return false;
+  S.date = d; todaySet = new Set(); S.views = 0;
+  statsDirty = true;
+  return true;
+}
+setInterval(rollDay, 60 * 1000);
+
+// Раз в полминуты запоминаем наибольшее число людей на сайте за сутки.
+setInterval(() => {
+  rollDay();
+  const n = onlineNow();
+  const r = dayRec(S.date);
+  if (n > r.peak) { r.peak = n; statsDirty = true; }
+}, 30 * 1000);
+
+function trackVisit(ip, page, req, countUnique) {
+  rollDay();
+  const d = dayKey();
   const h = ipHash(ip);
   const now = Date.now();
   const r = dayRec(d);
@@ -941,8 +964,10 @@ function trackVisit(ip, page, req, countUnique) {
 
   if (page) {
     S.views++;
+    if (!allSet.has(h)) r.nw++;                // впервые за всё время наблюдений
     todaySet.add(h);
     allSet.add(h);
+    r.hh[new Date().getHours()]++;
     const nm = PAGE_NAMES[page] || page.slice(0, 40);
     r.pg[nm]  = (r.pg[nm]  || 0) + 1;
     const src = refHost(req);
@@ -1379,6 +1404,7 @@ const srv = http.createServer(async (req, res) => {
       return res.end(JSON.stringify(q));
     }
     if (u.pathname === '/api/stats') {
+      rollDay();                       // чтобы после полуночи не показать вчерашнее
       const n = Math.min(Math.max(parseInt(u.searchParams.get('days') || '30', 10) || 30, 1), DAYS_KEEP);
       const days = Object.keys(S.days).sort().slice(-n).map(d => {
         const r = S.days[d];
@@ -1403,7 +1429,13 @@ const srv = http.createServer(async (req, res) => {
         days,                                             // история по дням
         ref:   aggr('ref', 30).slice(0, 12),              // источники переходов за 30 дней
         dev:   dv,                                        // устройства за 30 дней
-        pages: aggr('pg', 30).slice(0, 10)                // страницы за 30 дней
+        pages: aggr('pg', 30).slice(0, 10),               // страницы за 30 дней
+        peak:  t.peak || 0,                               // рекорд онлайна сегодня
+        peak30: Math.max(0, ...Object.keys(S.days).slice(-30).map(k => S.days[k].peak || 0)),
+        newToday: t.nw || 0,                              // впервые пришедшие сегодня
+        retToday: Math.max(0, (t.u || 0) - (t.nw || 0)),  // вернувшиеся
+        perVisit: t.ses ? Math.round((t.v || 0) / t.ses * 10) / 10 : 0,  // открытий за визит
+        hours: t.hh || new Array(24).fill(0)              // активность по часам
       }));
     }
     if (u.pathname === '/health') {

@@ -161,6 +161,27 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 60px}
       <div class="vl" id="vMob">—</div>
       <div class="hint">доля за 30 дней</div>
     </div>
+    <div class="tile">
+      <div class="lb">пик онлайна</div>
+      <div class="vl" id="vPeak">—</div>
+      <div class="hint" id="vPeak30">—</div>
+    </div>
+    <div class="tile">
+      <div class="lb">новые сегодня</div>
+      <div class="vl" id="vNew">—</div>
+      <div class="hint" id="vRet">—</div>
+    </div>
+    <div class="tile">
+      <div class="lb">открытий за визит</div>
+      <div class="vl" id="vPer">—</div>
+      <div class="hint">глубина просмотра</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Когда заходят <span class="leg">часы по Москве, сегодня</span></h2>
+    <div id="hours" style="display:flex;align-items:flex-end;gap:3px;height:110px;padding:8px 0 0"></div>
+    <div id="hoursLb" style="display:flex;gap:3px;color:var(--dim);font-size:9px;margin-top:4px"></div>
   </div>
 
   <div class="grid2">
@@ -237,6 +258,19 @@ function drawList(box,pairs,namer){
 
 
 // Линейный график: две линии по дням. Считаем в координатах вьюбокса 1000 на 200.
+// столбики активности по часам суток
+function drawHours(hh){
+  const box=$('hours'), lb=$('hoursLb');
+  if(!box)return;
+  const mx=Math.max(1,...hh);
+  box.innerHTML=hh.map((v,i)=>{
+    const h=Math.round(v/mx*100);
+    return '<div title="'+i+':00 — '+v+'" style="flex:1;display:flex;align-items:flex-end;height:100%">'+
+      '<div style="width:100%;height:'+Math.max(v?3:0,h)+'%;background:var(--amber);opacity:'+(v?0.85:0.15)+';border-radius:2px 2px 0 0"></div></div>';
+  }).join('');
+  lb.innerHTML=hh.map((v,i)=>'<div style="flex:1;text-align:center">'+(i%3===0?i:'')+'</div>').join('');
+}
+
 function drawChart(days){
   const box=$('chart');
   if(!days.length){box.innerHTML='<div class="empty">пока нет данных</div>';return}
@@ -270,6 +304,12 @@ async function load(){
   $('vMonth').textContent=s.month!=null?s.month:'—';
   $('vTotal').textContent=s.total;
   $('vViews').textContent=s.views;
+  $('vPeak').textContent=s.peak!=null?s.peak:'—';
+  $('vPeak30').textContent=s.peak30?('рекорд за 30 дней — '+s.peak30):'наибольшее за сутки';
+  $('vNew').textContent=s.newToday!=null?s.newToday:'—';
+  $('vRet').textContent=(s.retToday||0)+' вернулись';
+  $('vPer').textContent=s.perVisit!=null?String(s.perVisit).replace('.',','):'—';
+  drawHours(s.hours||[]);
   $('vDate').textContent=s.date?human(s.date):'—';
   $('vAvg').textContent=dur(s.avgSec);
   $('vAvg30').textContent='за 30 дней — '+dur(s.avgSec30);
