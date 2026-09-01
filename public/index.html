@@ -144,6 +144,10 @@ header{flex-wrap:nowrap}
 .verbox ul{margin:0;padding-left:16px}
 .verbox li{margin:3px 0;color:var(--tx)}
 .verbox .vd{color:var(--dim);font-size:10px;margin-top:7px}
+.verbox .vprev{margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
+.verbox .vprev h4{color:var(--dim)}
+.verbox .vprev li{color:var(--dim)}
+.verbox{max-height:70vh;overflow-y:auto}
 @media(max-width:640px){.verbox{max-width:calc(100vw - 24px)}}
 nav{position:sticky;top:var(--hh,41px);z-index:19;background:var(--bg);border-bottom:1px solid var(--line);
   display:flex;align-items:center;gap:6px;padding:0 14px;overflow-x:auto;scrollbar-width:none;
@@ -501,8 +505,16 @@ setInterval(()=>{clock.textContent=new Date().toLocaleTimeString('ru-RU',{timeZo
   function fill(){
     const b=build();
     const li=(data.changes||[]).map(t=>'<li>'+esc(t)+'</li>').join('');
-    b.innerHTML='<h4>версия '+esc(data.v)+'</h4><ul>'+li+'</ul>'+
+    let html='<h4>версия '+esc(data.v)+'</h4><ul>'+li+'</ul>'+
       '<div class="vd">обновлено '+esc(data.date||'')+'</div>';
+    // что было в прошлый раз — чтобы видеть шаг назад, не открывая ничего ещё
+    const prev=(data.history||[])[0];
+    if(prev){
+      const pli=(prev.changes||[]).map(t=>'<li>'+esc(t)+'</li>').join('');
+      html+='<div class="vprev"><h4>до этого — '+esc(prev.v)+'</h4><ul>'+pli+'</ul>'+
+            '<div class="vd">'+esc(prev.date||'')+'</div></div>';
+    }
+    b.innerHTML=html;
   }
   function place(){
     const r=el.getBoundingClientRect(), b=build();
