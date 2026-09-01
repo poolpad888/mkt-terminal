@@ -6,6 +6,12 @@
 <link rel="icon" id="fav" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20x%3D%222%22%20y%3D%222%22%20width%3D%2260%22%20height%3D%2260%22%20rx%3D%2213%22%20fill%3D%22%230d1117%22%20stroke%3D%22%231b232e%22%20stroke-width%3D%223%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2233%22%20font-family%3D%22monospace%22%20font-weight%3D%22700%22%20font-size%3D%2242%22%20fill%3D%22%23ffb000%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22central%22%3EF%3C%2Ftext%3E%3C%2Fsvg%3E">
 <title>FINFACTS — лента финансовых новостей</title>
 <meta name="description" content="Оперативные новости финансов и рынков">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0b0d10">
+<link rel="apple-touch-icon" href="/icons/apple-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FINFACTS">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -398,6 +404,9 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
   <!-- <a class="hbtn" href="/map">карта</a> --><!-- ссылка убрана из шапки; страница живёт по адресу /map -->
   <button class="hbtn" id="sideBtn" title="панель котировок" aria-label="панель котировок"><svg viewBox="0 0 14 12" aria-hidden="true"><rect x="0.5" y="7" width="3" height="5" rx="1"/><rect x="5.5" y="4" width="3" height="8" rx="1"/><rect x="10.5" y="0.5" width="3" height="11.5" rx="1"/></svg></button>
   <button class="hbtn" id="thBtn" title="светлая / тёмная тема">◑</button>
+  <button class="hbtn" id="instBtn" title="добавить ярлык на экран телефона" aria-label="добавить ярлык на экран" hidden>
+    <svg viewBox="0 0 14 14" aria-hidden="true" width="12" height="12"><path d="M7 1v8M7 9 4.2 6.2M7 9l2.8-2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 10.5v1.2c0 .7.6 1.3 1.3 1.3h7.4c.7 0 1.3-.6 1.3-1.3v-1.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
   <span id="clock">--:--:--</span>
 </header>
 <nav id="nav"></nav>
@@ -518,6 +527,62 @@ setInterval(()=>{clock.textContent=new Date().toLocaleTimeString('ru-RU',{timeZo
 
 const sndBtn=document.getElementById('sndBtn');
 if(sndBtn)sndBtn.onclick=()=>{sound=!sound;sndBtn.textContent=sound?'🔊':'🔇';sndBtn.classList.toggle('on',sound)};
+
+// Ярлык на экран телефона. В Chrome и подобных браузер сам предлагает
+// установку через отдельное событие — ловим его и показываем кнопку. В Safari
+// на айфоне такого события нет, поэтому там объясняем порядок действий словами.
+(function(){
+  const btn=document.getElementById('instBtn');
+  if(!btn)return;
+  let prompt=null;
+
+  const standalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+  if(standalone) return;                       // уже установлено — кнопка не нужна
+
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+  window.addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault();
+    prompt=e;
+    btn.hidden=false;
+  });
+  window.addEventListener('appinstalled',()=>{ btn.hidden=true; prompt=null; });
+
+  if(ios) btn.hidden=false;                    // на айфоне событие не придёт
+
+  btn.onclick=async()=>{
+    if(prompt){
+      prompt.prompt();
+      try{ await prompt.userChoice; }catch(e){}
+      prompt=null; btn.hidden=true;
+      return;
+    }
+    showHint(ios
+      ? 'Нажмите «Поделиться» внизу браузера, затем выберите «На экран „Домой“».'
+      : 'Откройте меню браузера (три точки) и выберите «Установить приложение» или «Добавить на главный экран».');
+  };
+
+  function showHint(text){
+    let b=document.querySelector('.verbox.hintbox');
+    if(!b){ b=document.createElement('div'); b.className='verbox hintbox'; document.body.appendChild(b); }
+    b.innerHTML='<h4>ярлык на экран</h4><div>'+esc(text)+'</div>';
+    const r=btn.getBoundingClientRect();
+    const w=Math.min(300,window.innerWidth-24);
+    b.style.width=w+'px';
+    b.style.top=(r.bottom+8)+'px';
+    b.style.left=Math.max(12,Math.min(r.left-w+r.width, window.innerWidth-12-w))+'px';
+    b.classList.add('on');
+    const off=e=>{ if(!b.contains(e.target)&&e.target!==btn){ b.classList.remove('on'); document.removeEventListener('click',off); } };
+    setTimeout(()=>document.addEventListener('click',off),0);
+  }
+})();
+
+// Служебный сценарий нужен, чтобы браузер разрешил установку. Он ничего не
+// кэширует, поэтому на свежести ленты это не сказывается.
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); });
+}
 
 const thBtn=document.getElementById('thBtn');
 function thLabel(){thBtn.textContent=document.documentElement.classList.contains('light')?'◕':'◑'}

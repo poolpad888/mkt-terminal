@@ -1361,7 +1361,7 @@ async function getPanel() {
 }
 
 // ── HTTP-сервер ─────────────────────────────────────────────────────────
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json; charset=utf-8' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8' };
 
 process.on('unhandledRejection', r => console.error('[unhandledRejection]', r));
 process.on('uncaughtException',  e => console.error('[uncaughtException]', e));
