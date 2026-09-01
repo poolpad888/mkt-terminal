@@ -1284,7 +1284,11 @@ async function buildPanel() {
       const j = JSON.parse(raw);
       for (const [secid, val, chg] of (j.marketdata && j.marketdata.data) || []) {
         if (val == null) continue;
-        if (secid === 'IMOEX' && !G['Индексы'][2]) G['Индексы'][2] = R('МосБиржа', val, chg);
+        // IMOEX2 — тот же индекс, но с учётом утренней и вечерней сессий:
+        // вне основных торгов он живёт, а обычный IMOEX стоит. Берём его,
+        // а простой IMOEX держим про запас, если дополнительный не пришёл.
+        if (secid === 'IMOEX2') G['Индексы'][2] = R('МосБиржа', val, chg);
+        if (secid === 'IMOEX'  && !G['Индексы'][2]) G['Индексы'][2] = R('МосБиржа', val, chg);
         if (secid === 'RGBI'  && !G['Индексы'][3]) G['Индексы'][3] = R('ОФЗ · RGBI', val, chg);
       }
     }));
