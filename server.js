@@ -1388,8 +1388,19 @@ async function buildCatalog() {
     }).catch(() => {}));
 
   // сырьё, мировые индексы и крипта с площадки
+  // На этой площадке в одной куче и сырьё, и мировые индексы, и валютные пары.
+  // Раскладываем по смыслу, чтобы в наборе они попадали в свои разделы.
+  const XYZ_ИМЕНА = {
+    BRENTOIL: 'Нефть Brent', CL: 'Нефть WTI', NATGAS: 'Газ (США)', GOLD: 'Золото',
+    SILVER: 'Серебро', PLATINUM: 'Платина', PALLADIUM: 'Палладий', COPPER: 'Медь',
+    SP500: 'S&P 500', EUR: 'EUR/USD',
+  };
+  const XYZ_ГРУППЫ = { SP500: 'Индексы', NAS100: 'Индексы', EUR: 'Валюты', GBP: 'Валюты', JPY: 'Валюты' };
   jobs.push(hlInfo({ type: 'metaAndAssetCtxs', dex: 'xyz' })
-    .then(r => { for (const k in hlMap(r)) out.push({ id: 'xyz:' + k, name: k, tk: k, g: 'Сырьё и индексы' }); })
+    .then(r => {
+      for (const k in hlMap(r))
+        out.push({ id: 'xyz:' + k, name: XYZ_ИМЕНА[k] || k, tk: k, g: XYZ_ГРУППЫ[k] || 'Сырьё' });
+    })
     .catch(() => {}));
   jobs.push(hlInfo({ type: 'metaAndAssetCtxs' })
     .then(r => { for (const k in hlMap(r)) out.push({ id: 'hl:' + k, name: k, tk: k, g: 'Крипта' }); })
