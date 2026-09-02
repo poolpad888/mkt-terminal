@@ -1489,8 +1489,8 @@ async function buildCatalog() {
     }).catch(() => {}));
 
   // валютный рынок Мосбиржи и доходности
-  out.push({ id: 'sel:USD000UTSTOM', name: 'USDRUB_TOM', tk: 'USDRUB_TOM', g: 'Валютный рынок' });
-  out.push({ id: 'sel:CNYRUB_TOM',  name: 'CNYRUB_TOM', tk: 'CNYRUB_TOM', g: 'Валютный рынок' });
+  out.push({ id: 'sel:USD000UTSTOM', name: 'USDRUB_TOM', tk: 'USDRUB_TOM', g: 'Валюты' });
+  out.push({ id: 'sel:CNYRUB_TOM',  name: 'CNYRUB_TOM', tk: 'CNYRUB_TOM', g: 'Валюты' });
   for (const [id, nm] of TSY) out.push({ id: 'ust:' + id, name: nm, tk: id, g: 'Трежерис' });
   out.push({ id: 'ust:NASDAQ100', name: 'Nasdaq 100', tk: 'NASDAQ100', g: 'Индексы' });
 

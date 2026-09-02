@@ -330,6 +330,11 @@ body.side-on #side{transform:translateX(0)}
 #side .sres .si .sg{color:var(--dim);font-family:var(--mono);font-size:9.5px;white-space:nowrap}
 #side .sres .si.есть .sn{color:var(--dim)}
 #side .sedit-b{display:flex;gap:6px;margin-top:7px}
+#side .sdisc{display:flex;gap:6px;align-items:flex-start;margin-top:7px;
+  color:var(--dim);font-size:9.5px;line-height:1.45}
+#side .sbeta{flex:none;font-family:var(--mono);font-size:8px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--amber);border:1px solid var(--amber);
+  border-radius:3px;padding:0 4px;opacity:.8;position:relative;top:1px}
 #side .sbtn{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--dim);
   border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer;font-family:var(--sans)}
 #side .sbtn:hover{color:var(--tx);border-color:var(--dim)}
@@ -446,6 +451,10 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
   <div class="sh"><b>Котировки</b><span class="su" id="sideUpd" hidden></span>
     <button class="sx" id="sideEdit" title="настроить набор">⚙</button>
     <button class="sx" id="sideClose" title="закрыть">×</button></div>
+  <div class="smood" id="smood" hidden>
+    <div class="mbar"><i class="up" id="mUp"></i><i class="dn" id="mDn"></i></div>
+    <div class="mlab"><span id="mUpN"></span><span id="mMid">настроение рынка</span><span id="mDnN"></span></div>
+  </div>
   <div class="sedit" id="sedit" hidden>
     <input id="sq" type="search" placeholder="добавить: сбер, brent, офз…" autocomplete="off">
     <div class="sres" id="sres"></div>
@@ -454,10 +463,9 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
       <button class="sbtn" id="sShare" title="скопировать ссылку на свой набор">поделиться</button>
       <button class="sbtn" id="sDone">готово</button>
     </div>
-  </div>
-  <div class="smood" id="smood" hidden>
-    <div class="mbar"><i class="up" id="mUp"></i><i class="dn" id="mDn"></i></div>
-    <div class="mlab"><span id="mUpN"></span><span id="mMid">настроение рынка</span><span id="mDnN"></span></div>
+    <div class="sdisc"><span class="sbeta">бета</span>
+      Акции и облигации Мосбиржи — с задержкой около 15 минут. Не является инвестиционной рекомендацией.
+    </div>
   </div>
   <div class="sbody" id="sideBody"><div class="sempty">Загружаю…</div></div>
 </aside>
@@ -809,7 +817,7 @@ const НАБОР_ПАНЕЛИ=[
   'hl:BTC','hl:ETH','hl:SOL','hl:XRP',
   'moex:SBER','moex:GAZP','moex:LKOH','moex:ROSN','moex:GMKN','moex:VTBR','moex:YDEX',
 ];
-const ПОРЯДОК_ГР=['Сырьё','Индексы','Трежерис','Валюты','Валюты ЦБ','Валютный рынок',
+const ПОРЯДОК_ГР=['Сырьё','Индексы','Трежерис','Валюты','Валюты ЦБ',
                   'Крипта','Акции','ОФЗ','Облигации компаний'];
 
 // Свой набор приходит плоским списком — раскладываем его по разделам так же,
