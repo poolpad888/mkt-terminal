@@ -330,11 +330,11 @@ body.side-on #side{transform:translateX(0)}
 #side .sres .si .sg{color:var(--dim);font-family:var(--mono);font-size:9.5px;white-space:nowrap}
 #side .sres .si.есть .sn{color:var(--dim)}
 #side .sedit-b{display:flex;gap:6px;margin-top:7px}
-#side .sdisc{display:flex;gap:6px;align-items:flex-start;margin-top:7px;
-  color:var(--dim);font-size:9.5px;line-height:1.45}
-#side .sbeta{flex:none;font-family:var(--mono);font-size:8px;letter-spacing:.1em;
+#side .sdisc{margin-top:7px;color:var(--dim);font-size:9.5px;line-height:1.45}
+/* Метка стоит в заголовке панели, рядом с названием раздела. */
+#side .sh .sbeta{flex:none;font-family:var(--mono);font-size:8px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--amber);border:1px solid var(--amber);
-  border-radius:3px;padding:0 4px;opacity:.8;position:relative;top:1px}
+  border-radius:3px;padding:1px 4px;opacity:.85;line-height:1}
 #side .sbtn{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--dim);
   border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer;font-family:var(--sans)}
 #side .sbtn:hover{color:var(--tx);border-color:var(--dim)}
@@ -448,7 +448,7 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
 <main id="feed"><div class="note">Загружаю ленту…</div></main>
 <div id="sideBack"></div>
 <aside id="side">
-  <div class="sh"><b>Котировки</b><span class="su" id="sideUpd" hidden></span>
+  <div class="sh"><b>Котировки</b><span class="sbeta" title="раздел в разработке">бета</span><span class="su" id="sideUpd" hidden></span>
     <button class="sx" id="sideEdit" title="настроить набор">⚙</button>
     <button class="sx" id="sideClose" title="закрыть">×</button></div>
   <div class="smood" id="smood" hidden>
@@ -463,7 +463,7 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
       <button class="sbtn" id="sShare" title="скопировать ссылку на свой набор">поделиться</button>
       <button class="sbtn" id="sDone">готово</button>
     </div>
-    <div class="sdisc"><span class="sbeta">бета</span>
+    <div class="sdisc">
       Акции и облигации Мосбиржи — с задержкой около 15 минут. Не является инвестиционной рекомендацией.
     </div>
   </div>
