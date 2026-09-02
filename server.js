@@ -1369,6 +1369,16 @@ async function buildCatalog() {
         if (secid) out.push({ id: 'moex:' + secid, name: name || secid, tk: secid, g: 'Акции' });
     }).catch(() => {}));
 
+  // облигации: ОФЗ на доске TQOB и корпоративные на TQCB
+  for (const [board, grp] of [['TQOB', 'ОФЗ'], ['TQCB', 'Облигации компаний']])
+    jobs.push(fetchUrl('https://iss.moex.com/iss/engines/stock/markets/bonds/boards/' + board +
+        '/securities.json?iss.meta=off&iss.only=securities&securities.columns=SECID,SHORTNAME')
+      .then(raw => {
+        const j = JSON.parse(raw);
+        for (const [secid, name] of (j.securities && j.securities.data) || [])
+          if (secid) out.push({ id: 'bond:' + board + ':' + secid, name: name || secid, tk: secid, g: grp });
+      }).catch(() => {}));
+
   // индексы Мосбиржи
   jobs.push(fetchUrl('https://iss.moex.com/iss/engines/stock/markets/index/securities.json?iss.meta=off&iss.only=securities&securities.columns=SECID,SHORTNAME')
     .then(raw => {
@@ -1415,11 +1425,11 @@ async function getCatalog() {
 
 // Котировки по выбранным кодам. Тянем только те источники, которые нужны.
 async function getPicked(ids) {
-  const want = { moex: [], idx: [], xyz: [], hl: [], cbr: [], sel: [], ust: [] };
+  const want = { moex: [], idx: [], xyz: [], hl: [], cbr: [], sel: [], ust: [], bond: [] };
   for (const id of ids) {
     const i = id.indexOf(':'); if (i < 0) continue;
     const k = id.slice(0, i), v = id.slice(i + 1);
-    if (want[k]) want[k].push(v);
+    if (want[k]) want[k].push(v);                 // у облигаций v выглядит как 'TQOB:SU26238RMFS4'
   }
   const res = {};
   const jobs = [];
@@ -1454,6 +1464,21 @@ async function getPicked(ids) {
       res['cbr:' + t] = { p: x.Value / nom, c: chg };
     }
   }).catch(() => {}));
+
+  // облигации: цена идёт в процентах от номинала, поэтому показываем и доходность
+  if (want.bond.length) {
+    const доски = [...new Set(want.bond.map(v => v.split(':')[0]))];
+    for (const board of доски) jobs.push(fetchUrl('https://iss.moex.com/iss/engines/stock/markets/bonds/boards/' + board +
+        '/securities.json?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST,LASTCHANGEPRCNT,YIELD')
+      .then(raw => {
+        const j = JSON.parse(raw);
+        for (const [secid, last, chg, yld] of (j.marketdata && j.marketdata.data) || []) {
+          const key = 'bond:' + board + ':' + secid;
+          if (last == null || !want.bond.includes(board + ':' + secid)) continue;
+          res[key] = { p: last, c: chg, yld: (yld == null || !isFinite(yld)) ? null : yld };
+        }
+      }).catch(() => {}));
+  }
 
   if (want.sel.length) jobs.push(fetchUrl('https://iss.moex.com/iss/engines/currency/markets/selt/boards/CETS/securities.json?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST,LASTCHANGEPRCNT')
     .then(raw => {

@@ -131,7 +131,8 @@ function рисовать(данные){
     const кл=c==null?'zr':(c>0.004?'up':(c<-0.004?'dn':'zr'));
     const зн=c==null?'':(c>0?'▲ ':(c<0?'▼ ':''));
     return '<div class="row">'+
-      '<div><div class="n">'+esc(имя(id))+'</div><div class="g">'+esc(группа(id))+'</div></div>'+
+      '<div><div class="n">'+esc(имя(id))+'</div><div class="g">'+esc(группа(id))+
+        (q&&q.yld!=null?' · доходность '+q.yld.toFixed(2).replace('.',',')+'%':'')+'</div></div>'+
       '<div class="p">'+esc(числоВид(q?q.p:null))+'</div>'+
       '<div class="c '+кл+'">'+зн+(c==null?'—':(Math.abs(c).toFixed(2).replace('.',',')+'%'))+'</div>'+
       '<button class="x" data-id="'+esc(id)+'" title="убрать">×</button>'+
@@ -193,7 +194,8 @@ $('clear').onclick=()=>{ выбор=[]; писать(); рисовать(null); 
     const d=await r.json();
     каталог=d.items||[];
     $('hint').textContent='В каталоге '+каталог.length+' инструментов: акции и индексы Мосбиржи, '+
-      'сырьё, мировые индексы, крипта, курсы ЦБ и доходности гособлигаций США.';
+      'облигации ОФЗ и корпоративные, сырьё, мировые индексы, крипта, курсы ЦБ '+
+      'и доходности гособлигаций США. У облигаций цена — в процентах от номинала.';
   }catch(e){ $('hint').textContent='Каталог не загрузился.'; }
   await обновить();
   таймер=setInterval(обновить,30000);
