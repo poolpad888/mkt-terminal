@@ -46,12 +46,13 @@ h1{font-size:17px;margin:0 0 4px}
 .rows{border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .grp{background:#0f1216;border-bottom:1px solid var(--line);padding:6px 12px;
   font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
-.row{display:grid;grid-template-columns:1fr 108px 92px 30px;align-items:center;gap:8px;
+.row{display:grid;grid-template-columns:1fr 168px 92px 30px;align-items:center;gap:8px;
   padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
 .row:last-child{border-bottom:none}
 .row .n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
 .row .g{color:var(--dim);font-size:10.5px;font-family:var(--mono)}
-.row .p,.row .c{font-family:var(--mono);text-align:right;font-size:13px}
+.row .p,.row .c{font-family:var(--mono);text-align:right;font-size:13px;white-space:nowrap}
+.row .yld{color:var(--dim);font-size:11.5px}
 .row .c.up{color:var(--green)}
 .row .c.dn{color:var(--red)}
 .row .c.zr{color:var(--dim)}
@@ -68,7 +69,7 @@ h1{font-size:17px;margin:0 0 4px}
 .btn:hover{color:var(--tx);border-color:var(--dim)}
 .upd{color:var(--dim);font-size:11px;font-family:var(--mono)}
 @media(max-width:560px){
-  .row{grid-template-columns:1fr 92px 76px 28px;padding:9px 10px}
+  .row{grid-template-columns:1fr 140px 76px 28px;padding:9px 10px}
   .row .p,.row .c{font-size:12px}
 }
 </style>
@@ -186,9 +187,9 @@ function строки(ids,данные){
     const кл=c==null?'zr':(c>0.004?'up':(c<-0.004?'dn':'zr'));
     const зн=c==null?'':(c>0?'▲ ':(c<0?'▼ ':''));
     return '<div class="row">'+
-      '<div><div class="n">'+esc(имя(id))+'</div>'+
-        (q&&q.yld!=null?'<div class="g">доходность '+q.yld.toFixed(2).replace('.',',')+'%</div>':'')+'</div>'+
-      '<div class="p">'+esc(числоВид(q?q.p:null))+'</div>'+
+      '<div><div class="n">'+esc(имя(id))+'</div></div>'+
+      '<div class="p">'+esc(числоВид(q?q.p:null))+
+        (q&&q.yld!=null?' <span class="yld">('+q.yld.toFixed(2).replace('.',',')+'%)</span>':'')+'</div>'+
       '<div class="c '+кл+'">'+зн+(c==null?'—':(Math.abs(c).toFixed(2).replace('.',',')+'%'))+'</div>'+
       '<button class="x" data-id="'+esc(id)+'" title="убрать">×</button>'+
     '</div>';
@@ -254,7 +255,8 @@ $('share').onclick=async()=>{
     каталог=d.items||[];
     $('hint').textContent='В каталоге '+каталог.length+' инструментов: акции и индексы Мосбиржи, '+
       'облигации ОФЗ и корпоративные, сырьё, мировые индексы, крипта, курсы ЦБ '+
-      'и доходности гособлигаций США. У облигаций цена — в процентах от номинала.';
+      'и доходности гособлигаций США. У облигаций цена — в процентах от номинала, '+
+      'в скобках рядом — доходность к погашению.';
   }catch(e){ $('hint').textContent='Каталог не загрузился.'; }
   await обновить();
   таймер=setInterval(обновить,30000);
