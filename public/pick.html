@@ -261,15 +261,37 @@ document.addEventListener('click',e=>{
 $('reset').onclick=()=>{ выбор=ПОУМОЛЧАНИЮ.slice(); писать(); обновить(); };
 $('clear').onclick=()=>{ выбор=[]; писать(); рисовать(null); };
 $('share').onclick=async()=>{
-  const адрес=location.origin+'/pick?ids='+encodeURIComponent(выбор.join(','));
   const кнопка=$('share'), было=кнопка.textContent;
+  if(!выбор.length){ кнопка.textContent='список пуст'; setTimeout(()=>кнопка.textContent=было,1500); return; }
+  кнопка.textContent='готовлю…';
+  let адрес;
+  try{
+    // набор сохраняется на сервере, в ссылку идёт короткий код
+    const r=await fetch('/api/share',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ids:выбор})});
+    const d=await r.json();
+    if(!d.code)throw new Error('нет кода');
+    адрес=location.origin+'/pick?s='+d.code;
+  }catch(e){
+    адрес=location.origin+'/pick?ids='+encodeURIComponent(выбор.join(','));  // запасной путь
+  }
   try{ await navigator.clipboard.writeText(адрес); кнопка.textContent='ссылка скопирована'; }
-  catch(e){ prompt('Скопируйте ссылку:',адрес); }
+  catch(e){ prompt('Скопируйте ссылку:',адрес); кнопка.textContent=было; }
   setTimeout(()=>{ кнопка.textContent=было; },1800);
 };
 
 (async function старт(){
   выбор=читать();
+  // короткая ссылка /pick?s=код — набор лежит на сервере
+  const код=new URLSearchParams(location.search).get('s');
+  if(код){
+    try{
+      const r=await fetch('/api/share?s='+encodeURIComponent(код));
+      const d=await r.json();
+      if(Array.isArray(d.ids)&&d.ids.length){ выбор=d.ids; писать(); }
+    }catch(e){}
+    history.replaceState(null,'','/pick');
+  }
   рисовать(null);
   try{
     const r=await fetch('/api/catalog');

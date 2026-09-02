@@ -1082,7 +1082,7 @@ function saveStats() {
   } catch (e) {}
 }
 setInterval(saveStats, 20000);
-for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { saveStats(); process.exit(0); });
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { saveStats(); try { shareSave(); } catch (e) {} process.exit(0); });
 
 function pFmt(v) {
   if (v == null || !isFinite(v)) return '—';
@@ -1352,6 +1352,48 @@ async function buildPanel() {
   return { updated: new Date().toISOString(), groups };
 }
 
+// ── Короткие ссылки на свой набор ──────────────────────────────────────
+// Список кодов может быть длинным, поэтому в ссылку его не пишем: сохраняем
+// набор на сервере и выдаём короткий код. Код детерминированный — одинаковый
+// набор всегда даёт одну и ту же ссылку, дублей в файле не появляется.
+const SHARE_FILE = path.join(__dirname, 'shares.json');
+let SHARES = {};
+try { SHARES = JSON.parse(fs.readFileSync(SHARE_FILE, 'utf8')) || {}; } catch (e) {}
+let sharesDirty = false;
+
+function shareSave() {
+  if (!sharesDirty) return;
+  try {
+    fs.writeFileSync(SHARE_FILE + '.tmp', JSON.stringify(SHARES));
+    fs.renameSync(SHARE_FILE + '.tmp', SHARE_FILE);
+    sharesDirty = false;
+  } catch (e) {}
+}
+setInterval(shareSave, 30 * 1000);
+
+function shareCode(ids) {
+  const norm = ids.join(',');
+  const h = crypto.createHash('sha1').update('ff-share:' + norm).digest();
+  // шесть символов из цифр и строчных букв: миллиард с лишним сочетаний
+  const ALF = 'abcdefghijkmnpqrstuvwxyz23456789';           // без похожих l, o, 0, 1
+  let code = '';
+  for (let i = 0; i < 6; i++) code += ALF[h[i] % ALF.length];
+  return code;
+}
+
+function sharePut(ids) {
+  const code = shareCode(ids);
+  const было = SHARES[code];
+  if (!было || было.ids.join(',') !== ids.join(',')) {
+    SHARES[code] = { ids, at: Date.now() };
+    sharesDirty = true;
+  }
+  // подчищаем то, чем не пользовались больше полугода
+  const край = Date.now() - 180 * 864e5;
+  for (const k in SHARES) if ((SHARES[k].at || 0) < край) { delete SHARES[k]; sharesDirty = true; }
+  return code;
+}
+
 // ── Пробная страница: свой набор котировок ─────────────────────────────
 // Каталог всего, что мы умеем показывать, и выдача по выбранным кодам.
 // Кэш каталога — час: список бумаг меняется редко, а котировки берём отдельно.
@@ -1613,6 +1655,25 @@ const srv = http.createServer(async (req, res) => {
       const c = await getCatalog();
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=600' });
       return res.end(JSON.stringify(c));
+    }
+    // короткая ссылка: сохранить набор и выдать код / получить набор по коду
+    if (u.pathname === '/api/share') {
+      if (req.method === 'POST') {
+        let тело = '';
+        req.on('data', c => { тело += c; if (тело.length > 8000) req.destroy(); });
+        await new Promise(r => req.on('end', r));
+        let ids = [];
+        try { ids = (JSON.parse(тело).ids || []).map(String).filter(Boolean).slice(0, 200); } catch (e) {}
+        if (!ids.length) { res.writeHead(400, { 'Content-Type': 'application/json' }); return res.end('{"error":"пустой набор"}'); }
+        const code = sharePut(ids);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ code }));
+      }
+      const code = (u.searchParams.get('s') || '').slice(0, 12);
+      const rec = SHARES[code];
+      if (rec) { rec.at = Date.now(); sharesDirty = true; }
+      res.writeHead(rec ? 200 : 404, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify(rec ? { ids: rec.ids } : { error: 'набор не найден' }));
     }
     if (u.pathname === '/api/picked') {
       const ids = (u.searchParams.get('ids') || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 60);
