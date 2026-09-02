@@ -334,10 +334,13 @@ body.side-on #side{transform:translateX(0)}
   border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer;font-family:var(--sans)}
 #side .sbtn:hover{color:var(--tx);border-color:var(--dim)}
 /* крестик у строки — только в режиме настройки */
-.qrow .qx{display:none;background:none;border:none;color:var(--dim);cursor:pointer;
-  font-size:13px;line-height:1;padding:0 2px;margin-left:2px}
-body.side-edit .qrow .qx{display:inline-block}
+.qrow .qx,.qrow .qm{display:none;background:none;border:none;color:var(--dim);cursor:pointer;
+  font-size:11px;line-height:1;padding:0 1px;margin-left:1px}
+.qrow .qx{font-size:13px}
+body.side-edit .qrow .qx,body.side-edit .qrow .qm{display:inline-block}
 .qrow .qx:hover{color:var(--red)}
+.qrow .qm:hover{color:var(--tx)}
+.qrow .qm[disabled]{opacity:.25;cursor:default}
 .qg-t{font-size:9px;letter-spacing:.14em;color:var(--dim);padding:4px 14px 1px;text-transform:uppercase}
 .qrow{display:flex;align-items:baseline;gap:7px;padding:2px 14px;line-height:1.3;
   -webkit-tap-highlight-color:transparent}
@@ -448,6 +451,7 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
     <div class="sres" id="sres"></div>
     <div class="sedit-b">
       <button class="sbtn" id="sReset" title="вернуть набор по умолчанию">по умолчанию</button>
+      <button class="sbtn" id="sShare" title="скопировать ссылку на свой набор">поделиться</button>
       <button class="sbtn" id="sDone">готово</button>
     </div>
   </div>
@@ -732,7 +736,11 @@ function sideRender(d){
       if(prev!=null && isFinite(cur) && cur!==prev) tc=cur>prev?' tup':' tdn';
       if(isFinite(cur)) qPrev[r.n]=cur;
       const yld=r.yld!=null?' <i class="qy">('+r.yld.toFixed(2).replace('.',',')+'%)</i>':'';
-      const x=r.id?'<button class="qx" data-id="'+String(r.id).replace(/"/g,'&quot;')+'" title="убрать">×</button>':'';
+      const ид=r.id?String(r.id).replace(/"/g,'&quot;'):'';
+      const x=r.id?
+        '<button class="qm" data-up="'+ид+'" title="выше">▲</button>'+
+        '<button class="qm" data-dn="'+ид+'" title="ниже">▼</button>'+
+        '<button class="qx" data-id="'+ид+'" title="убрать">×</button>':'';
       h+='<div class="qrow" data-n="'+bare.replace(/"/g,'&quot;')+'" data-p="'+String(r.p).replace(/"/g,'&quot;')+'">'+
          '<span class="qn">'+r.n+'</span><span class="qp'+tc+'">'+r.p+yld+'</span><span class="qc '+cls+'">'+ct+'</span>'+x+'</div>';
     }
@@ -743,6 +751,13 @@ function sideRender(d){
     e.stopPropagation();
     мойНабор=(мойНабор||[]).filter(x=>x!==b.dataset.id);
     писатьНабор(); sideLoad();
+  });
+  // перестановка: меняем местами с соседом того же раздела, чтобы строка
+  // не перепрыгивала в чужую группу
+  sideBody.querySelectorAll('.qm').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const вверх=b.dataset.up!=null, id=вверх?b.dataset.up:b.dataset.dn;
+    двинуть(id,вверх?-1:1);
   });
 }
 
@@ -831,6 +846,21 @@ async function грузитьКаталог(){
   каталогГрузится=false;
 }
 
+function группаИд(id){
+  const c=каталог.find(x=>x.id===id);
+  return (c&&c.g)||'Прочее';
+}
+function двинуть(id,куда){
+  if(!мойНабор)return;
+  const g=группаИд(id);
+  const свои=мойНабор.filter(x=>группаИд(x)===g);        // соседи по разделу
+  const i=свои.indexOf(id), j=i+куда;
+  if(i<0||j<0||j>=свои.length)return;
+  const a=мойНабор.indexOf(свои[i]), b=мойНабор.indexOf(свои[j]);
+  мойНабор[a]=свои[j]; мойНабор[b]=свои[i];
+  писатьНабор(); sideLoad();
+}
+
 async function sideLoad(){
   try{
     if(мойНабор&&мойНабор.length){
@@ -878,6 +908,21 @@ function sideOpen(on){
   }
   кн.onclick=()=>режим(окно.hidden);
   document.getElementById('sDone').onclick=()=>режим(false);
+  document.getElementById('sShare').onclick=async()=>{
+    const кн=document.getElementById('sShare'), было=кн.textContent;
+    const набор=мойНабор&&мойНабор.length?мойНабор:НАБОР_ПАНЕЛИ;
+    кн.textContent='готовлю…';
+    let адрес;
+    try{
+      const r=await fetch('/api/share',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ids:набор})});
+      const d=await r.json();
+      адрес=location.origin+'/pick?s='+d.code;
+    }catch(e){ адрес=location.origin+'/pick?ids='+encodeURIComponent(набор.join(',')); }
+    try{ await navigator.clipboard.writeText(адрес); кн.textContent='скопировано'; }
+    catch(e){ prompt('Ссылка на набор:',адрес); кн.textContent=было; }
+    setTimeout(()=>{кн.textContent=было;},1600);
+  };
   document.getElementById('sReset').onclick=()=>{
     мойНабор=null; писатьНабор(); sideLoad();     // вернуться к общей панели
   };
