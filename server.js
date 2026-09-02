@@ -1485,7 +1485,7 @@ async function buildCatalog() {
     .then(raw => {
       const j = JSON.parse(raw);
       for (const k in (j.Valute || {}))
-        out.push({ id: 'cbr:' + k, name: j.Valute[k].Name + ' · ЦБ', tk: k, g: 'Валюты ЦБ' });
+        out.push({ id: 'cbr:' + k, name: j.Valute[k].Name + ' · ЦБ', tk: k, g: 'Валюты' });
     }).catch(() => {}));
 
   // валютный рынок Мосбиржи и доходности
