@@ -44,6 +44,8 @@ h1{font-size:17px;margin:0 0 4px}
 .empty{padding:12px;color:var(--dim);font-size:12.5px}
 
 .rows{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.grp{background:#0f1216;border-bottom:1px solid var(--line);padding:6px 12px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
 .row{display:grid;grid-template-columns:1fr 108px 92px 30px;align-items:center;gap:8px;
   padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
 .row:last-child{border-bottom:none}
@@ -122,25 +124,49 @@ function числоВид(v){
   return v.toLocaleString('ru-RU',{minimumFractionDigits:зн,maximumFractionDigits:зн});
 }
 
+// Порядок разделов повторяет боковую панель ленты: сырьё, индексы, валюты,
+// крипта, акции, долг. Инструмент попадает в свой раздел сам — по группе из
+// каталога, поэтому добавлять его руками никуда не нужно.
+const ПОРЯДОК=['Сырьё и индексы','Индексы','Валюты ЦБ','Валютный рынок','Крипта',
+               'Акции','ОФЗ','Облигации компаний','Трежерис'];
+
 function рисовать(данные){
   const box=$('rows');
   if(!выбор.length){ box.innerHTML='<div class="empty">Список пуст — добавьте инструменты через поиск.</div>'; return; }
-  box.innerHTML=выбор.map(id=>{
+
+  const по={};
+  for(const id of выбор){
+    const g=группа(id)||'Прочее';
+    (по[g]=по[g]||[]).push(id);
+  }
+  const разделы=Object.keys(по).sort((a,b)=>{
+    const ia=ПОРЯДОК.indexOf(a), ib=ПОРЯДОК.indexOf(b);
+    return (ia<0?99:ia)-(ib<0?99:ib) || a.localeCompare(b,'ru');
+  });
+
+  box.innerHTML=разделы.map(g=>
+    '<div class="grp">'+esc(g)+'</div>'+строки(по[g],данные)
+  ).join('');
+
+  box.querySelectorAll('.x').forEach(b=>b.onclick=()=>{
+    выбор=выбор.filter(x=>x!==b.dataset.id); писать(); рисовать(последние); обновить();
+  });
+}
+
+function строки(ids,данные){
+  return ids.map(id=>{
     const q=(данные&&данные[id])||null;
     const c=q&&q.c!=null?q.c:null;
     const кл=c==null?'zr':(c>0.004?'up':(c<-0.004?'dn':'zr'));
     const зн=c==null?'':(c>0?'▲ ':(c<0?'▼ ':''));
     return '<div class="row">'+
-      '<div><div class="n">'+esc(имя(id))+'</div><div class="g">'+esc(группа(id))+
-        (q&&q.yld!=null?' · доходность '+q.yld.toFixed(2).replace('.',',')+'%':'')+'</div></div>'+
+      '<div><div class="n">'+esc(имя(id))+'</div>'+
+        (q&&q.yld!=null?'<div class="g">доходность '+q.yld.toFixed(2).replace('.',',')+'%</div>':'')+'</div>'+
       '<div class="p">'+esc(числоВид(q?q.p:null))+'</div>'+
       '<div class="c '+кл+'">'+зн+(c==null?'—':(Math.abs(c).toFixed(2).replace('.',',')+'%'))+'</div>'+
       '<button class="x" data-id="'+esc(id)+'" title="убрать">×</button>'+
     '</div>';
   }).join('');
-  box.querySelectorAll('.x').forEach(b=>b.onclick=()=>{
-    выбор=выбор.filter(x=>x!==b.dataset.id); писать(); рисовать(последние); обновить();
-  });
 }
 
 let последние=null;
