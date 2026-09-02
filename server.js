@@ -396,6 +396,37 @@ function parseTelegram(html, username, srcName) {
 }
 
 // ── Разбор RSS ──────────────────────────────────────────────────────────
+// ── Время записи без даты ──────────────────────────────────────────────
+// Если в ленте нет даты или она в непонятном формате, раньше подставлялось
+// текущее время. Из-за этого старая запись каждый раз выглядела свежей: она
+// уходила из ленты через сутки и возвращалась снова, уже с новым временем.
+// Теперь время первой встречи запоминается и больше не меняется.
+const SEEN_FILE = path.join(__dirname, 'first-seen.json');
+let FIRST = {};
+try { FIRST = JSON.parse(fs.readFileSync(SEEN_FILE, 'utf8')) || {}; } catch (e) {}
+let firstDirty = false;
+
+function saveFirst() {
+  if (!firstDirty) return;
+  try {
+    fs.writeFileSync(SEEN_FILE + '.tmp', JSON.stringify(FIRST));
+    fs.renameSync(SEEN_FILE + '.tmp', SEEN_FILE);
+    firstDirty = false;
+  } catch (e) {}
+}
+setInterval(() => {
+  const край = Date.now() - 14 * 864e5;                 // две недели хватает с запасом
+  for (const k in FIRST) if (FIRST[k] < край) { delete FIRST[k]; firstDirty = true; }
+  saveFirst();
+}, 5 * 60 * 1000);
+
+function itemTime(pub, id) {
+  const t = pub ? Date.parse(pub) : NaN;
+  if (isFinite(t)) return new Date(t).toISOString();     // дата есть и разобралась
+  if (!FIRST[id]) { FIRST[id] = Date.now(); firstDirty = true; }
+  return new Date(FIRST[id]).toISOString();
+}
+
 function parseRss(xml, srcName) {
   const items = [];
   const blocks = xml.split(/<item[\s>]/i).slice(1);
@@ -409,11 +440,12 @@ function parseRss(xml, srcName) {
     const skip = RSS_SKIP[srcName];
     if (skip && skip.test(title)) continue;
     const desc = g('description');
+    const id = 'rss-' + Buffer.from(link).toString('base64url').slice(0, 24);
     items.push({
-      id: 'rss-' + Buffer.from(link).toString('base64url').slice(0, 24),
+      id,
       src: 'rss-' + srcName, srcName,
       url: link,
-      time: pub ? new Date(pub).toISOString() : new Date().toISOString(),
+      time: itemTime(pub, id),
       text: title + (desc && desc !== title ? '\n' + cutText(desc, TEXT_LIMIT) : ''),
     });
   }
@@ -1082,7 +1114,7 @@ function saveStats() {
   } catch (e) {}
 }
 setInterval(saveStats, 20000);
-for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { saveStats(); try { shareSave(); } catch (e) {} process.exit(0); });
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { saveStats(); try { shareSave(); saveFirst(); } catch (e) {} process.exit(0); });
 
 function pFmt(v) {
   if (v == null || !isFinite(v)) return '—';
