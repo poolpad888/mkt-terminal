@@ -316,6 +316,28 @@ body.side-on #side{transform:translateX(0)}
 .mlab #mDnN{color:var(--red);margin-left:auto}
 .mlab #mMid{color:var(--dim);text-transform:uppercase;margin:0 auto;letter-spacing:.14em}
 .qg{padding:1px 0 0}
+/* Настройка набора живёт прямо в панели и повторяет её строй: тот же кегль,
+   те же отступы, моноширинные цифры. Появляется по шестерёнке в заголовке. */
+#side .sedit{flex:none;padding:6px 14px 8px;border-bottom:1px solid var(--line)}
+#side .sedit input{width:100%;height:26px;background:var(--bg);border:1px solid var(--line);
+  border-radius:6px;color:var(--tx);font-family:var(--sans);font-size:12px;padding:0 8px;box-sizing:border-box}
+#side .sedit input:focus{outline:none;border-color:var(--dim)}
+#side .sres{max-height:190px;overflow-y:auto;margin-top:6px}
+#side .sres:empty{display:none}
+#side .sres .si{display:flex;gap:8px;align-items:baseline;padding:3px 4px;cursor:pointer;border-radius:4px;font-size:11.5px}
+#side .sres .si:hover{background:#181c22}
+#side .sres .si .sn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#side .sres .si .sg{color:var(--dim);font-family:var(--mono);font-size:9.5px;white-space:nowrap}
+#side .sres .si.есть .sn{color:var(--dim)}
+#side .sedit-b{display:flex;gap:6px;margin-top:7px}
+#side .sbtn{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--dim);
+  border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer;font-family:var(--sans)}
+#side .sbtn:hover{color:var(--tx);border-color:var(--dim)}
+/* крестик у строки — только в режиме настройки */
+.qrow .qx{display:none;background:none;border:none;color:var(--dim);cursor:pointer;
+  font-size:13px;line-height:1;padding:0 2px;margin-left:2px}
+body.side-edit .qrow .qx{display:inline-block}
+.qrow .qx:hover{color:var(--red)}
 .qg-t{font-size:9px;letter-spacing:.14em;color:var(--dim);padding:4px 14px 1px;text-transform:uppercase}
 .qrow{display:flex;align-items:baseline;gap:7px;padding:2px 14px;line-height:1.3;
   -webkit-tap-highlight-color:transparent}
@@ -419,7 +441,16 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
 <div id="sideBack"></div>
 <aside id="side">
   <div class="sh"><b>Котировки</b><span class="su" id="sideUpd" hidden></span>
+    <button class="sx" id="sideEdit" title="настроить набор">⚙</button>
     <button class="sx" id="sideClose" title="закрыть">×</button></div>
+  <div class="sedit" id="sedit" hidden>
+    <input id="sq" type="search" placeholder="добавить: сбер, brent, офз…" autocomplete="off">
+    <div class="sres" id="sres"></div>
+    <div class="sedit-b">
+      <button class="sbtn" id="sReset" title="вернуть набор по умолчанию">по умолчанию</button>
+      <button class="sbtn" id="sDone">готово</button>
+    </div>
+  </div>
   <div class="smood" id="smood" hidden>
     <div class="mbar"><i class="up" id="mUp"></i><i class="dn" id="mDn"></i></div>
     <div class="mlab"><span id="mUpN"></span><span id="mMid">настроение рынка</span><span id="mDnN"></span></div>
@@ -700,12 +731,19 @@ function sideRender(d){
       let tc='';
       if(prev!=null && isFinite(cur) && cur!==prev) tc=cur>prev?' tup':' tdn';
       if(isFinite(cur)) qPrev[r.n]=cur;
+      const yld=r.yld!=null?' <i class="qy">('+r.yld.toFixed(2).replace('.',',')+'%)</i>':'';
+      const x=r.id?'<button class="qx" data-id="'+String(r.id).replace(/"/g,'&quot;')+'" title="убрать">×</button>':'';
       h+='<div class="qrow" data-n="'+bare.replace(/"/g,'&quot;')+'" data-p="'+String(r.p).replace(/"/g,'&quot;')+'">'+
-         '<span class="qn">'+r.n+'</span><span class="qp'+tc+'">'+r.p+'</span><span class="qc '+cls+'">'+ct+'</span></div>';
+         '<span class="qn">'+r.n+'</span><span class="qp'+tc+'">'+r.p+yld+'</span><span class="qc '+cls+'">'+ct+'</span>'+x+'</div>';
     }
     h+='</div>';
   }
   sideBody.innerHTML=h;
+  sideBody.querySelectorAll('.qx').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    мойНабор=(мойНабор||[]).filter(x=>x!==b.dataset.id);
+    писатьНабор(); sideLoad();
+  });
 }
 
 // ── копирование котировок по нажатию ────────────────────────────────────
@@ -735,8 +773,72 @@ document.addEventListener('click',e=>{
   // мигает то, что скопировали: число — сама ячейка, название — вся строка
   qCopy(txt).then(()=>qFlash(onlyNum ? cell : row)).catch(()=>{});
 });
+// Если человек настроил свой набор, панель собирается из него; иначе работает
+// обычная общая панель. Свой набор хранится только в этом браузере.
+const МОЙ_КЛЮЧ='ff-pick-v1';
+let мойНабор=null, каталог=[], каталогГрузится=false;
+function читатьНабор(){
+  try{ const v=JSON.parse(localStorage.getItem(МОЙ_КЛЮЧ)); return Array.isArray(v)&&v.length?v:null; }catch(e){ return null; }
+}
+function писатьНабор(){
+  try{ мойНабор&&мойНабор.length ? localStorage.setItem(МОЙ_КЛЮЧ,JSON.stringify(мойНабор))
+                                 : localStorage.removeItem(МОЙ_КЛЮЧ); }catch(e){}
+}
+// Состав общей панели: с него начинается свой набор, если человек просто
+// добавил один инструмент и ничего не удалял.
+const НАБОР_ПАНЕЛИ=[
+  'xyz:BRENTOIL','xyz:CL','xyz:NATGAS','xyz:GOLD','xyz:SILVER','xyz:PLATINUM','xyz:PALLADIUM','xyz:COPPER',
+  'xyz:SP500','ust:NASDAQ100','idx:IMOEX2','idx:RGBI',
+  'ust:DGS2','ust:DGS5','ust:DGS10','ust:DGS30',
+  'cbr:USD','cbr:EUR','cbr:CNY','xyz:EUR','sel:USDRUB_TOM','sel:CNYRUB_TOM',
+  'hl:BTC','hl:ETH','hl:SOL','hl:XRP',
+  'moex:SBER','moex:GAZP','moex:LKOH','moex:ROSN','moex:GMKN','moex:VTBR','moex:YDEX',
+];
+const ПОРЯДОК_ГР=['Сырьё','Индексы','Трежерис','Валюты','Валюты ЦБ','Валютный рынок',
+                  'Крипта','Акции','ОФЗ','Облигации компаний'];
+
+// Свой набор приходит плоским списком — раскладываем его по разделам так же,
+// как это делает общая панель, чтобы вид не отличался.
+function мойВПанель(d){
+  const кат=id=>каталог.find(c=>c.id===id)||null;
+  const по={};
+  for(const id of мойНабор){
+    const c=кат(id); const g=(c&&c.g)||'Прочее';
+    const q=d.quotes[id];
+    (по[g]=по[g]||[]).push({
+      n:(c&&c.name)||id.split(':').pop(),
+      p:q?(typeof q.p==='string'?q.p:числоПанели(q.p)):'—',
+      c:q&&q.c!=null?q.c:null,
+      id,
+      yld:q&&q.yld!=null?q.yld:null,
+    });
+  }
+  const имена=Object.keys(по).sort((a,b)=>{
+    const ia=ПОРЯДОК_ГР.indexOf(a), ib=ПОРЯДОК_ГР.indexOf(b);
+    return (ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b,'ru');
+  });
+  return {updated:d.updated,groups:имена.map(n=>({name:n,rows:по[n]}))};
+}
+function числоПанели(v){
+  if(v==null)return '—';
+  const a=Math.abs(v), зн=a>=1000?1:(a>=100?2:(a>=1?2:4));
+  return v.toLocaleString('ru-RU',{minimumFractionDigits:зн,maximumFractionDigits:зн});
+}
+async function грузитьКаталог(){
+  if(каталог.length||каталогГрузится)return;
+  каталогГрузится=true;
+  try{ const r=await fetch('/api/catalog'); каталог=(await r.json()).items||[]; }catch(e){}
+  каталогГрузится=false;
+}
+
 async function sideLoad(){
   try{
+    if(мойНабор&&мойНабор.length){
+      await грузитьКаталог();
+      const r=await fetch('/api/picked?ids='+encodeURIComponent(мойНабор.join(','))+'&t='+Date.now(),{cache:'no-store'});
+      sideRender(мойВПанель(await r.json()));
+      return;
+    }
     const r=await fetch('/api/panel?t='+Date.now(),{cache:'no-store'});   // без кеша, иначе браузер отдаёт старое
     sideRender(await r.json());
   }catch(e){
@@ -745,6 +847,7 @@ async function sideLoad(){
   }
 }
 function sideOpen(on){
+  if(мойНабор===null) мойНабор=читатьНабор();      // восстановить свой набор при открытии
   document.body.classList.toggle('side-on',on);
   fitNavSoon();                       // пересчитать, сколько чипов влезает
   fitNav();
@@ -755,6 +858,50 @@ function sideOpen(on){
     if(!sideTimer)sideTimer=setInterval(sideLoad,2000);   // 2 с — проба
   }else if(sideTimer){clearInterval(sideTimer);sideTimer=null;}
 }
+// Режим настройки набора: поиск сверху, крестики у строк.
+(function(){
+  const кн=document.getElementById('sideEdit'), окно=document.getElementById('sedit');
+  const поле=document.getElementById('sq'), рез=document.getElementById('sres');
+  if(!кн||!окно)return;
+
+  function режим(on){
+    document.body.classList.toggle('side-edit',on);
+    окно.hidden=!on;
+    if(on){
+      грузитьКаталог();
+      // чтобы можно было убирать строки, панель должна стать своей: берём
+      // текущий состав за основу, вернуть общий вид можно кнопкой рядом
+      if(!мойНабор||!мойНабор.length){ мойНабор=НАБОР_ПАНЕЛИ.slice(); писатьНабор(); sideLoad(); }
+      поле.focus();
+    }
+    else { рез.innerHTML=''; поле.value=''; }
+  }
+  кн.onclick=()=>режим(окно.hidden);
+  document.getElementById('sDone').onclick=()=>режим(false);
+  document.getElementById('sReset').onclick=()=>{
+    мойНабор=null; писатьНабор(); sideLoad();     // вернуться к общей панели
+  };
+
+  поле.addEventListener('input',async()=>{
+    const t=поле.value.trim().toLowerCase();
+    if(!t){ рез.innerHTML=''; return; }
+    await грузитьКаталог();
+    const есть=new Set(мойНабор||[]);
+    const найдено=каталог.filter(c=>c.name.toLowerCase().includes(t)||c.tk.toLowerCase().includes(t)).slice(0,25);
+    рез.innerHTML=найдено.length
+      ? найдено.map(c=>'<div class="si'+(есть.has(c.id)?' есть':'')+'" data-id="'+esc(c.id)+'">'+
+          '<span class="sn">'+esc(c.name)+'</span><span class="sg">'+esc(c.g)+'</span></div>').join('')
+      : '<div class="si"><span class="sn">ничего не нашлось</span></div>';
+    рез.querySelectorAll('.si[data-id]').forEach(el=>el.onclick=async()=>{
+      const id=el.dataset.id;
+      // первое добавление превращает общую панель в свою — за основу берём текущий состав
+      if(!мойНабор) мойНабор=НАБОР_ПАНЕЛИ.slice();
+      if(!мойНабор.includes(id)) мойНабор.push(id);
+      писатьНабор(); поле.value=''; рез.innerHTML=''; sideLoad();
+    });
+  });
+})();
+
 document.getElementById('sideBtn').onclick=()=>sideOpen(!document.body.classList.contains('side-on'));
 document.getElementById('sideClose').onclick=()=>sideOpen(false);
 document.getElementById('sideBack').onclick=()=>sideOpen(false);
