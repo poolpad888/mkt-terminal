@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Свой набор котировок — FINFACTS</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#0b0d10;--panel:#12151a;--line:#232830;--tx:#e6e9ee;--dim:#8b95a3;
+  --amber:#f0a63c;--green:#3fbf6f;--red:#e5484d;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:14px}
+header{display:flex;align-items:center;gap:10px;padding:0 14px;height:44px;
+  border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:20}
+header>*{align-self:center}
+.logo{font-family:var(--mono);font-weight:700;color:var(--amber);letter-spacing:.06em;
+  font-size:13px;position:relative;top:1px}
+.tag{font-family:var(--mono);font-size:10.5px;color:var(--dim);position:relative;top:2px}
+.sp{flex:1}
+a.back{color:var(--dim);text-decoration:none;font-size:12px}
+a.back:hover{color:var(--tx)}
+
+main{max-width:860px;margin:0 auto;padding:16px 14px 60px}
+h1{font-size:17px;margin:0 0 4px}
+.lead{color:var(--dim);font-size:12.5px;line-height:1.5;margin:0 0 16px}
+
+.search{position:relative;margin-bottom:14px}
+#q{width:100%;height:38px;background:var(--panel);border:1px solid var(--line);
+  border-radius:8px;color:var(--tx);font-family:var(--sans);font-size:14px;padding:0 12px}
+#q:focus{outline:none;border-color:var(--dim)}
+.res{position:absolute;left:0;right:0;top:42px;background:var(--panel);
+  border:1px solid var(--line);border-radius:8px;max-height:320px;overflow-y:auto;
+  z-index:10;display:none;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.res.on{display:block}
+.res .it{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;
+  border-bottom:1px solid var(--line)}
+.res .it:last-child{border-bottom:none}
+.res .it:hover,.res .it.sel{background:#181c22}
+.res .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res .gr{color:var(--dim);font-size:11px;font-family:var(--mono);white-space:nowrap}
+.res .has{color:var(--green);font-size:11px}
+.empty{padding:12px;color:var(--dim);font-size:12.5px}
+
+.rows{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.row{display:grid;grid-template-columns:1fr 108px 92px 30px;align-items:center;gap:8px;
+  padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
+.row:last-child{border-bottom:none}
+.row .n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.row .g{color:var(--dim);font-size:10.5px;font-family:var(--mono)}
+.row .p,.row .c{font-family:var(--mono);text-align:right;font-size:13px}
+.row .c.up{color:var(--green)}
+.row .c.dn{color:var(--red)}
+.row .c.zr{color:var(--dim)}
+.x{background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px;
+  line-height:1;padding:2px 4px;border-radius:4px}
+.x:hover{color:var(--red);background:#1d1418}
+.hint{color:var(--dim);font-size:12px;margin-top:12px;line-height:1.55}
+.bar{display:flex;gap:8px;align-items:center;margin:14px 0 10px;flex-wrap:wrap}
+.btn{background:var(--panel);border:1px solid var(--line);color:var(--dim);
+  border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:var(--sans)}
+.btn:hover{color:var(--tx);border-color:var(--dim)}
+.upd{color:var(--dim);font-size:11px;font-family:var(--mono)}
+@media(max-width:560px){
+  .row{grid-template-columns:1fr 92px 76px 28px;padding:9px 10px}
+  .row .p,.row .c{font-size:12px}
+}
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">FINFACTS</span>
+  <span class="tag">проба</span>
+  <span class="sp"></span>
+  <a class="back" href="/">← к ленте</a>
+</header>
+
+<main>
+  <h1>Свой набор котировок</h1>
+  <p class="lead">Пробная страница. Найдите инструмент в поиске и добавьте его в список,
+     ненужный уберите крестиком. Набор хранится в этом браузере и на общий сайт не влияет.</p>
+
+  <div class="search">
+    <input id="q" type="search" placeholder="поиск: сбер, brent, btc, доллар…" autocomplete="off">
+    <div class="res" id="res"></div>
+  </div>
+
+  <div class="bar">
+    <button class="btn" id="reset">вернуть набор по умолчанию</button>
+    <button class="btn" id="clear">очистить всё</button>
+    <span class="sp"></span>
+    <span class="upd" id="upd">—</span>
+  </div>
+
+  <div class="rows" id="rows"></div>
+  <p class="hint" id="hint"></p>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const KEY='ff-pick-v1';
+const ПОУМОЛЧАНИЮ=['xyz:BRENT','idx:IMOEX','cbr:USD','hl:BTC','moex:SBER'];
+
+let каталог=[], выбор=[], таймер=null;
+
+function читать(){
+  try{ const v=JSON.parse(localStorage.getItem(KEY)); if(Array.isArray(v))return v; }catch(e){}
+  return ПОУМОЛЧАНИЮ.slice();
+}
+function писать(){ try{ localStorage.setItem(KEY,JSON.stringify(выбор)); }catch(e){} }
+
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const имя=id=>{ const x=каталог.find(c=>c.id===id); return x?x.name:id.split(':').pop(); };
+const группа=id=>{ const x=каталог.find(c=>c.id===id); return x?x.g:''; };
+
+function числоВид(v){
+  if(v==null)return '—';
+  if(typeof v==='string')return v;                       // доходности приходят готовой строкой
+  const a=Math.abs(v);
+  const зн=a>=1000?1:(a>=100?2:(a>=1?2:4));
+  return v.toLocaleString('ru-RU',{minimumFractionDigits:зн,maximumFractionDigits:зн});
+}
+
+function рисовать(данные){
+  const box=$('rows');
+  if(!выбор.length){ box.innerHTML='<div class="empty">Список пуст — добавьте инструменты через поиск.</div>'; return; }
+  box.innerHTML=выбор.map(id=>{
+    const q=(данные&&данные[id])||null;
+    const c=q&&q.c!=null?q.c:null;
+    const кл=c==null?'zr':(c>0.004?'up':(c<-0.004?'dn':'zr'));
+    const зн=c==null?'':(c>0?'▲ ':(c<0?'▼ ':''));
+    return '<div class="row">'+
+      '<div><div class="n">'+esc(имя(id))+'</div><div class="g">'+esc(группа(id))+'</div></div>'+
+      '<div class="p">'+esc(числоВид(q?q.p:null))+'</div>'+
+      '<div class="c '+кл+'">'+зн+(c==null?'—':(Math.abs(c).toFixed(2).replace('.',',')+'%'))+'</div>'+
+      '<button class="x" data-id="'+esc(id)+'" title="убрать">×</button>'+
+    '</div>';
+  }).join('');
+  box.querySelectorAll('.x').forEach(b=>b.onclick=()=>{
+    выбор=выбор.filter(x=>x!==b.dataset.id); писать(); рисовать(последние); обновить();
+  });
+}
+
+let последние=null;
+async function обновить(){
+  if(!выбор.length){ рисовать(null); $('upd').textContent='—'; return; }
+  try{
+    const r=await fetch('/api/picked?ids='+encodeURIComponent(выбор.join(','))+'&t='+Date.now(),{cache:'no-store'});
+    const d=await r.json();
+    последние=d.quotes||{};
+    рисовать(последние);
+    $('upd').textContent='обновлено '+new Date().toLocaleTimeString('ru-RU');
+  }catch(e){ $('upd').textContent='нет связи'; }
+}
+
+// поиск по каталогу
+function искать(текст){
+  const t=текст.trim().toLowerCase();
+  const box=$('res');
+  if(t.length<1){ box.classList.remove('on'); return; }
+  const найдено=каталог.filter(c=>
+    c.name.toLowerCase().includes(t) || c.tk.toLowerCase().includes(t)
+  ).slice(0,40);
+  if(!найдено.length){ box.innerHTML='<div class="empty">Ничего не нашлось</div>'; box.classList.add('on'); return; }
+  box.innerHTML=найдено.map(c=>{
+    const есть=выбор.includes(c.id);
+    return '<div class="it" data-id="'+esc(c.id)+'">'+
+      '<span class="nm">'+esc(c.name)+'</span>'+
+      (есть?'<span class="has">уже в списке</span>':'')+
+      '<span class="gr">'+esc(c.g)+'</span></div>';
+  }).join('');
+  box.classList.add('on');
+  box.querySelectorAll('.it').forEach(el=>el.onclick=()=>{
+    const id=el.dataset.id;
+    if(!выбор.includes(id)){ выбор.push(id); писать(); обновить(); }
+    $('q').value=''; box.classList.remove('on');
+  });
+}
+
+$('q').addEventListener('input',e=>искать(e.target.value));
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.search')) $('res').classList.remove('on');
+});
+$('reset').onclick=()=>{ выбор=ПОУМОЛЧАНИЮ.slice(); писать(); обновить(); };
+$('clear').onclick=()=>{ выбор=[]; писать(); рисовать(null); };
+
+(async function старт(){
+  выбор=читать();
+  рисовать(null);
+  try{
+    const r=await fetch('/api/catalog');
+    const d=await r.json();
+    каталог=d.items||[];
+    $('hint').textContent='В каталоге '+каталог.length+' инструментов: акции и индексы Мосбиржи, '+
+      'сырьё, мировые индексы, крипта, курсы ЦБ и доходности гособлигаций США.';
+  }catch(e){ $('hint').textContent='Каталог не загрузился.'; }
+  await обновить();
+  таймер=setInterval(обновить,30000);
+})();
+</script>
+</body>
+</html>

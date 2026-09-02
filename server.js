@@ -872,7 +872,8 @@ const ipHash = ip => crypto.createHash('sha1').update('finfacts:' + ip).digest('
 
 // какие адреса считаем страницами (а не фоновыми запросами)
 const PAGE_NAMES = { '/': 'лента', '/map': 'карта', '/quotes': 'котировки',
-                     '/cbr': 'ЦБ', '/fonts': 'шрифты', '/stats': 'статистика' };
+                     '/cbr': 'ЦБ', '/fonts': 'шрифты', '/stats': 'статистика',
+                     '/pick': 'свой набор' };
 const PAGE_ALIAS = { '/карта': '/map', '/котировки': '/quotes', '/цб': '/cbr',
                      '/шрифты': '/fonts', '/статистика': '/stats' };
 function pageOf(pathname) {
@@ -1351,6 +1352,130 @@ async function buildPanel() {
   return { updated: new Date().toISOString(), groups };
 }
 
+// ── Пробная страница: свой набор котировок ─────────────────────────────
+// Каталог всего, что мы умеем показывать, и выдача по выбранным кодам.
+// Кэш каталога — час: список бумаг меняется редко, а котировки берём отдельно.
+let catCache = { at: 0, data: null, busy: null };
+
+async function buildCatalog() {
+  const out = [];
+  const jobs = [];
+
+  // акции Мосбиржи
+  jobs.push(fetchUrl('https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?iss.meta=off&iss.only=securities&securities.columns=SECID,SHORTNAME')
+    .then(raw => {
+      const j = JSON.parse(raw);
+      for (const [secid, name] of (j.securities && j.securities.data) || [])
+        if (secid) out.push({ id: 'moex:' + secid, name: name || secid, tk: secid, g: 'Акции' });
+    }).catch(() => {}));
+
+  // индексы Мосбиржи
+  jobs.push(fetchUrl('https://iss.moex.com/iss/engines/stock/markets/index/securities.json?iss.meta=off&iss.only=securities&securities.columns=SECID,SHORTNAME')
+    .then(raw => {
+      const j = JSON.parse(raw);
+      for (const [secid, name] of (j.securities && j.securities.data) || [])
+        if (secid) out.push({ id: 'idx:' + secid, name: name || secid, tk: secid, g: 'Индексы' });
+    }).catch(() => {}));
+
+  // сырьё, мировые индексы и крипта с площадки
+  jobs.push(hlInfo({ type: 'metaAndAssetCtxs', dex: 'xyz' })
+    .then(r => { for (const k in hlMap(r)) out.push({ id: 'xyz:' + k, name: k, tk: k, g: 'Сырьё и индексы' }); })
+    .catch(() => {}));
+  jobs.push(hlInfo({ type: 'metaAndAssetCtxs' })
+    .then(r => { for (const k in hlMap(r)) out.push({ id: 'hl:' + k, name: k, tk: k, g: 'Крипта' }); })
+    .catch(() => {}));
+
+  // курсы ЦБ
+  jobs.push(fetchUrl('https://www.cbr-xml-daily.ru/daily_json.js')
+    .then(raw => {
+      const j = JSON.parse(raw);
+      for (const k in (j.Valute || {}))
+        out.push({ id: 'cbr:' + k, name: j.Valute[k].Name + ' · ЦБ', tk: k, g: 'Валюты ЦБ' });
+    }).catch(() => {}));
+
+  // валютный рынок Мосбиржи и доходности
+  out.push({ id: 'sel:USD000UTSTOM', name: 'USDRUB_TOM', tk: 'USDRUB_TOM', g: 'Валютный рынок' });
+  out.push({ id: 'sel:CNYRUB_TOM',  name: 'CNYRUB_TOM', tk: 'CNYRUB_TOM', g: 'Валютный рынок' });
+  for (const [id, nm] of TSY) out.push({ id: 'ust:' + id, name: nm, tk: id, g: 'Трежерис' });
+  out.push({ id: 'ust:NASDAQ100', name: 'Nasdaq 100', tk: 'NASDAQ100', g: 'Индексы' });
+
+  await Promise.allSettled(jobs);
+  out.sort((a, b) => a.g.localeCompare(b.g, 'ru') || a.name.localeCompare(b.name, 'ru'));
+  return { updated: new Date().toISOString(), items: out };
+}
+
+async function getCatalog() {
+  const now = Date.now();
+  if (catCache.data && now - catCache.at < 3600 * 1000) return catCache.data;
+  if (!catCache.busy) catCache.busy = buildCatalog()
+    .then(d => { catCache = { at: Date.now(), data: d, busy: null }; return d; })
+    .catch(e => { catCache.busy = null; return catCache.data || { items: [], error: e.message }; });
+  return catCache.busy;
+}
+
+// Котировки по выбранным кодам. Тянем только те источники, которые нужны.
+async function getPicked(ids) {
+  const want = { moex: [], idx: [], xyz: [], hl: [], cbr: [], sel: [], ust: [] };
+  for (const id of ids) {
+    const i = id.indexOf(':'); if (i < 0) continue;
+    const k = id.slice(0, i), v = id.slice(i + 1);
+    if (want[k]) want[k].push(v);
+  }
+  const res = {};
+  const jobs = [];
+
+  if (want.moex.length) jobs.push(getQuotes().then(q => {
+    for (const t of want.moex) { const x = q.quotes[t]; if (x && x.last != null) res['moex:' + t] = { p: x.last, c: x.chg }; }
+  }).catch(() => {}));
+
+  if (want.idx.length) jobs.push(fetchUrl('https://iss.moex.com/iss/engines/stock/markets/index/securities.json?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,CURRENTVALUE,LASTCHANGEPRC')
+    .then(raw => {
+      const j = JSON.parse(raw);
+      for (const [secid, val, chg] of (j.marketdata && j.marketdata.data) || [])
+        if (want.idx.includes(secid) && val != null) res['idx:' + secid] = { p: val, c: chg };
+    }).catch(() => {}));
+
+  if (want.xyz.length) jobs.push(hlInfo({ type: 'metaAndAssetCtxs', dex: 'xyz' }).then(r => {
+    const m = hlMap(r);
+    for (const t of want.xyz) if (m[t]) res['xyz:' + t] = { p: m[t].px, c: m[t].chg };
+  }).catch(() => {}));
+
+  if (want.hl.length) jobs.push(hlInfo({ type: 'metaAndAssetCtxs' }).then(r => {
+    const m = hlMap(r);
+    for (const t of want.hl) if (m[t]) res['hl:' + t] = { p: m[t].px, c: m[t].chg };
+  }).catch(() => {}));
+
+  if (want.cbr.length) jobs.push(fetchUrl('https://www.cbr-xml-daily.ru/daily_json.js').then(raw => {
+    const j = JSON.parse(raw);
+    for (const t of want.cbr) {
+      const x = (j.Valute || {})[t]; if (!x) continue;
+      const nom = x.Nominal || 1;
+      const chg = x.Previous ? (x.Value / nom - x.Previous / nom) / (x.Previous / nom) * 100 : null;
+      res['cbr:' + t] = { p: x.Value / nom, c: chg };
+    }
+  }).catch(() => {}));
+
+  if (want.sel.length) jobs.push(fetchUrl('https://iss.moex.com/iss/engines/currency/markets/selt/boards/CETS/securities.json?iss.meta=off&iss.only=marketdata&marketdata.columns=SECID,LAST,LASTCHANGEPRCNT')
+    .then(raw => {
+      const j = JSON.parse(raw);
+      for (const [secid, last, chg] of (j.marketdata && j.marketdata.data) || []) {
+        if (last == null) continue;
+        if (want.sel.includes(secid)) res['sel:' + secid] = { p: last, c: chg };
+        if (secid === 'USD000UTSTOM' && want.sel.includes('USDRUB_TOM')) res['sel:USDRUB_TOM'] = { p: last, c: chg };
+      }
+    }).catch(() => {}));
+
+  for (const t of want.ust) {
+    if (t === 'NASDAQ100') { nasRefresh(); if (nasCache.row) res['ust:NASDAQ100'] = { p: nasCache.row.p, c: nasCache.row.c, txt: true }; continue; }
+    tsyRefresh();
+    const i = TSY.findIndex(([id]) => id === t);
+    if (i >= 0 && tsyCache.rows[i]) res['ust:' + t] = { p: tsyCache.rows[i].p, c: tsyCache.rows[i].c, txt: true };
+  }
+
+  await Promise.allSettled(jobs);
+  return { updated: new Date().toISOString(), quotes: res };
+}
+
 async function getPanel() {
   const now = Date.now();
   if (pCache.data && now - pCache.at < 2 * 1000) return pCache.data;   // 2 с: HyperLiquid держит такой темп, CoinGecko не держал
@@ -1447,6 +1572,18 @@ const srv = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(JSON.stringify(q));
     }
+    // пробная страница со своим набором котировок
+    if (u.pathname === '/api/catalog') {
+      const c = await getCatalog();
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=600' });
+      return res.end(JSON.stringify(c));
+    }
+    if (u.pathname === '/api/picked') {
+      const ids = (u.searchParams.get('ids') || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 60);
+      const d = ids.length ? await getPicked(ids) : { updated: null, quotes: {} };
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(JSON.stringify(d));
+    }
     if (u.pathname === '/api/quotes') {
       const q = await getQuotes();
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=30' });
@@ -1499,6 +1636,7 @@ const srv = http.createServer(async (req, res) => {
     if (p === '/cbr' || p === '/цб' || p === encodeURI('/цб')) p = '/cbr.html';
     if (p === '/quotes' || p === '/котировки' || p === encodeURI('/котировки')) p = '/quotes.html';
     if (p === '/stats' || p === '/статистика' || p === encodeURI('/статистика')) p = '/stats.html';
+    if (p === '/pick') p = '/pick.html';                  // пробная: свой набор котировок
     p = path.normalize(p).replace(/^(\.\.[/\\])+/, '');
     const file = path.join(__dirname, 'public', p);
     if (file.startsWith(path.join(__dirname, 'public')) && fs.existsSync(file) && fs.statSync(file).isFile()) {
