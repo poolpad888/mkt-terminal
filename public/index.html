@@ -335,6 +335,7 @@ body.side-on #side{transform:translateX(0)}
 #side .sh .sbeta{flex:none;font-family:var(--mono);font-size:8px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--amber);border:1px solid var(--amber);
   border-radius:3px;padding:1px 4px;opacity:.85;line-height:1}
+#side .sbtn.sic{flex:0 0 30px;display:inline-flex;align-items:center;justify-content:center;padding:0}
 #side .sbtn{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--dim);
   border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer;font-family:var(--sans)}
 #side .sbtn:hover{color:var(--tx);border-color:var(--dim)}
@@ -460,8 +461,10 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
     <div class="sres" id="sres"></div>
     <div class="sedit-b">
       <button class="sbtn" id="sReset" title="вернуть набор по умолчанию">по умолчанию</button>
-      <button class="sbtn" id="sShare" title="скопировать ссылку на свой набор">поделиться</button>
-      <button class="sbtn" id="sDone">готово</button>
+      <button class="sbtn" id="sClear" title="убрать все инструменты">очистить всё</button>
+      <button class="sbtn sic" id="sShare" title="скопировать ссылку на свой набор" aria-label="поделиться">
+        <svg viewBox="0 0 14 14" width="11" height="11" aria-hidden="true"><path d="M7 9.5V2M7 2 4.4 4.6M7 2l2.6 2.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.4 8.6v2.2c0 .6.5 1.2 1.2 1.2h6.8c.7 0 1.2-.6 1.2-1.2V8.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
     </div>
     <div class="sdisc">
       Акции и облигации Мосбиржи — с задержкой около 15 минут. Не является инвестиционной рекомендацией.
@@ -724,7 +727,12 @@ function moodRender(d){
 const qPrev={};   // прошлые значения котировок: название → число
 function sideRender(d){
   if(!d.groups||!d.groups.length){
-    sideBody.innerHTML='<div class="sempty">Котировки временно недоступны</div>';return;
+    // пустой список — это выбор человека, а не поломка источника
+    const пусто=Array.isArray(мойНабор)&&!мойНабор.length;
+    sideBody.innerHTML='<div class="sempty">'+
+      (пусто?'Список пуст. Добавьте инструменты через поиск выше или нажмите «по умолчанию».'
+            :'Котировки временно недоступны')+'</div>';
+    return;
   }
   moodRender(d);
   let h='';
@@ -808,8 +816,8 @@ function читатьНабор(){
   try{ const v=JSON.parse(localStorage.getItem(МОЙ_КЛЮЧ)); return Array.isArray(v)&&v.length?почини(v):null; }catch(e){ return null; }
 }
 function писатьНабор(){
-  try{ мойНабор&&мойНабор.length ? localStorage.setItem(МОЙ_КЛЮЧ,JSON.stringify(мойНабор))
-                                 : localStorage.removeItem(МОЙ_КЛЮЧ); }catch(e){}
+  try{ Array.isArray(мойНабор) ? localStorage.setItem(МОЙ_КЛЮЧ,JSON.stringify(мойНабор))
+                               : localStorage.removeItem(МОЙ_КЛЮЧ); }catch(e){}
 }
 // Состав общей панели: с него начинается свой набор, если человек просто
 // добавил один инструмент и ничего не удалял.
@@ -875,7 +883,11 @@ function двинуть(id,куда){
 
 async function sideLoad(){
   try{
-    if(мойНабор&&мойНабор.length){
+    if(Array.isArray(мойНабор)){
+      if(!мойНабор.length){                          // список пуст — так и показываем
+        sideRender({updated:null,groups:[]});
+        return;
+      }
       await грузитьКаталог();
       const r=await fetch('/api/picked?ids='+encodeURIComponent(мойНабор.join(','))+'&t='+Date.now(),{cache:'no-store'});
       sideRender(мойВПанель(await r.json()));
@@ -913,13 +925,15 @@ function sideOpen(on){
       грузитьКаталог();
       // чтобы можно было убирать строки, панель должна стать своей: берём
       // текущий состав за основу, вернуть общий вид можно кнопкой рядом
-      if(!мойНабор||!мойНабор.length){ мойНабор=НАБОР_ПАНЕЛИ.slice(); писатьНабор(); sideLoad(); }
+      if(!Array.isArray(мойНабор)){ мойНабор=НАБОР_ПАНЕЛИ.slice(); писатьНабор(); sideLoad(); }
       поле.focus();
     }
     else { рез.innerHTML=''; поле.value=''; }
   }
   кн.onclick=()=>режим(окно.hidden);
-  document.getElementById('sDone').onclick=()=>режим(false);
+  document.getElementById('sClear').onclick=()=>{
+    мойНабор=[]; писатьНабор(); sideLoad();          // осознанно пустой список
+  };
   document.getElementById('sShare').onclick=async()=>{
     const кн=document.getElementById('sShare'), было=кн.textContent;
     const набор=мойНабор&&мойНабор.length?мойНабор:НАБОР_ПАНЕЛИ;
