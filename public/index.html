@@ -347,6 +347,10 @@ body.side-edit .qrow .qx,body.side-edit .qrow .qm{display:inline-block}
 .qrow .qx:hover{color:var(--red)}
 .qrow .qm:hover{color:var(--tx)}
 .qrow .qm[disabled]{opacity:.25;cursor:default}
+body.side-edit .qrow[data-row]{cursor:grab}
+body.side-edit .qrow[data-row]:active{cursor:grabbing}
+.qrow.тащится{opacity:.4}
+.qrow.сюда{box-shadow:inset 0 2px 0 var(--amber)}
 .qg-t{font-size:9px;letter-spacing:.14em;color:var(--dim);padding:4px 14px 1px;text-transform:uppercase}
 .qrow{display:flex;align-items:baseline;gap:7px;padding:2px 14px;line-height:1.3;
   -webkit-tap-highlight-color:transparent}
@@ -757,7 +761,7 @@ function sideRender(d){
         '<button class="qm" data-up="'+ид+'" title="выше">▲</button>'+
         '<button class="qm" data-dn="'+ид+'" title="ниже">▼</button>'+
         '<button class="qx" data-id="'+ид+'" title="убрать">×</button>':'';
-      h+='<div class="qrow" data-n="'+bare.replace(/"/g,'&quot;')+'" data-p="'+String(r.p).replace(/"/g,'&quot;')+'">'+
+      h+='<div class="qrow"'+(r.id?' data-row="'+ид+'"':'')+' data-n="'+bare.replace(/"/g,'&quot;')+'" data-p="'+String(r.p).replace(/"/g,'&quot;')+'">'+
          '<span class="qn">'+r.n+'</span><span class="qp'+tc+'">'+r.p+yld+'</span><span class="qc '+cls+'">'+ct+'</span>'+x+'</div>';
     }
     h+='</div>';
@@ -775,6 +779,7 @@ function sideRender(d){
     const вверх=b.dataset.up!=null, id=вверх?b.dataset.up:b.dataset.dn;
     двинуть(id,вверх?-1:1);
   });
+  перетаскивание();
 }
 
 // ── копирование котировок по нажатию ────────────────────────────────────
@@ -864,6 +869,49 @@ async function грузитьКаталог(){
   каталогГрузится=true;
   try{ const r=await fetch('/api/catalog'); каталог=(await r.json()).items||[]; }catch(e){}
   каталогГрузится=false;
+}
+
+// Перенос строки мышью. Работает только в режиме настройки и только внутри
+// своего раздела: иначе строка прыгнула бы в чужую группу и тут же вернулась
+// обратно при следующей отрисовке. Стрелки остаются — на телефоне переносить
+// перетаскиванием браузеры не дают.
+let тащим=null;
+function перетаскивание(){
+  const редактируем=document.body.classList.contains('side-edit');
+  sideBody.querySelectorAll('.qrow[data-row]').forEach(el=>{
+    el.draggable=редактируем;
+    if(!редактируем)return;
+    el.ondragstart=e=>{
+      тащим=el.dataset.row;
+      el.classList.add('тащится');
+      try{ e.dataTransfer.setData('text/plain',тащим); e.dataTransfer.effectAllowed='move'; }catch(_){}
+    };
+    el.ondragend=()=>{ тащим=null; sideBody.querySelectorAll('.qrow').forEach(x=>x.classList.remove('тащится','сюда')); };
+    el.ondragover=e=>{
+      if(!тащим||el.dataset.row===тащим)return;
+      if(группаИд(el.dataset.row)!==группаИд(тащим))return;   // чужой раздел — не принимаем
+      e.preventDefault();
+      e.dataTransfer.dropEffect='move';
+      el.classList.add('сюда');
+    };
+    el.ondragleave=()=>el.classList.remove('сюда');
+    el.ondrop=e=>{
+      e.preventDefault();
+      el.classList.remove('сюда');
+      if(тащим) перенести(тащим, el.dataset.row);
+    };
+  });
+}
+
+function перенести(из,в){
+  if(!Array.isArray(мойНабор)||из===в)return;
+  if(группаИд(из)!==группаИд(в))return;
+  const a=мойНабор.indexOf(из);
+  if(a<0)return;
+  мойНабор.splice(a,1);
+  const b=мойНабор.indexOf(в);
+  мойНабор.splice(b<0?мойНабор.length:b,0,из);
+  писатьНабор(); sideLoad();
 }
 
 function группаИд(id){
