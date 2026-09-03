@@ -173,6 +173,11 @@ nav.off{opacity:.35;pointer-events:none}
 /* ── лента ── */
 main{max-width:860px;margin:0 auto;padding:8px 0 60px}
 @media(max-width:960px){main{margin-left:34px}}
+/* Статей в ленте больше тысячи, на экране — десяток. Разрешаем браузеру не
+   считать раскладку того, что за пределами экрана: первая отрисовка и
+   прокрутка становятся заметно легче, особенно на телефоне. Запасная высота
+   нужна, чтобы полоса прокрутки не прыгала. */
+.row{content-visibility:auto;contain-intrinsic-size:auto 118px}
 .row{display:grid;grid-template-columns:52px 1fr;gap:0 12px;padding:11px 14px;border-bottom:1px solid var(--line);
   position:relative;transition:background .3s}
 .row .time{color:var(--dim);font-size:12px;padding-top:0;line-height:16px;font-family:var(--mono)}
@@ -767,7 +772,14 @@ function moodRender(d){
     sh>=.45?'рынок смешанный':sh>=.3?'преобладает снижение':'снижение по широкому фронту';
 }
 const qPrev={};   // прошлые значения котировок: название → число
+// Панель приходит каждые две секунды, но меняется куда реже. Перерисовываем
+// только когда содержимое действительно другое — иначе тридцать строк
+// пересобирались бы тридцать раз в минуту впустую.
+let sidePrint='';
 function sideRender(d){
+  const print=JSON.stringify(d.groups||[]);
+  if(print===sidePrint && !document.body.classList.contains('side-edit'))return;
+  sidePrint=print;
   if(!d.groups||!d.groups.length){
     // пустой список — это выбор человека, а не поломка источника
     const пусто=Array.isArray(мойНабор)&&!мойНабор.length;
@@ -1068,7 +1080,7 @@ function sideOpen(on){
   if(on){
     sideAlign();
     sideLoad();
-    if(!sideTimer)sideTimer=setInterval(sideLoad,2000);   // 2 с — проба
+    if(!sideTimer)sideTimer=setInterval(()=>{ if(!document.hidden)sideLoad(); },2000);   // в скрытой вкладке не дёргаем
   }else if(sideTimer){clearInterval(sideTimer);sideTimer=null;}
 }
 // Режим настройки набора: поиск сверху, крестики у строк.
@@ -1393,28 +1405,40 @@ if(canHover){
 }
 
 // ── загрузка ──
+// Отпечаток ленты: если состав, порядок и счётчики источников не изменились,
+// перерисовывать тысячу статей незачем. Раньше это делалось каждые пятнадцать
+// секунд безусловно — отсюда подёргивания и потеря места прокрутки.
+let feedPrint='';
+function отпечаток(items){
+  let h='';
+  for(const x of items) h+=x.id+':'+(x.srcCount||1)+':'+(x.lvl||0)+'|';
+  return h;
+}
+
 async function load(){
   try{
-    const r=await fetch('/api/feed?t='+Date.now(),{cache:'no-store'});
+    // без искусственного параметра в адресе: сервер ставит отметку версии,
+    // и если лента не менялась, он ответит пустым 304 — быстрее и дешевле
+    const r=await fetch('/api/feed',{cache:'no-cache'});
+    if(r.status===304)return;
     const data=await r.json();
     if(!data.items)return;
     let newImportant=false,anyNew=false;
+    const свежие=new Set();
     for(const x of data.items){
       if(!knownIds.has(x.id)){
-        if(!firstLoad){x._fresh=true;anyNew=true;if(x.lvl===2)newImportant=true;}
+        if(!firstLoad){свежие.add(x.id);anyNew=true;if(x.lvl===2)newImportant=true;}
         knownIds.add(x.id);
       }
     }
     ITEMS=data.items;
     // чистим knownIds если разросся — оставляем только актуальные
     if(knownIds.size>3000){knownIds.clear();for(const x of ITEMS)knownIds.add(x.id);}
-    renderAll();
+    const print=отпечаток(ITEMS);
+    if(print!==feedPrint){ feedPrint=print; renderAll(); }
     if(anyNew){
-      document.querySelectorAll('.row').forEach(el=>{
-        const id=el.id.slice(2);
-        const x=ITEMS.find(i=>i.id===id);
-        if(x&&x._fresh){el.classList.add('fresh');delete x._fresh}
-      });
+      // подсвечиваем только новые строки — по набору кодов, без перебора массива
+      for(const id of свежие){ const el=document.getElementById('n-'+id); if(el)el.classList.add('fresh'); }
     }
     if(newImportant&&sound)beep();
     if(newImportant&&document.hidden)setFav(true);
@@ -1433,7 +1457,7 @@ async function load(){
   }
 }
 load();
-setInterval(load,15000);          // страховка: если линия оборвётся, лента всё равно живая
+setInterval(()=>{ if(!document.hidden)load(); },15000);   // страховка: если линия оборвётся, лента всё равно живая; в скрытой вкладке молчим
 
 // ── живая линия: сервер сам сообщает о новых постах, лента обновляется мгновенно ──
 let liveEs=null, liveBusy=false;
@@ -1450,7 +1474,7 @@ function liveConnect(){
   };
 }
 liveConnect();
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){liveConnect();load()}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){liveConnect();load();if(sideTimer)sideLoad();}});
 
 // ── кнопка наверх ──
 const toTop=document.getElementById('toTop');

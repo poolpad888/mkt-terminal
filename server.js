@@ -540,6 +540,19 @@ function wordSet(text) {
     });
   return new Set(w);
 }
+// Отпечаток и набор слов по коду записи — переживают сборки. Ограничиваем
+// размер, чтобы память не росла бесконечно.
+const PREP = new Map();
+function prepOf(x) {
+  let v = PREP.get(x.id);
+  if (!v || v.len !== x.text.length) {
+    v = { fp: fingerprint(x.text), ws: wordSet(x.text), len: x.text.length };
+    if (PREP.size > 6000) { let n = 0; for (const k of PREP.keys()) { PREP.delete(k); if (++n > 2000) break; } }
+    PREP.set(x.id, v);
+  }
+  return v;
+}
+
 const WS = new WeakMap();
 function wsOf(x) {
   let v = WS.get(x);
@@ -722,24 +735,31 @@ async function build() {
   });
   fresh.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-  // дедупликация: точные дубли + похожие по смыслу в окне 3 часов
+  // дедупликация: точные дубли + похожие по смыслу в окне 6 часов.
+  // Сборка идёт каждые двадцать секунд, а записи между сборками те же самые,
+  // поэтому отпечаток и набор слов считаем один раз и помним по коду записи.
+  // Время тоже разбираем один раз: раньше строка даты парсилась на каждом
+  // из сотен тысяч сравнений.
+  const t0 = Date.now();
   const seen = new Map();
   const out = [];
   const WINDOW = 6 * 3600 * 1000;          // было 3 часа — растянули, пересказы приходят с задержкой
   const NEAR = 15 * 60 * 1000;            // «рядом» — четверть часа
+  for (const x of fresh) x._t = new Date(x.time).getTime();
   for (let i = fresh.length - 1; i >= 0; i--) {   // от старых к новым
     const x = fresh[i];
-    const fp = fingerprint(x.text);
+    const pre = prepOf(x);
+    const fp = pre.fp;
     let keep = seen.get(fp) || null;
     if (!keep) {
-      const ws = wordSet(x.text);
-      const t = new Date(x.time).getTime();
+      const ws = pre.ws;
+      const t = x._t;
       for (let j = out.length - 1; j >= 0; j--) {
         const y = out[j];
-        if (t - new Date(y.time).getTime() > WINDOW) break;
+        const dt = t - y._t;
+        if (dt > WINDOW) break;
         if (y.src === x.src) continue;             // внутри одного канала не склеиваем
-        const near = t - new Date(y.time).getTime() <= NEAR;
-        if (similar(ws, y._ws, near) && !conflicts(x.text, y.text)) { keep = y; break; }
+        if (similar(ws, y._ws, dt <= NEAR) && !conflicts(x.text, y.text)) { keep = y; break; }
       }
       if (!keep) {
         x._ws = ws;
@@ -754,7 +774,8 @@ async function build() {
     if (!keep.alsoIn.includes(x.srcName) && keep.srcName !== x.srcName) keep.alsoIn.push(x.srcName);
   }
   out.reverse();                                   // снова: новые сверху
-  for (const x of out) delete x._ws;
+  for (const x of out) { delete x._ws; delete x._t; }
+  const dedupMs = Date.now() - t0;
 
   for (const x of out) {
     const c = classify(x.text);
@@ -768,7 +789,7 @@ async function build() {
     x.tags = hashtags(x.text);
   }
   const dups = fresh.length - out.length;
-  console.log('DEDUP: kept=' + out.length + ' merged=' + dups);
+  console.log('DEDUP: kept=' + out.length + ' merged=' + dups + ' за ' + dedupMs + ' мс');
   if (offN) console.log('OFFTOPIC: убрано ' + offN + ' — ' +
     Object.entries(offBy).map(([k, v]) => k + ' ' + v).join(', '));
   return { updated: new Date().toISOString(), count: out.length, items: out };
@@ -1651,6 +1672,40 @@ function addSec(res) {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 }
 
+// ── Быстрая отдача ───────────────────────────────────────────────────────
+// Раньше всё уходило несжатым и без отметок версии: лента в сотни килобайт
+// качалась целиком каждые пятнадцать секунд, даже если не менялась. Теперь:
+//  • ответы больше килобайта сжимаются, если браузер это умеет (в 4–5 раз меньше);
+//  • у ответа есть отметка версии (ETag) — если у браузера уже такая, отдаём
+//    пустой 304 вместо тела;
+//  • сжатую копию одного и того же тела не пересчитываем — она кэшируется по
+//    отметке, так что тысяча вкладок обходится одним сжатием.
+const gzCache = new Map();             // etag → сжатое тело
+function send(req, res, status, headers, body) {
+  const buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body));
+  const etag = 'W/"' + crypto.createHash('sha1').update(buf).digest('base64url').slice(0, 16) + '"';
+  const h = Object.assign({ 'ETag': etag, 'Vary': 'Accept-Encoding' }, headers);
+  if (status === 200 && req.headers['if-none-match'] === etag) {
+    res.writeHead(304, h); return res.end();
+  }
+  const wantsGz = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
+  if (wantsGz && buf.length > 1024) {
+    let gz = gzCache.get(etag);
+    if (!gz) {
+      gz = zlib.gzipSync(buf, { level: 6 });
+      if (gzCache.size > 64) gzCache.delete(gzCache.keys().next().value);   // держим последние
+      gzCache.set(etag, gz);
+    }
+    h['Content-Encoding'] = 'gzip';
+    h['Content-Length'] = gz.length;
+    res.writeHead(status, h); return res.end(gz);
+  }
+  h['Content-Length'] = buf.length;
+  res.writeHead(status, h); return res.end(buf);
+}
+const sendJson = (req, res, obj, extra) =>
+  send(req, res, 200, Object.assign({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' }, extra || {}), JSON.stringify(obj));
+
 const srv = http.createServer(async (req, res) => {
   addSec(res);
   // Если перед сайтом стоит nginx, настоящий адрес приходит заголовком. Когда
@@ -1683,8 +1738,7 @@ const srv = http.createServer(async (req, res) => {
     }
     if (u.pathname === '/api/feed') {
       const feed = await getFeed();
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-      return res.end(JSON.stringify(feed));
+      return sendJson(req, res, feed);
     }
     if (u.pathname === '/api/history') {
       // Поиск по архиву в базе: ?q=слово. Отдаём до 200 совпадений, новые сверху.
@@ -1723,14 +1777,12 @@ const srv = http.createServer(async (req, res) => {
     }
     if (u.pathname === '/api/panel') {
       const q = await getPanel();
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-      return res.end(JSON.stringify(q));
+      return sendJson(req, res, q);
     }
     // пробная страница со своим набором котировок
     if (u.pathname === '/api/catalog') {
       const c = await getCatalog();
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=600' });
-      return res.end(JSON.stringify(c));
+      return sendJson(req, res, c, { 'Cache-Control': 'public, max-age=600' });
     }
     // короткая ссылка: сохранить набор и выдать код / получить набор по коду
     if (u.pathname === '/api/share') {
@@ -1754,13 +1806,11 @@ const srv = http.createServer(async (req, res) => {
     if (u.pathname === '/api/picked') {
       const ids = (u.searchParams.get('ids') || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 60);
       const d = ids.length ? await getPicked(ids) : { updated: null, quotes: {} };
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-      return res.end(JSON.stringify(d));
+      return sendJson(req, res, d);
     }
     if (u.pathname === '/api/quotes') {
       const q = await getQuotes();
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=30' });
-      return res.end(JSON.stringify(q));
+      return sendJson(req, res, q, { 'Cache-Control': 'public, max-age=30' });
     }
     if (u.pathname === '/api/stats') {
       rollDay();                       // чтобы после полуночи не показать вчерашнее
@@ -1771,8 +1821,7 @@ const srv = http.createServer(async (req, res) => {
       });
       const t  = dayRec(S.date);
       const dv = {}; for (const [k, c] of aggr('dev', 30)) dv[k] = c;
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-      return res.end(JSON.stringify({
+      return sendJson(req, res, {
         online: onlineNow(),
         live: sseIp.size,                                 // сколько вкладок держит связь
         ipSrc,                              // уникальных за последние 2 минуты
@@ -1796,7 +1845,7 @@ const srv = http.createServer(async (req, res) => {
         perVisit: t.ses ? Math.round((t.v || 0) / t.ses * 10) / 10 : 0,  // открытий за визит
         hours: t.hh || new Array(24).fill(0),             // активность по часам
         ...extraStats()                                   // сравнения и итоги за 30 дней
-      }));
+      });
     }
     if (u.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -1813,12 +1862,15 @@ const srv = http.createServer(async (req, res) => {
     p = path.normalize(p).replace(/^(\.\.[/\\])+/, '');
     const file = path.join(__dirname, 'public', p);
     if (file.startsWith(path.join(__dirname, 'public')) && fs.existsSync(file) && fs.statSync(file).isFile()) {
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
-      return res.end(fs.readFileSync(file));
+      const ext = path.extname(file);
+      // страницы могут меняться в любой момент — браузер сверяет отметку при каждом
+      // заходе; картинки и описание приложения меняются редко — держим сутки
+      const cc = (ext === '.html' || ext === '.json' || ext === '.js') ? 'no-cache' : 'public, max-age=86400';
+      return send(req, res, 200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': cc }, fs.readFileSync(file));
     }
     // любой другой адрес — на главную (для ссылок на новость /n/…)
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end(fs.readFileSync(path.join(__dirname, 'public', 'index.html')));
+    return send(req, res, 200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' },
+      fs.readFileSync(path.join(__dirname, 'public', 'index.html')));
   } catch (e) {
     res.writeHead(500); res.end('error');
   }
