@@ -345,18 +345,39 @@ function fetchUrl(url, redirects = 3) {
 }
 
 // ── Разбор HTML-страницы t.me/s/канал ───────────────────────────────────
+// Кавычки-ёлочки, тире и прочая типографика приходят кодами — без них текст
+// пестрит вставками вида «laquo». Список покрывает то, что реально встречается
+// в лентах ведомств и деловых изданий.
+const ENTS = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+  laquo: '«', raquo: '»', ldquo: '«', rdquo: '»', bdquo: '„', lsquo: '‘', rsquo: '’',
+  ndash: '–', mdash: '—', minus: '−', hellip: '…', middot: '·', bull: '•',
+  deg: '°', plusmn: '±', times: '×', frac12: '½', sect: '§', para: '¶',
+  copy: '©', reg: '®', trade: '™', euro: '€', pound: '£', yen: '¥', cent: '¢',
+  rarr: '→', larr: '←', harr: '↔', shy: '', zwj: '', thinsp: ' ', ensp: ' ', emsp: ' ',
+};
 function decodeEntities(s) {
   return s
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n));
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n))
+    .replace(/&([a-z][a-z0-9]{1,9});/gi, (m, n) => {
+      const v = ENTS[n] !== undefined ? ENTS[n] : ENTS[n.toLowerCase()];
+      return v !== undefined ? v : m;
+    })
+    .replace(/&amp;/g, '&');
 }
 function stripHtml(s) {
-  return decodeEntities(
-    s.replace(/<br\s*\/?>/gi, '\n')
-     .replace(/<\/(p|div)>/gi, '\n')
-     .replace(/<[^>]+>/g, '')
-  ).replace(/\n{3,}/g, '\n\n').trim();
+  // Разметка в лентах часто приходит закодированной: снимаем теги, раскодируем
+  // и снимаем ещё раз — иначе после раскодирования теги появляются заново и
+  // протекают в текст новости вместе со служебными комментариями.
+  const снять = t => t
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|tr)>/gi, '\n')
+    .replace(/<[^>]+>/g, '');
+  let out = decodeEntities(снять(s));
+  if (/<[a-z!\/]/i.test(out)) out = decodeEntities(снять(out));
+  return out.replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 }
 // Сколько знаков поста показываем в ленте. Режем по концу предложения,
 // а не по счётчику символов, чтобы текст не обрывался на полуслове.
