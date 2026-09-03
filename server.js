@@ -440,7 +440,16 @@ function parseRss(xml, srcName) {
     const skip = RSS_SKIP[srcName];
     if (skip && skip.test(title)) continue;
     const desc = g('description');
-    const id = 'rss-' + Buffer.from(link).toString('base64url').slice(0, 24);
+    // Опознаём запись по её постоянному номеру, а не по ссылке. У ЦБ ссылки
+    // ненадёжны: в одной ленте это просто разделы сайта, повторяющиеся у разных
+    // новостей, в другой — адреса с якорями, которые меняются. Стоило якорю
+    // измениться, и старая запись выглядела новой. Номер же неизменен.
+    const guid = g('guid');
+    const ключ = guid ? srcName + '|' + guid : link;
+    // Раньше код записи брался из первых символов ссылки — а у новостей одного
+    // сайта начало адреса совпадает, поэтому разные записи получали один код.
+    // Берём хеш: он различает записи целиком, а не по первым буквам.
+    const id = 'rss-' + crypto.createHash('sha1').update(ключ).digest('base64url').slice(0, 24);
     items.push({
       id,
       src: 'rss-' + srcName, srcName,
