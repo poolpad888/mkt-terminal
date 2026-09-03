@@ -347,6 +347,7 @@ body.side-edit .qrow .qx,body.side-edit .qrow .qm{display:inline-block}
 .qrow .qx:hover{color:var(--red)}
 .qrow .qm:hover{color:var(--tx)}
 .qrow .qm[disabled]{opacity:.25;cursor:default}
+.qrow .qy{font-style:normal;color:var(--dim);font-size:10.5px}
 body.side-edit .qrow[data-row]{cursor:grab}
 body.side-edit .qrow[data-row]:active{cursor:grabbing}
 .qrow.тащится{opacity:.4}
@@ -755,7 +756,7 @@ function sideRender(d){
       let tc='';
       if(prev!=null && isFinite(cur) && cur!==prev) tc=cur>prev?' tup':' tdn';
       if(isFinite(cur)) qPrev[r.n]=cur;
-      const yld=r.yld!=null?' <i class="qy">('+r.yld.toFixed(2).replace('.',',')+'%)</i>':'';
+      const yld=r.yld!=null?' <span class="qy">('+r.yld.toFixed(2).replace('.',',')+'%)</span>':'';
       const ид=r.id?String(r.id).replace(/"/g,'&quot;'):'';
       const x=r.id?
         '<button class="qm" data-up="'+ид+'" title="выше">▲</button>'+
