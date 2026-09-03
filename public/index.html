@@ -352,6 +352,11 @@ body.side-edit .qrow[data-row]{cursor:grab}
 body.side-edit .qrow[data-row]:active{cursor:grabbing}
 .qrow.тащится{opacity:.4}
 .qrow.сюда{box-shadow:inset 0 2px 0 var(--amber)}
+body.side-edit .qg-t{cursor:grab}
+body.side-edit .qg-t:active{cursor:grabbing}
+body.side-edit .qg-t::after{content:' ⠿';opacity:.45;letter-spacing:0}
+.qg.тащится{opacity:.4}
+.qg.сюда{box-shadow:inset 0 2px 0 var(--amber)}
 .qg-t{font-size:9px;letter-spacing:.14em;color:var(--dim);padding:4px 14px 1px;text-transform:uppercase}
 .qrow{display:flex;align-items:baseline;gap:7px;padding:2px 14px;line-height:1.3;
   -webkit-tap-highlight-color:transparent}
@@ -742,7 +747,7 @@ function sideRender(d){
   moodRender(d);
   let h='';
   for(const g of d.groups){
-    h+='<div class="qg"><div class="qg-t">'+g.name+'</div>';
+    h+='<div class="qg" data-g="'+String(g.name).replace(/"/g,'&quot;')+'"><div class="qg-t">'+g.name+'</div>';
     for(const r of g.rows){
       const c=r.c;
       const cls=c==null?'z':c>0.004?'up':c<-0.004?'dn':'z';
@@ -835,6 +840,28 @@ const НАБОР_ПАНЕЛИ=[
   'hl:BTC','hl:ETH','hl:SOL','hl:XRP',
   'moex:SBER','moex:GAZP','moex:LKOH','moex:ROSN','moex:GMKN','moex:VTBR','moex:YDEX',
 ];
+// Порядок разделов человек может менять сам, перетаскивая заголовки. Свой
+// порядок хранится рядом с набором; разделы, которых в нём нет, встают следом
+// в порядке по умолчанию.
+const ГР_КЛЮЧ='ff-groups-v1';
+let мойПорядок=null;
+function читатьПорядок(){
+  try{ const v=JSON.parse(localStorage.getItem(ГР_КЛЮЧ)); return Array.isArray(v)?v:null; }catch(e){ return null; }
+}
+function писатьПорядок(){
+  try{ Array.isArray(мойПорядок)?localStorage.setItem(ГР_КЛЮЧ,JSON.stringify(мойПорядок))
+                                :localStorage.removeItem(ГР_КЛЮЧ); }catch(e){}
+}
+function весГруппы(имя){
+  if(мойПорядок){
+    const i=мойПорядок.indexOf(имя);
+    if(i>=0)return i;                       // свой порядок важнее умолчания
+    return 100+Math.max(0,ПОРЯДОК_ГР.indexOf(имя));
+  }
+  const i=ПОРЯДОК_ГР.indexOf(имя);
+  return i<0?99:i;
+}
+
 const ПОРЯДОК_ГР=['Сырьё','Индексы','Трежерис','Валюты',
                   'Крипта','Акции','ОФЗ','Облигации компаний'];
 
@@ -848,20 +875,21 @@ function мойВПанель(d){
     const q=d.quotes[id];
     (по[g]=по[g]||[]).push({
       n:(c&&c.name)||id.split(':').pop(),
-      p:q?(typeof q.p==='string'?q.p:числоПанели(q.p)):'—',
+      p:q?(typeof q.p==='string'?q.p:числоПанели(q.p,id)):'—',
       c:q&&q.c!=null?q.c:null,
       id,
       yld:q&&q.yld!=null?q.yld:null,
     });
   }
-  const имена=Object.keys(по).sort((a,b)=>{
-    const ia=ПОРЯДОК_ГР.indexOf(a), ib=ПОРЯДОК_ГР.indexOf(b);
-    return (ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b,'ru');
-  });
+  const имена=Object.keys(по).sort((a,b)=>весГруппы(a)-весГруппы(b)||a.localeCompare(b,'ru'));
   return {updated:d.updated,groups:имена.map(n=>({name:n,rows:по[n]}))};
 }
-function числоПанели(v){
+function числоПанели(v,id){
   if(v==null)return '—';
+  // Официальные курсы ЦБ публикуются с четырьмя знаками — показываем как есть,
+  // округление до копеек скрывало бы дневное движение мелких валют.
+  if(id&&id.startsWith('cbr:'))
+    return v.toLocaleString('ru-RU',{minimumFractionDigits:4,maximumFractionDigits:4});
   const a=Math.abs(v), зн=a>=1000?1:(a>=100?2:(a>=1?2:4));
   return v.toLocaleString('ru-RU',{minimumFractionDigits:зн,maximumFractionDigits:зн});
 }
@@ -876,8 +904,57 @@ async function грузитьКаталог(){
 // своего раздела: иначе строка прыгнула бы в чужую группу и тут же вернулась
 // обратно при следующей отрисовке. Стрелки остаются — на телефоне переносить
 // перетаскиванием браузеры не дают.
-let тащим=null;
+let тащим=null, тащимГруппу=null;
+
+// Перенос целого раздела: берём за его заголовок. Строки внутри переносятся
+// отдельно, поэтому у заголовка и у строк разные захваты — так одно не мешает
+// другому.
+function перетаскиваниеГрупп(){
+  const редактируем=document.body.classList.contains('side-edit');
+  const текущие=[...sideBody.querySelectorAll('.qg[data-g]')].map(x=>x.dataset.g);
+  sideBody.querySelectorAll('.qg[data-g]').forEach(box=>{
+    const шапка=box.querySelector('.qg-t');
+    if(!шапка)return;
+    шапка.draggable=редактируем;
+    if(!редактируем)return;
+    шапка.ondragstart=e=>{
+      тащимГруппу=box.dataset.g;
+      e.stopPropagation();
+      box.classList.add('тащится');
+      try{ e.dataTransfer.setData('text/plain','гр:'+тащимГруппу); e.dataTransfer.effectAllowed='move'; }catch(_){}
+    };
+    шапка.ondragend=()=>{ тащимГруппу=null;
+      sideBody.querySelectorAll('.qg').forEach(x=>x.classList.remove('тащится','сюда')); };
+    box.ondragover=e=>{
+      if(!тащимГруппу||box.dataset.g===тащимГруппу)return;
+      e.preventDefault(); e.dataTransfer.dropEffect='move';
+      box.classList.add('сюда');
+    };
+    box.ondragleave=()=>box.classList.remove('сюда');
+    box.ondrop=e=>{
+      if(!тащимГруппу)return;
+      e.preventDefault(); e.stopPropagation();
+      box.classList.remove('сюда');
+      перенестиГруппу(тащимГруппу, box.dataset.g, текущие);
+    };
+  });
+}
+
+function перенестиГруппу(из,в,текущие){
+  if(из===в)return;
+  const порядок=мойПорядок&&мойПорядок.length?мойПорядок.slice():текущие.slice();
+  for(const имя of текущие) if(!порядок.includes(имя)) порядок.push(имя);
+  const a=порядок.indexOf(из);
+  if(a<0)return;
+  порядок.splice(a,1);
+  const b=порядок.indexOf(в);
+  порядок.splice(b<0?порядок.length:b,0,из);
+  мойПорядок=порядок;
+  писатьПорядок(); sideLoad();
+}
+
 function перетаскивание(){
+  перетаскиваниеГрупп();
   const редактируем=document.body.classList.contains('side-edit');
   sideBody.querySelectorAll('.qrow[data-row]').forEach(el=>{
     el.draggable=редактируем;
@@ -951,6 +1028,7 @@ async function sideLoad(){
 }
 function sideOpen(on){
   if(мойНабор===null) мойНабор=читатьНабор();      // восстановить свой набор при открытии
+  if(мойПорядок===null) мойПорядок=читатьПорядок();
   document.body.classList.toggle('side-on',on);
   fitNavSoon();                       // пересчитать, сколько чипов влезает
   fitNav();
@@ -999,7 +1077,8 @@ function sideOpen(on){
     setTimeout(()=>{кн.textContent=было;},1600);
   };
   document.getElementById('sReset').onclick=()=>{
-    мойНабор=null; писатьНабор(); sideLoad();     // вернуться к общей панели
+    мойНабор=null; мойПорядок=null;                // вернуть и состав, и порядок разделов
+    писатьНабор(); писатьПорядок(); sideLoad();
   };
 
   поле.addEventListener('input',async()=>{
