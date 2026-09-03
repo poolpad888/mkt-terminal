@@ -800,8 +800,12 @@ document.addEventListener('click',e=>{
 // обычная общая панель. Свой набор хранится только в этом браузере.
 const МОЙ_КЛЮЧ='ff-pick-v1';
 let мойНабор=null, каталог=[], каталогГрузится=false;
+// Ранее биржевой доллар хранился под другим кодом — подменяем на лету,
+// иначе у тех, кто уже настроил набор, строка осталась бы без группы.
+const ЗАМЕНЫ={'sel:USD000UTSTOM':'sel:USDRUB_TOM'};
+const почини=v=>[...new Set(v.map(x=>ЗАМЕНЫ[x]||x))];
 function читатьНабор(){
-  try{ const v=JSON.parse(localStorage.getItem(МОЙ_КЛЮЧ)); return Array.isArray(v)&&v.length?v:null; }catch(e){ return null; }
+  try{ const v=JSON.parse(localStorage.getItem(МОЙ_КЛЮЧ)); return Array.isArray(v)&&v.length?почини(v):null; }catch(e){ return null; }
 }
 function писатьНабор(){
   try{ мойНабор&&мойНабор.length ? localStorage.setItem(МОЙ_КЛЮЧ,JSON.stringify(мойНабор))

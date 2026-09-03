@@ -1531,7 +1531,7 @@ async function buildCatalog() {
     }).catch(() => {}));
 
   // валютный рынок Мосбиржи и доходности
-  out.push({ id: 'sel:USD000UTSTOM', name: 'USDRUB_TOM', tk: 'USDRUB_TOM', g: 'Валюты' });
+  out.push({ id: 'sel:USDRUB_TOM', name: 'USDRUB_TOM', tk: 'USDRUB_TOM', g: 'Валюты' });
   out.push({ id: 'sel:CNYRUB_TOM',  name: 'CNYRUB_TOM', tk: 'CNYRUB_TOM', g: 'Валюты' });
   for (const [id, nm] of TSY) out.push({ id: 'ust:' + id, name: nm, tk: id, g: 'Трежерис' });
   out.push({ id: 'ust:NASDAQ100', name: 'Nasdaq 100', tk: 'NASDAQ100', g: 'Индексы' });
@@ -1613,7 +1613,9 @@ async function getPicked(ids) {
       for (const [secid, last, chg] of (j.marketdata && j.marketdata.data) || []) {
         if (last == null) continue;
         if (want.sel.includes(secid)) res['sel:' + secid] = { p: last, c: chg };
-        if (secid === 'USD000UTSTOM' && want.sel.includes('USDRUB_TOM')) res['sel:USDRUB_TOM'] = { p: last, c: chg };
+        // биржа зовёт доллар то так, то этак — приводим к одному коду
+        if ((secid === 'USD000UTSTOM' || secid === 'USDRUB_TOM') && want.sel.includes('USDRUB_TOM'))
+          res['sel:USDRUB_TOM'] = { p: last, c: chg };
       }
     }).catch(() => {}));
 

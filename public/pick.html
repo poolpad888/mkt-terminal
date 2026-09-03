@@ -157,7 +157,9 @@ function читать(){
     const v=изСсылки.split(',').map(x=>x.trim()).filter(Boolean);
     if(v.length){ выбор=v; писать(); history.replaceState(null,'','/pick'); return v; }
   }
-  try{ const v=JSON.parse(localStorage.getItem(KEY)); if(Array.isArray(v))return v; }catch(e){}
+  const ЗАМЕНЫ={'sel:USD000UTSTOM':'sel:USDRUB_TOM'};   // старый код биржевого доллара
+  try{ const v=JSON.parse(localStorage.getItem(KEY));
+       if(Array.isArray(v))return [...new Set(v.map(x=>ЗАМЕНЫ[x]||x))]; }catch(e){}
   return ПОУМОЛЧАНИЮ.slice();
 }
 
