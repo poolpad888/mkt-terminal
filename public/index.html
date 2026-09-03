@@ -365,6 +365,38 @@ body.side-edit .qg-t::after{content:' ⠿';opacity:.45;letter-spacing:0}
 @media (hover:hover) and (pointer:fine){
   .qrow:hover{background:rgba(255,255,255,.05)}
   html.light .qrow:hover{background:rgba(20,30,45,.05)}
+
+  /* Мягкое свечение при наведении. Цвет — янтарный, в тон логотипу; сила
+     подобрана так, чтобы читалось как отклик, а не как подсветка витрины.
+     Всё только для мыши: на тач-экранах наведения нет, а :hover залипает. */
+  :root{--glow:rgba(240,166,60,.28);--glow-soft:rgba(240,166,60,.14)}
+  html.light{--glow:rgba(200,120,20,.28);--glow-soft:rgba(200,120,20,.12)}
+
+  .chip,header .hbtn,#q,.oldbtn,#side .sbtn,#side .sx,#sideBtn,#toTop,.ver,
+  .lnk,.share,.more,.tag,.tk{transition:box-shadow .18s ease,border-color .18s ease,
+    color .18s ease,background-color .18s ease,text-shadow .18s ease}
+
+  /* кнопки и чипы: рамка светлеет и появляется ореол */
+  .chip:hover,header .hbtn:hover,.oldbtn:hover,#side .sbtn:hover,#sideBtn:hover{
+    box-shadow:0 0 0 1px var(--glow),0 0 10px var(--glow-soft)}
+  #q:focus,#q:hover{box-shadow:0 0 0 1px var(--glow),0 0 10px var(--glow-soft)}
+
+  /* строка новости: едва заметная подсветка и тонкая полоска слева */
+  .row:hover{background:rgba(255,255,255,.025);box-shadow:inset 2px 0 0 var(--glow)}
+  html.light .row:hover{background:rgba(20,30,45,.03)}
+  .row.lvl2:hover{box-shadow:inset 2px 0 0 rgba(229,72,77,.55)}
+
+  /* строка котировки: полоска слева плюс лёгкий ореол у цены */
+  .qrow:hover{box-shadow:inset 2px 0 0 var(--glow)}
+  .qrow:hover .qp{text-shadow:0 0 8px var(--glow)}
+
+  /* ссылки и метки: свечение текста вместо подчёркивания */
+  .lnk:hover,.more:hover,.tag:hover,.tk:hover,.ver:hover,#toTop:hover,#side .sx:hover{
+    text-shadow:0 0 8px currentColor}
+  .share:hover{filter:drop-shadow(0 0 4px currentColor)}
+
+  /* логотип: оживает при наведении */
+  .logo:hover{text-shadow:0 0 12px var(--glow),0 0 2px var(--glow)}
 }
 /* нажатие на строку котировки копирует значение: по числу — только число,
    по названию — название и значение через табуляцию (две ячейки в таблице) */
