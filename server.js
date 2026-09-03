@@ -48,7 +48,6 @@ const TG = [
   ['smartlabnews',        'Смартлаб'],
   ['dohod',               'ДОХОДЪ'],
   ['probonds',            'PRObonds'],
-  ['angrybonds',          'Angry Bonds'],
   ['c0ldness',            'Холодный расчёт'],
   ['unexpectedvalue',     'Unexpected Value'],
   ['tinkoff_invest_official', 'Т-Инвестиции'],
@@ -56,7 +55,6 @@ const TG = [
   ['russianeconomism',    'Русский экономизм'],
   ['expert_ra',           'Эксперт РА'],
   ['fm_invest',           'Frank Инвестиции'],
-  ['dprunews',            'Деловой Петербург'],
   ['businessgazeta',      'БИЗНЕС Online'],
   ['realnoevremya',       'Реальное время'],
   ['ksonline',            'Континент Сибирь'],
@@ -129,7 +127,7 @@ async function fastPoll() {
   } finally { fastBusy = false; }
 }
 // Реклама, платные подписки и набор в закрытые группы — не новости
-const PROMO_SOURCES = new Set(['antonchehovanalitk','banksta','probonds','angrybonds','economika','smartlabnews']);
+const PROMO_SOURCES = new Set(['antonchehovanalitk','banksta','probonds','economika','smartlabnews']);
 const PROMO_RE = /вип[\s-]*канал|vip[\s-]*канал|платн[а-яё]+\s+(канал|подписк|групп)|подписк[а-яё]*\s+на\s+(закрыт|вип|vip)|закрыт[а-яё]+\s+(канал|групп)|открыт[а-яё]+\s+набор|набор\s+в\s+(групп|команд)|мест[а-яё]*\s+осталось|осталось\s+\d+\s+мест|успей\s+записат|запись\s+открыт|_bot(?![a-z])|бот\s+для\s+оплат|оплат[а-яё]*\s+(вип|vip|подписк)|тариф|промокод|скидк[а-яё]+\s+на\s+подписк|реклам[а-яё]*\s*[:\-]|erid|по\s+вопросам\s+рекламы|прайс|сотрудничеств|партнёрск|партнерск/i;
 
 // Технический мусор Мосбиржи и Минфина в ленту не пускаем
