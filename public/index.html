@@ -173,11 +173,6 @@ nav.off{opacity:.35;pointer-events:none}
 /* ── лента ── */
 main{max-width:860px;margin:0 auto;padding:8px 0 60px}
 @media(max-width:960px){main{margin-left:34px}}
-/* Статей в ленте больше тысячи, на экране — десяток. Разрешаем браузеру не
-   считать раскладку того, что за пределами экрана: первая отрисовка и
-   прокрутка становятся заметно легче, особенно на телефоне. Запасная высота
-   нужна, чтобы полоса прокрутки не прыгала. */
-.row{content-visibility:auto;contain-intrinsic-size:auto 118px}
 .row{display:grid;grid-template-columns:52px 1fr;gap:0 12px;padding:11px 14px;border-bottom:1px solid var(--line);
   position:relative;transition:background .3s}
 .row .time{color:var(--dim);font-size:12px;padding-top:0;line-height:16px;font-family:var(--mono)}
