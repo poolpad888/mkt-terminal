@@ -150,6 +150,34 @@ header{flex-wrap:nowrap}
 .verbox{max-height:none;overflow:visible}
 @media(max-height:520px){.verbox{max-height:82vh;overflow-y:auto}}
 @media(max-width:640px){.verbox{max-width:calc(100vw - 24px)}}
+/* Просьба обновить страницу. Появляется сверху, не перекрывая ленту надолго:
+   спокойная янтарная полоса в стиле сайта, с кнопкой и подсказкой клавиш. */
+#updbar{position:fixed;left:50%;top:-80px;transform:translateX(-50%);z-index:200;
+  display:flex;align-items:center;gap:12px;padding:10px 14px 10px 16px;
+  background:#1a1508;border:1px solid rgba(240,166,60,.55);border-radius:10px;
+  box-shadow:0 8px 30px rgba(0,0,0,.5),0 0 18px rgba(240,166,60,.18);
+  color:var(--tx);font-size:13px;line-height:1.35;white-space:nowrap;
+  transition:top .45s cubic-bezier(.2,.8,.2,1)}
+#updbar.on{top:12px}
+#updbar .ud{width:8px;height:8px;border-radius:50%;background:var(--amber);flex:none;
+  box-shadow:0 0 8px var(--amber);animation:udp 1.6s ease-in-out infinite}
+@keyframes udp{0%,100%{opacity:1}50%{opacity:.35}}
+#updbar b{color:var(--amber);font-weight:600}
+#updbar kbd{font-family:var(--mono);font-size:11px;background:#0b0d10;border:1px solid var(--line);
+  border-radius:4px;padding:1px 5px;color:var(--dim)}
+#updbar button{background:var(--amber);color:#1a1508;border:none;border-radius:6px;
+  padding:6px 12px;font-family:var(--sans);font-size:12.5px;font-weight:600;cursor:pointer}
+#updbar button:hover{filter:brightness(1.08)}
+#updbar .ux{background:none;border:none;color:var(--dim);font-size:16px;line-height:1;
+  padding:0 2px;cursor:pointer;font-weight:400}
+#updbar .ux:hover{color:var(--tx);filter:none}
+html.light #updbar{background:#fff7e6;color:#1a1508;border-color:rgba(200,120,20,.5)}
+html.light #updbar kbd{background:#fff;color:#555}
+@media(max-width:640px){
+  #updbar{left:12px;right:12px;transform:none;white-space:normal;padding:10px 12px;font-size:12.5px}
+  #updbar.on{top:10px}
+  #updbar kbd{display:none}
+}
 nav{position:sticky;top:var(--hh,41px);z-index:19;background:var(--bg);border-bottom:1px solid var(--line);
   display:flex;align-items:center;gap:6px;padding:0 14px;overflow-x:auto;scrollbar-width:none;
   flex-wrap:nowrap;height:38px;box-sizing:border-box}
@@ -643,6 +671,30 @@ setInterval(()=>{clock.textContent=new Date().toLocaleTimeString('ru-RU',{timeZo
   window.addEventListener('scroll',close,{passive:true});
 })();
 
+// Версия страницы вшивается сервером при отдаче. Каждый ответ ленты и панели
+// несёт текущую версию в заголовке; расхождение значит, что на сервере уже
+// новая страница, а эта устарела. Показываем просьбу один раз, повторно —
+// не раньше чем через десять минут, если человек её закрыл.
+const PAGE_VER='__PAGE_VER__';
+let updShown=false, updSnoozedUntil=0;
+function checkPageVersion(r){
+  try{
+    const v=r.headers.get('X-Page-Version');
+    if(!v||!PAGE_VER||PAGE_VER.startsWith('__')||v===PAGE_VER)return;
+    if(updShown||Date.now()<updSnoozedUntil)return;
+    updShown=true;
+    const bar=document.getElementById('updbar');
+    if(bar)bar.classList.add('on');
+  }catch(e){}
+}
+(function(){
+  const bar=document.getElementById('updbar'); if(!bar)return;
+  document.getElementById('updGo').onclick=()=>{ location.reload(); };
+  document.getElementById('updX').onclick=()=>{
+    bar.classList.remove('on'); updShown=false; updSnoozedUntil=Date.now()+10*60*1000;
+  };
+})();
+
 const sndBtn=document.getElementById('sndBtn');
 if(sndBtn)sndBtn.onclick=()=>{sound=!sound;sndBtn.textContent=sound?'🔊':'🔇';sndBtn.classList.toggle('on',sound)};
 
@@ -1059,6 +1111,7 @@ async function sideLoad(){
       return;
     }
     const r=await fetch('/api/panel?t='+Date.now(),{cache:'no-store'});   // без кеша, иначе браузер отдаёт старое
+    checkPageVersion(r);
     sideRender(await r.json());
   }catch(e){
     if(!sideBody.querySelector('.qrow'))
@@ -1415,6 +1468,7 @@ async function load(){
     // без искусственного параметра в адресе: сервер ставит отметку версии,
     // и если лента не менялась, он ответит пустым 304 — быстрее и дешевле
     const r=await fetch('/api/feed',{cache:'no-cache'});
+    checkPageVersion(r);
     if(r.status===304)return;
     const data=await r.json();
     if(!data.items)return;
@@ -1476,5 +1530,11 @@ const toTop=document.getElementById('toTop');
 window.addEventListener('scroll',()=>{toTop.classList.toggle('vis',window.scrollY>200)},{passive:true});
 toTop.onclick=()=>window.scrollTo({top:0,behavior:'smooth'});   // спрашиваем сервер каждые 15 секунд
 </script>
+<div id="updbar" role="status" aria-live="polite">
+  <span class="ud"></span>
+  <span>Вышло обновление сайта. <b>Пожалуйста, обновите страницу</b> — <kbd>Ctrl</kbd>+<kbd>F5</kbd></span>
+  <button id="updGo">Обновить</button>
+  <button class="ux" id="updX" title="напомнить позже">×</button>
+</div>
 </body>
 </html>

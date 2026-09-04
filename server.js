@@ -1680,11 +1680,29 @@ function addSec(res) {
 //    пустой 304 вместо тела;
 //  • сжатую копию одного и того же тела не пересчитываем — она кэшируется по
 //    отметке, так что тысяча вкладок обходится одним сжатием.
+// ── Версия страницы ──────────────────────────────────────────────────────
+// Отпечаток главной страницы вшивается в неё при отдаче и добавляется в
+// заголовок каждого ответа ленты. Если у открытой вкладки отпечаток другой —
+// значит на сервере уже новая версия, и страница просит себя обновить.
+// Считаем по содержимому файла, поэтому любая правка — новая версия.
+let pageVer = { mtime: 0, ver: '' };
+function pageVersion() {
+  try {
+    const f = path.join(__dirname, 'public', 'index.html');
+    const st = fs.statSync(f);
+    if (st.mtimeMs !== pageVer.mtime) {
+      const raw = fs.readFileSync(f);
+      pageVer = { mtime: st.mtimeMs, ver: crypto.createHash('sha1').update(raw).digest('base64url').slice(0, 10) };
+    }
+  } catch (e) {}
+  return pageVer.ver;
+}
+
 const gzCache = new Map();             // etag → сжатое тело
 function send(req, res, status, headers, body) {
   const buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body));
   const etag = 'W/"' + crypto.createHash('sha1').update(buf).digest('base64url').slice(0, 16) + '"';
-  const h = Object.assign({ 'ETag': etag, 'Vary': 'Accept-Encoding' }, headers);
+  const h = Object.assign({ 'ETag': etag, 'Vary': 'Accept-Encoding', 'X-Page-Version': pageVersion() }, headers);
   if (status === 200 && req.headers['if-none-match'] === etag) {
     res.writeHead(304, h); return res.end();
   }
@@ -1866,11 +1884,13 @@ const srv = http.createServer(async (req, res) => {
       // страницы могут меняться в любой момент — браузер сверяет отметку при каждом
       // заходе; картинки и описание приложения меняются редко — держим сутки
       const cc = (ext === '.html' || ext === '.json' || ext === '.js') ? 'no-cache' : 'public, max-age=86400';
-      return send(req, res, 200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': cc }, fs.readFileSync(file));
+      let body = fs.readFileSync(file);
+      if (p === '/index.html') body = Buffer.from(body.toString('utf8').replace('__PAGE_VER__', pageVersion()));
+      return send(req, res, 200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': cc }, body);
     }
     // любой другой адрес — на главную (для ссылок на новость /n/…)
     return send(req, res, 200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' },
-      fs.readFileSync(path.join(__dirname, 'public', 'index.html')));
+      fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8').replace('__PAGE_VER__', pageVersion()));
   } catch (e) {
     res.writeHead(500); res.end('error');
   }
