@@ -684,16 +684,19 @@ function checkPageVersion(r){
     if(updShown||Date.now()<updSnoozedUntil)return;
     updShown=true;
     const bar=document.getElementById('updbar');
-    if(bar)bar.classList.add('on');
+    if(!bar)return;
+    // Плашка стоит в самом конце страницы, позже этого скрипта, поэтому кнопки
+    // подключаем при первом показе, а не при загрузке — иначе они глухие.
+    if(!bar._hooked){
+      bar._hooked=true;
+      document.getElementById('updGo').onclick=()=>{ location.reload(); };
+      document.getElementById('updX').onclick=()=>{
+        bar.classList.remove('on'); updShown=false; updSnoozedUntil=Date.now()+10*60*1000;
+      };
+    }
+    bar.classList.add('on');
   }catch(e){}
 }
-(function(){
-  const bar=document.getElementById('updbar'); if(!bar)return;
-  document.getElementById('updGo').onclick=()=>{ location.reload(); };
-  document.getElementById('updX').onclick=()=>{
-    bar.classList.remove('on'); updShown=false; updSnoozedUntil=Date.now()+10*60*1000;
-  };
-})();
 
 const sndBtn=document.getElementById('sndBtn');
 if(sndBtn)sndBtn.onclick=()=>{sound=!sound;sndBtn.textContent=sound?'🔊':'🔇';sndBtn.classList.toggle('on',sound)};
