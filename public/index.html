@@ -338,7 +338,7 @@ body.cal-on #cal{transform:translateX(0)}
 .cnext{padding:12px 14px 11px;border-bottom:1px solid var(--line)}
 .cnext .lb{font-size:10.5px;color:var(--dim);margin-bottom:5px}
 .cnext .nm{font-size:12.5px;font-weight:600;line-height:1.3}
-.cnext .cd{font-family:var(--mono);font-size:24px;font-weight:600;margin-top:5px;color:var(--amber);
+.cnext .cd{font-family:var(--mono);font-size:26px;font-weight:600;margin-top:5px;color:var(--amber);
   font-variant-numeric:tabular-nums;line-height:1.1}
 .cnext .cd small{font-size:10.5px;font-weight:400;color:var(--dim);margin-left:6px;font-family:var(--sans)}
 .cnext .bar{height:2px;background:var(--line);margin-top:9px;border-radius:1px;overflow:hidden}
@@ -350,8 +350,8 @@ body.cal-on #cal{transform:translateX(0)}
 .cev{display:grid;grid-template-columns:3px 40px 1fr;gap:0 9px;padding:8px 14px 8px 11px;
   border-bottom:1px solid var(--line);align-items:start;cursor:default}
 .cev .m{width:3px;border-radius:2px;align-self:stretch;min-height:26px}
-.cev .t{font-family:var(--mono);font-size:11.5px;color:var(--dim);line-height:16px}
-.cev .n{font-size:12px;line-height:16px}
+.cev .t{font-family:var(--mono);font-size:12px;color:var(--dim);line-height:16px}
+.cev .n{font-size:12.5px;line-height:16px}
 .cev .who{font-size:10px;color:var(--dim);margin-top:1px;line-height:1.35}
 /* Три числа под событием: прогноз, предыдущее, факт. Держим в одну строку —
    в узкой панели перенос выглядел бы рвано, поэтому размер мелкий, а длинные
@@ -369,6 +369,27 @@ body.cal-on #cal{transform:translateX(0)}
 .cev.hot .t{color:var(--red);font-weight:600}
 .cev.past{opacity:.5}
 .cev.past .t{color:var(--dim)}
+.cev{cursor:pointer}
+.cev.open,.cev:hover{background:rgba(255,255,255,.035)}
+.cev.open{opacity:1}
+html.light .cev.open,html.light .cev:hover{background:rgba(0,0,0,.035)}
+/* раскрытое событие: связанная новость из ленты */
+.cev .news{grid-column:2/4;margin-top:8px;padding:8px 10px;border-left:2px solid var(--cbr,#7fb0ff);
+  background:rgba(127,176,255,.06);border-radius:0 6px 6px 0;font-size:12px;line-height:1.45;color:var(--tx)}
+.cev .news+.news{margin-top:6px}
+.cev .news .src{font-size:10.5px;color:#7fb0ff;margin-bottom:2px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cev .news .src .tm{font-family:var(--mono);color:var(--dim)}
+.cev .news .lnk{color:var(--violet);font-size:11px;text-decoration:none;margin-left:auto}
+.cev .news .lnk:hover{text-decoration:underline}
+.cev .nonews{grid-column:2/4;margin-top:6px;font-size:11px;color:var(--dim)}
+/* фильтры по ведомствам */
+.cf{display:flex;gap:5px;padding:8px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.cf span{font-size:10.5px;padding:2px 8px;border-radius:12px;border:1px solid var(--line);color:var(--dim);
+  cursor:pointer;display:inline-flex;align-items:center;gap:5px;line-height:1.5;user-select:none}
+.cf span.on{color:var(--tx);border-color:var(--dim)}
+.cf i{width:6px;height:6px;border-radius:50%;display:inline-block}
+.cpast{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;
+  padding:14px 14px 0;border-top:1px solid var(--line);margin-top:8px;opacity:.7}
 .c-cbr{background:#7fb0ff}.c-fed{background:#7bb8d4}.c-fin{background:#aeb9c7}.c-stat{background:#9aa78f}.c-corp{background:#d9b46a}
 .cempty{color:var(--dim);font-size:11.5px;padding:16px 14px;line-height:1.5}
 
@@ -1354,11 +1375,45 @@ function calДень(d, сегодня){
   return назв.charAt(0).toUpperCase()+назв.slice(1);
 }
 
+// Фильтр по ведомствам и раскрытые события переживают перерисовку
+const CAL_F_KEY='ff-calf-v1';
+let calФильтр=localStorage.getItem(CAL_F_KEY)||'all';
+const calОткрыто=new Set();
+let calСегодня='';
+const CAL_KINDS=[['cbr','ЦБ РФ'],['fed','ФРС и США'],['fin','Минфин'],['stat','Росстат'],['corp','компании']];
+
+// Связанные новости: слова из e.q — пробел «и», черта «или», сравнение по
+// началу слова. Для прошедшего события берём новости после него (до 2 суток),
+// для будущего — свежие упоминания из ленты.
+function calНовости(e){
+  if(!e.q||!ITEMS.length)return [];
+  const альт=e.q.toLowerCase().split('|').map(a=>a.trim().split(/\s+/).filter(Boolean));
+  // для будущего события — только упоминания за последние сутки, иначе
+  // к аукциону на следующей неделе прилипнет итог прошлого
+  const из=e.past?e.ts-36e5:Date.now()-24*36e5, до=e.past?e.ts+48*36e5:Infinity;
+  const out=[];
+  for(const it of ITEMS){
+    const t=Date.parse(it.time); if(!(t>=из&&t<=до))continue;
+    const txt=(it.text||'').toLowerCase();
+    if(альт.some(слова=>слова.every(w=>txt.includes(w)))){ out.push(it); if(out.length>=2)break; }
+  }
+  return out;
+}
+function calКарточка(it){
+  const t=new Date(it.time), hh=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+  const src=esc(it.srcName||it.src||'');
+  const ещё=it.srcCount>1?'<span class="tm">· '+it.srcCount+' ист.</span>':'';
+  const текст=(it.text||'').replace(/\s+/g,' ').slice(0,260);
+  return '<div class="news"><div class="src">'+src+' <span class="tm">'+hh+'</span>'+ещё+
+    (it.url?'<a class="lnk" href="'+esc(it.url)+'" target="_blank" rel="noopener">первоисточник ↗</a>':'')+
+    '</div>'+esc(текст)+(it.text&&it.text.length>260?'…':'')+'</div>';
+}
+
 async function calЗагрузить(){
   try{
     const r=await fetch('/api/calendar',{cache:'no-cache'});
     const d=await r.json();
-    calСобытия=d.events||[];
+    calСобытия=d.events||[]; calСегодня=d.today;
     calБлижайшее=calСобытия.find(e=>e.id===d.next)||null;
     calОтрисовать(d.today);
     calОбновитьТочку();
@@ -1380,32 +1435,65 @@ function calОтрисовать(сегодня){
        '<div class="cd" id="calCd">—<small id="calWhen"></small></div>'+
        '<div class="bar"><i id="calBar"></i></div></div>';
   }
-  let текущийДень='';
-  for(const e of calСобытия){
-    if(e.date!==текущийДень){
-      текущийДень=e.date;
-      h+='<div class="cday'+(e.date===сегодня?' today':'')+'">'+esc(calДень(e.date,сегодня))+'</div>';
+  // фильтры: показываем только те ведомства, у которых есть события
+  const есть=new Set(calСобытия.map(e=>e.kind));
+  h+='<div class="cf" id="calF"><span data-k="all" class="'+(calФильтр==='all'?'on':'')+'">все</span>';
+  for(const [k,nm] of CAL_KINDS) if(есть.has(k))
+    h+='<span data-k="'+k+'" class="'+(calФильтр===k?'on':'')+'"><i class="c-'+k+'"></i>'+nm+'</span>';
+  h+='</div>';
+
+  const видно=calСобытия.filter(e=>calФильтр==='all'||e.kind===calФильтр);
+  // сегодня и будущее — сверху; прошедшие дни — внизу, самые свежие первыми
+  const впереди=видно.filter(e=>e.date>=сегодня);
+  const позади=видно.filter(e=>e.date<сегодня).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+
+  const блок=(список)=>{
+    let out='', день='';
+    for(const e of список){
+      if(e.date!==день){
+        день=e.date;
+        out+='<div class="cday'+(e.date===сегодня?' today':'')+'">'+esc(calДень(e.date,сегодня))+'</div>';
+      }
+      const есть=e.f||e.prev||e.fact;
+      const чис=v=>v?esc(v):'·';
+      const nums=есть?('<div class="nums">'+
+          '<div><b class="'+(e.f?'':'dim')+'">'+чис(e.f)+'</b><s>прогноз</s></div>'+
+          '<div><b class="'+(e.prev?'':'dim')+'">'+чис(e.prev)+'</b><s>пред.</s></div>'+
+          '<div><b class="'+(e.fact?(e.move||''):'dim')+'">'+чис(e.fact)+'</b><s>факт</s></div>'+
+        '</div>'):'';
+      const открыто=calОткрыто.has(e.id);
+      let связ='';
+      if(открыто){
+        const нов=calНовости(e);
+        связ=нов.length?нов.map(calКарточка).join(''):'<div class="nonews">В ленте пока нет новости об этом.</div>';
+      }
+      out+='<div class="cev'+(e.hot&&!e.past?' hot':'')+(e.past?' past':'')+(открыто?' open':'')+'" data-id="'+esc(e.id)+'">'+
+           '<span class="m c-'+e.kind+'"></span>'+
+           '<span class="t">'+e.time+'</span>'+
+           '<div><div class="n">'+esc(e.name)+'</div>'+
+             '<div class="who">'+esc(e.who)+(e.note?' · '+esc(e.note):'')+'</div>'+
+             nums+
+           '</div>'+связ+'</div>';
     }
-    // числа показываем только если хоть одно известно — иначе строка была бы
-    // тремя пустыми точками без пользы
-    const есть=e.f||e.prev||e.fact;
-    const чис=v=>v?esc(v):'·';
-    const nums=есть?('<div class="nums">'+
-        '<div><b class="'+(e.f?'':'dim')+'">'+чис(e.f)+'</b><s>прогноз</s></div>'+
-        '<div><b class="'+(e.prev?'':'dim')+'">'+чис(e.prev)+'</b><s>пред.</s></div>'+
-        '<div><b class="'+(e.fact?(e.move||''):'dim')+'">'+чис(e.fact)+'</b><s>факт</s></div>'+
-      '</div>'):'';
-    h+='<div class="cev'+(e.hot&&!e.past?' hot':'')+(e.past?' past':'')+'">'+
-         '<span class="m c-'+e.kind+'"></span>'+
-         '<span class="t">'+e.time+'</span>'+
-         '<div><div class="n">'+esc(e.name)+'</div>'+
-           '<div class="who">'+esc(e.who)+(e.note?' · '+esc(e.note):'')+'</div>'+
-           nums+
-         '</div></div>';
-  }
+    return out;
+  };
+  h+=блок(впереди);
+  if(позади.length) h+='<div class="cpast">прошедшее</div>'+блок(позади);
+  if(!видно.length) h+='<div class="cempty">Для этого фильтра событий нет.</div>';
   calBody.innerHTML=h;
   calТикер();
 }
+
+// щелчок по событию раскрывает связанную новость; по фильтру — переключает ведомство
+calBody.addEventListener('click',ev=>{
+  if(ev.target.closest('a'))return;
+  const ф=ev.target.closest('#calF span');
+  if(ф){ calФильтр=ф.dataset.k; localStorage.setItem(CAL_F_KEY,calФильтр); calОтрисовать(calСегодня); return; }
+  const c=ev.target.closest('.cev'); if(!c)return;
+  const id=c.dataset.id;
+  if(calОткрыто.has(id))calОткрыто.delete(id); else calОткрыто.add(id);
+  calОтрисовать(calСегодня);
+});
 
 // Обратный отсчёт до ближайшего события. Полоска показывает, какая доля
 // суток до события уже прошла — чтобы движение было видно и на длинных сроках.

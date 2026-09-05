@@ -1695,14 +1695,42 @@ const CAL_FED = [
   ['2026-12-16', 'Решение ФРС по ставке', 'с прогнозами участников', '', '', ''],
 ];
 
-function calEvents() {
+// Повторяющиеся события — задаются правилом, а не списком дат. Числа
+// (прогноз/предыдущее/факт) для них не известны заранее, поэтому не выдумываем.
+// Поле q — слова для поиска связанной новости в ленте: пробел = «и»,
+// вертикальная черта = «или». Сравнение по началу слова, без учёта регистра.
+function calRules(начало, конец) {
+  const out = [];
+  const d0 = new Date(начало + 'T12:00:00+03:00'), d1 = new Date(конец + 'T12:00:00+03:00');
+  for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) {
+    const ymd = d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
+    const дн = d.getUTCDay(), число = d.getUTCDate(), мес = d.getUTCMonth() + 1;
+    if (дн === 3) {                                   // среда
+      out.push({ id: 'ofz-' + ymd, date: ymd, time: '11:00', kind: 'fin', who: 'Минфин России',
+                 name: 'Аукцион ОФЗ', note: '', q: 'офз аукцион|офз размещ', hot: false });
+      out.push({ id: 'cpi-' + ymd, date: ymd, time: '19:00', kind: 'stat', who: 'Росстат',
+                 name: 'Инфляция за неделю', note: '', q: 'инфляц недел|росстат инфляц|недельн инфляц', hot: false });
+    }
+    if (дн === 5 && число <= 7) {                     // первая пятница месяца
+      // 08:30 по Вашингтону: летом 15:30 мск, зимой 16:30 мск
+      const летом = мес >= 4 && мес <= 10;
+      out.push({ id: 'nfp-' + ymd, date: ymd, time: летом ? '15:30' : '16:30', kind: 'fed',
+                 who: 'Бюро статистики труда США', name: 'Занятость вне сельского хозяйства',
+                 note: '', q: 'занятост сша|nonfarm|payrolls|рынок труда сша', hot: true });
+    }
+  }
+  return out;
+}
+
+function calEvents(начало, конец) {
   const out = [];
   for (const [d, name, note, f, prev, fact] of CAL_CBR)
     out.push({ id: 'cbr-' + d, date: d, time: '13:30', kind: 'cbr', who: 'Банк России',
-               name, note, f, prev, fact, hot: true });
+               name, note, f, prev, fact, q: 'ключев ставк|банк росси ставк', hot: true });
   for (const [d, name, note, f, prev, fact] of CAL_FED)
     out.push({ id: 'fed-' + d, date: d, time: '21:00', kind: 'fed', who: 'Федеральная резервная система',
-               name, note, f, prev, fact, hot: true });
+               name, note, f, prev, fact, q: 'фрс ставк|fomc', hot: true });
+  if (начало && конец) out.push(...calRules(начало, конец));
   out.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   return out;
 }
@@ -1819,7 +1847,7 @@ const srv = http.createServer(async (req, res) => {
       const начало = from || new Date(Date.now() - 7 * 864e5).toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
       const конец = new Date(new Date(начало + 'T00:00:00+03:00').getTime() + days * 864e5)
         .toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
-      const события = calEvents().filter(e => e.date >= начало && e.date <= конец);
+      const события = calEvents(начало, конец).filter(e => e.date >= начало && e.date <= конец);
       const now = Date.now();
       for (const e of события) {
         const t = calTs(e); e.ts = t; e.past = t < now;
