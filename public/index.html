@@ -438,9 +438,12 @@ body.cal-on #cal{transform:translateX(0)}
 .cnext .nm{font-size:12px;font-weight:600;line-height:1.3;color:var(--tx)}
 /* Смена события в шапке: содержимое коротко подхватывается, чтобы подмена
    не выглядела рывком. Кто просил меньше движения — анимацию не показываем. */
-.cnext .lb,.cnext .nm,.cnext .cd{transition:opacity .18s ease}
-.cnext.swap .lb,.cnext.swap .nm,.cnext.swap .cd{animation:cnfade .34s ease}
-@keyframes cnfade{0%{opacity:0;transform:translateY(-3px)}100%{opacity:1;transform:none}}
+.cnext .lb,.cnext .nm,.cnext .cd{transition:opacity .3s ease}
+.cnext.swap .lb,.cnext.swap .nm,.cnext.swap .cd{animation:cnfade .75s cubic-bezier(.25,.6,.25,1) both}
+/* строки подхватываются с небольшим сдвигом друг за другом — переход мягче */
+.cnext.swap .nm{animation-delay:.06s}
+.cnext.swap .cd{animation-delay:.12s}
+@keyframes cnfade{0%{opacity:0;transform:translateY(-5px)}100%{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.cnext.swap .lb,.cnext.swap .nm,.cnext.swap .cd{animation:none}}
 .cnext{--ac:var(--amber)}
 /* цвета ведомств подобраны под тёмный фон; на белом их надо притемнить,
