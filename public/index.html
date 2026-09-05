@@ -58,6 +58,19 @@ html.light .row.lvl2 .txt{color:#8a5600}
 #toTop:hover{color:var(--amber)}
 #toTop.vis{display:flex}
 body.side-on #toTop{right:calc(var(--sw,296px) + 8px)}
+/* возврат к сегодняшнему дню внутри календаря — как кнопка «наверх» у ленты */
+#calNow{position:absolute;left:50%;transform:translateX(-50%);bottom:18px;z-index:6;
+  height:28px;padding:0 11px;border-radius:14px;
+  background:var(--panel);border:1px solid var(--line);
+  color:var(--dim);cursor:pointer;display:none;align-items:center;gap:6px;
+  font:inherit;font-size:11px;white-space:nowrap;
+  box-shadow:0 2px 12px rgba(0,0,0,.35)}
+#calNow:hover{color:var(--amber);border-color:var(--amber)}
+#calNow.vis{display:inline-flex}
+#calNow svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.4;
+  stroke-linecap:round;stroke-linejoin:round;display:block}
+#calNow.down svg{transform:rotate(180deg)}
+html.light #calNow{box-shadow:0 2px 12px rgba(30,45,70,.14)}
 #boot{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;
   flex-direction:column;align-items:center;justify-content:center;gap:16px;
   transition:opacity .45s ease}
@@ -403,7 +416,8 @@ html.light .cev.open,html.light .cev:hover{background:rgba(0,0,0,.035)}
 .cev .news .lnk:hover{text-decoration:underline}
 .cev .nonews{grid-column:2/4;margin-top:6px;font-size:11px;color:var(--dim)}
 /* фильтры по ведомствам */
-.cf{display:none;gap:4px;padding:7px 10px;border-bottom:1px solid var(--line);flex-wrap:nowrap;overflow:hidden}
+.cf{display:none;gap:4px;padding:7px 10px;border-bottom:1px solid var(--line);flex-wrap:nowrap;overflow:hidden;
+  position:sticky;z-index:3;background:var(--panel)}
 .cf.show{display:flex}
 .cf span{font-size:10px;padding:2px 6px;border-radius:12px;border:1px solid var(--line);color:var(--dim);
   cursor:pointer;display:inline-flex;align-items:center;gap:4px;line-height:1.5;user-select:none;white-space:nowrap;flex:none}
@@ -512,8 +526,8 @@ body.side-edit .qg-t:active{cursor:grabbing}
 body.side-edit .qg-t::after{content:' ⠿';opacity:.45;letter-spacing:0}
 .qg.тащится{opacity:.4}
 .qg.сюда{box-shadow:inset 0 2px 0 var(--amber)}
-.qg-t{font-size:9px;letter-spacing:.14em;color:var(--dim);padding:4px 14px 1px;text-transform:uppercase}
-.qrow{display:flex;align-items:baseline;gap:7px;padding:2px 14px;line-height:1.3;
+.qg-t{font-size:9px;letter-spacing:.14em;color:var(--dim);padding:4px 10px 1px;text-transform:uppercase}
+.qrow{display:flex;align-items:baseline;gap:6px;padding:2px 10px;line-height:1.3;
   -webkit-tap-highlight-color:transparent}
 /* Наведение только для мыши. На тач-экранах :hover «залипает» после тапа —
    строка остаётся подсвеченной серым, пока не нажмёшь в другое место. */
@@ -575,7 +589,7 @@ body.side-edit .qg-t::after{content:' ⠿';opacity:.45;letter-spacing:0}
 @keyframes qtd{0%,25%{color:var(--red)}100%{color:var(--tx)}}
 .qn{font-size:11.5px;color:var(--tx);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qp{font-family:var(--mono);font-size:11.5px;color:var(--tx)}
-.qc{font-family:var(--mono);font-size:9.5px;min-width:54px;text-align:right;white-space:nowrap}
+.qc{font-family:var(--mono);font-size:9.5px;min-width:46px;text-align:right;white-space:nowrap}
 .qc.up{color:var(--green)}.qc.dn{color:var(--red)}.qc.z{color:var(--dim)}
 #sideBack{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:39;opacity:0;pointer-events:none;transition:opacity .28s}
 body.side-on #sideBack{opacity:1;pointer-events:auto}
@@ -671,6 +685,8 @@ body.cal-on.side-on .hbtn{padding:0 7px}
   <div class="sh"><b>Календарь</b>
     <button class="sx" id="calClose" title="закрыть">×</button></div>
   <div class="cbody" id="calBody"><div class="cempty">Загружаю…</div></div>
+  <button id="calNow" title="К сегодняшнему дню" aria-label="К сегодняшнему дню">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg><span>сегодня</span></button>
 </aside>
 <div id="sideBack"></div>
 <aside id="side">
@@ -957,7 +973,7 @@ function sideAlign(){
   // ширина панели: доля экрана, но в разумных пределах
   const w=window.innerWidth;
   let sw=296;
-  if(w>=720) sw=Math.max(270,Math.min(320,Math.round(w*0.28)));
+  if(w>=720) sw=Math.max(258,Math.min(296,Math.round(w*0.26)));
   document.documentElement.style.setProperty('--sw',sw+'px');
 }
 window.addEventListener('resize',sideAlign);
@@ -1406,6 +1422,14 @@ const calОткрыто=new Set();
 let calДержатьПрокрутку=null;   // при подгрузке прошлого не дёргать прокрутку
 let calДнейНазад=7;             // сколько прошедших дней загружено
 let calГрузитПрошлое=false;
+// Шторка фильтров прилипает сразу под блоком «Ближайшее»: его высота
+// меняется, поэтому отступ вычисляем, а не задаём в стилях.
+function calПодогнатьЛипкое(){
+  requestAnimationFrame(()=>{
+    const ш=calBody.querySelector('.cnext'), ф=document.getElementById('calF');
+    if(ф)ф.style.top=(ш?ш.offsetHeight:0)+'px';
+  });
+}
 function calПрокрутитьКСегодня(){
   const якорь=document.getElementById('calToday'), шапка=calBody.querySelector('.cnext');
   if(!якорь)return;
@@ -1414,14 +1438,39 @@ function calПрокрутитьКСегодня(){
   const y=якорь.getBoundingClientRect().top-calBody.getBoundingClientRect().top+calBody.scrollTop;
   calBody.scrollTop=y-(шапка?шапка.offsetHeight:0);
 }
+// Кнопка «сегодня»: показывается, когда сегодняшний день ушёл из вида.
+// Стрелка смотрит туда, куда придётся ехать: вверх, если мы в будущем,
+// вниз — если ушли в прошлое.
+const calNow=document.getElementById('calNow');
+function calЦельСегодня(){
+  const якорь=document.getElementById('calToday'), шапка=calBody.querySelector('.cnext');
+  if(!якорь)return null;
+  const y=якорь.getBoundingClientRect().top-calBody.getBoundingClientRect().top+calBody.scrollTop;
+  return Math.max(0,y-(шапка?шапка.offsetHeight:0));
+}
+function calОбновитьКнопку(){
+  if(!calNow)return;
+  const цель=calЦельСегодня();
+  if(цель===null){ calNow.classList.remove('vis'); return; }
+  const порог=Math.max(120,calBody.clientHeight*0.4);
+  const сдвиг=calBody.scrollTop-цель;
+  calNow.classList.toggle('vis',Math.abs(сдвиг)>порог);
+  calNow.classList.toggle('down',сдвиг<0);   // мы выше «сегодня», в прошлом — ехать вниз
+}
+if(calNow)calNow.onclick=()=>{
+  const цель=calЦельСегодня();
+  if(цель!==null)calBody.scrollTo({top:цель,behavior:'smooth'});
+};
+
 // у верха — подгружаем ещё месяц прошлого, прокрутку оставляем на месте
 calBody.addEventListener('scroll',()=>{
+  calОбновитьКнопку();
   if(calBody.scrollTop>40||calГрузитПрошлое||calДнейНазад>=120)return;
   calГрузитПрошлое=true;
   calДнейНазад+=30;
   calДержатьПрокрутку=calBody.scrollTop;
   calЗагрузить().finally(()=>{calГрузитПрошлое=false;});
-});
+},{passive:true});
 let calСегодня='';
 let calФПоказать=false;                    // видна ли шторка фильтров
 const CAL_ЦВЕТ={cbr:'#7fb0ff',fed:'#7bb8d4',fin:'#aeb9c7',stat:'#9aa78f',corp:'#d9b46a'};
@@ -1559,10 +1608,12 @@ function calОтрисовать(сегодня){
   h+='<div id="calToday"></div>'+блок(впереди);
   if(!видно.length) h+='<div class="cempty">Для этого фильтра событий нет.</div>';
   const держать=calДержатьПрокрутку; calДержатьПрокрутку=null;
+  calПодогнатьЛипкое();
   const быв=calBody.scrollHeight;
   calBody.innerHTML=h;
   if(держать!==null){ calBody.scrollTop=calBody.scrollHeight-быв+держать; }   // 0 — тоже позиция
   else calПрокрутитьКСегодня();
+  calОбновитьКнопку();
   calТикер();
 }
 
