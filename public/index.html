@@ -317,7 +317,7 @@ footer{color:var(--dim);font-size:10.5px;line-height:1.6;text-align:center;paddi
    Зеркало панели котировок: та же ширина, тот же строй заголовка и разделов.
    Пока показывается только по адресу с параметром calendar=1 — обычные
    посетители её не видят. */
-#cal{position:fixed;top:0;left:0;bottom:0;width:296px;z-index:40;
+#cal{position:fixed;top:0;left:0;bottom:0;width:var(--sw,296px);z-index:40;
   background:color-mix(in srgb,var(--panel) 82%,transparent);
   -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
   border-right:1px solid var(--line);
@@ -381,14 +381,19 @@ button#calBtn .cdot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;b
 #calBack{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;
   transition:opacity .3s;z-index:39}
 body.cal-on #calBack{opacity:1;pointer-events:auto}
-/* панель сдвигает содержимое там, где хватает ширины */
+/* Терминальная раскладка: календарь слева, лента посередине, котировки
+   справа. Обе панели могут быть открыты одновременно — лента сама сужается
+   между ними. Панели уже не «наезжают» на содержимое, а делят с ним место. */
 @media(min-width:720px){
   body.cal-on{padding-left:var(--sw,296px)}
   #calBack{display:none}
 }
-@media(max-width:719px){#cal{width:min(88vw,320px)}}
-/* обе панели открыты — на узком экране это невозможно, прячем левую */
-@media(max-width:1500px){body.cal-on.side-on #cal{transform:translateX(-100%)}}
+@media(max-width:719px){#cal{width:min(88vw,320px)!important}}
+/* лента посередине: при открытых панелях центрируется по остатку ширины */
+/* Лента центрируется по свободной полосе между панелями. Отступы на body
+   уже отняли ширину панелей, поэтому здесь достаточно честных auto по краям —
+   но max-width мешает, когда полоса шире ленты, поэтому margin задаём явно. */
+body.cal-on main,body.side-on main{margin-left:auto;margin-right:auto}
 
 /* ── боковая панель котировок ── */
 #side{position:fixed;top:0;right:0;bottom:0;width:296px;z-index:40;
@@ -541,6 +546,22 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
 @media(max-width:1100px){
   body.side-on #q{width:120px}
 }
+/* Обе панели открыты — ленте остаётся узкая полоса, а шапке мало места.
+   Ужимаем поиск и кнопки, чтобы всё уместилось в одну строку без переносов
+   и ничего не уезжало за край. */
+body.cal-on.side-on #q{width:150px}
+body.cal-on.side-on #q:focus{width:210px}
+body.cal-on.side-on .hbtn{padding:0 7px}
+body.cal-on.side-on .live{display:none}
+@media(max-width:1400px){
+  body.cal-on.side-on #q{width:104px}
+  body.cal-on.side-on #q:focus{width:150px}
+  body.cal-on.side-on .ver{display:none}
+}
+@media(max-width:1180px){
+  body.cal-on.side-on .logo{font-size:0;letter-spacing:0}
+  body.cal-on.side-on .logo::before{content:'FF';font-size:13px;letter-spacing:.06em}
+}
 @media(max-width:860px){
   body.side-on #q{width:96px}
   body.side-on #q:focus{width:150px}
@@ -585,12 +606,12 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
   <span class="live"><span class="dot"></span>LIVE</span>
   <span class="ver" id="ver" tabindex="0" role="button" aria-label="версия сайта">—</span>
   <span class="sp"></span>
+  <button class="hbtn" id="calBtn" title="календарь событий" aria-label="календарь событий" hidden>
+    <svg viewBox="0 0 14 14" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="2.5" width="11" height="10" rx="2"/><path d="M1.5 6h11M4.5 1v3M9.5 1v3"/></svg>
+  </button>
   <input id="q" type="search" placeholder="поиск" autocomplete="off" size="1">
   <!-- <a class="hbtn" href="/quotes">котировки</a> --><!-- страница котировок скрыта; вернуть при необходимости -->
   <!-- <a class="hbtn" href="/map">карта</a> --><!-- ссылка убрана из шапки; страница живёт по адресу /map -->
-  <button class="hbtn" id="calBtn" title="календарь событий" hidden>
-    <svg viewBox="0 0 14 14" stroke-width="1.5" stroke-linecap="round"><rect x="1.5" y="2.5" width="11" height="10" rx="2"/><path d="M1.5 6h11M4.5 1v3M9.5 1v3"/></svg>
-  </button>
   <button class="hbtn" id="sideBtn" title="панель котировок" aria-label="панель котировок"><svg viewBox="0 0 14 12" aria-hidden="true"><rect x="0.5" y="7" width="3" height="5" rx="1"/><rect x="5.5" y="4" width="3" height="8" rx="1"/><rect x="10.5" y="0.5" width="3" height="11.5" rx="1"/></svg></button>
   <button class="hbtn" id="thBtn" title="светлая / тёмная тема">◑</button>
   <button class="hbtn" id="instBtn" title="добавить ярлык на экран телефона" aria-label="добавить ярлык на экран" hidden>
@@ -1439,7 +1460,7 @@ if(calВключён){
   calЗагрузить();
   let открыть=false;
   try{ открыть=!!JSON.parse(localStorage.getItem('mkt_prefs')||'{}').cal; }catch(e){}
-  if(открыть&&window.innerWidth>=1500)calOpen(true);
+  if(открыть&&window.innerWidth>=1100)calOpen(true);   // на узких открываем по нажатию, чтобы не закрывать ленту
   setInterval(calОбновитьТочку,30000);
 }
 
