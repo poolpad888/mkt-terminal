@@ -501,6 +501,9 @@ html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
 .cev .nums b.up{color:var(--green)}
 .cev .nums b.dn{color:var(--red)}
 .cev.hot{box-shadow:inset 0 1px 0 rgba(229,72,77,.5),inset 0 -1px 0 rgba(229,72,77,.5);background:rgba(229,72,77,.05)}
+/* Два важных события подряд: у второго убираем верхнюю линию, иначе рядом
+   идут две полосы вплотную. */
+.cev.hot+.cev.hot{box-shadow:inset 0 -1px 0 rgba(229,72,77,.5)}
 .cev.hot .t{color:var(--red);font-weight:600}
 .cev.past{opacity:.62}
 .cev.past .t{color:var(--dim)}
