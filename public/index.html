@@ -422,16 +422,25 @@ html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
 /* прошлый раз: факт предыдущего события того же вида — виден без раскрытия */
 /* Прошлые числа — справа на строке даты. Свой цвет (голубой), чтобы
    не спорить ни с отсчётом, ни с приглушённой датой. */
-.cnext .cd small{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
-.cnext .cd small .whend{flex:none}
-.cnext .prevf{margin-left:auto;display:flex;gap:7px;align-items:baseline;white-space:nowrap}
-.cnext .prevf>span{display:flex;gap:2px;align-items:baseline}
-.cnext .prevf s{text-decoration:none;color:var(--dim);font-size:8px;letter-spacing:.02em;text-transform:uppercase}
-.cnext .prevf b{font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--blue)}
+/* Блок «прошлый раз» лежит в правом верхнем углу отсчёта: числа вровень
+   с большими цифрами, подписи строкой ниже — вровень с датой события.
+   Сетка из двух столбцов держит подпись строго под своим числом. */
+.cnext .cd{position:relative}
+.cnext .cd small{display:block;font-size:10.5px;font-weight:400;color:var(--dim);margin:7px 0 0;
+  font-family:var(--sans);letter-spacing:0}
+.cnext .prevf{position:absolute;right:0;top:0;display:grid;
+  grid-template-columns:auto auto;column-gap:9px;
+  justify-items:end;text-align:right;white-space:nowrap}
+.cnext .prevf b:nth-of-type(1){grid-area:1/1}
+.cnext .prevf b:nth-of-type(2){grid-area:1/2}
+.cnext .prevf s:nth-of-type(1){grid-area:2/1}
+.cnext .prevf s:nth-of-type(2){grid-area:2/2}
+.cnext .prevf b{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--blue);line-height:1.1}
+.cnext .prevf s{text-decoration:none;color:var(--dim);font-size:8.5px;letter-spacing:.04em;
+  text-transform:uppercase;font-family:var(--sans);margin-top:14px}
 .cnext .prevf b.dim{color:var(--dim);font-weight:400}
 .cnext .prevf b.up{color:var(--green)}
 .cnext .prevf b.dn{color:var(--red)}
-.cnext .prevf .nums s{text-decoration:none;color:var(--dim);font-size:8.5px;letter-spacing:.06em;text-transform:uppercase}
 .cnext .bar{height:2px;background:var(--line);margin-top:9px;border-radius:1px;overflow:hidden}
 .cnext .bar i{display:block;height:100%;background:var(--ac);opacity:.85;width:0}
 
@@ -1798,25 +1807,26 @@ function calОтрисовать(сегодня){
         (выб.length>3?'<span class="fmore">+'+(выб.length-3)+'</span>':'');
     // «Прошлый раз»: когда было предыдущее такое же событие и с каким итогом.
     // Если факта нет — показываем только дату, числа не выдумываем.
+    // «Пред.» — итог прошлого такого же события, «факт» — итог ожидаемого,
+    // пока его нет, стоит прочерк. Числа справа вровень с большим отсчётом,
+    // подписи строкой ниже, вровень с датой, каждая под своим числом.
     let прош='';
     const pv=calБлижайшее.prevEv;
-    if(pv){
-      const pf=v=>v?esc(v):'·';
-      // Дату прошлого события не показываем — важны сами числа.
-      // Числа встают справа на одной строке с датой события — компактнее
-      // и глаз не бегает вниз. Подписи «пред.» и «факт» — мелким шрифтом.
-      // у аукциона ОФЗ в поле «пред.» лежит спрос — подписываем честно
-      const пЛб=pv.id&&pv.id.startsWith('ofz-')?'спрос':'пред.';
+    const пред=(pv&&(pv.fact||pv.prev))||calБлижайшее.prev||'';
+    const факт=calБлижайшее.fact||'';
+    if(пред||факт){
+      const pf=v=>v?esc(v):'—';
       прош='<span class="prevf">'+
-           '<span><s>'+пЛб+'</s><b class="'+(pv.prev?'':'dim')+'">'+pf(pv.prev)+'</b></span>'+
-           '<span><s>факт</s><b class="'+(pv.fact?esc(pv.move||''):'dim')+'">'+pf(pv.fact)+'</b></span>'+
+           '<b class="'+(пред?'':'dim')+'">'+pf(пред)+'</b>'+
+           '<b class="'+(факт?esc(calБлижайшее.move||''):'dim')+'">'+pf(факт)+'</b>'+
+           '<s>пред.</s><s>факт</s>'+
            '</span>';
     }
     h+='<div class="cnext" style="--ac:'+ц+'"><div class="lb">Ближайшее'+
        '<button class="fb'+(calСтраны.size?' on':'')+'" id="calFB" title="фильтр по странам">'+мет+'</button></div>'+
        '<div class="nm">'+esc(calБлижайшее.name)+'</div>'+
        '<div class="cd" id="calCd">—<small id="calWhen">'+
-       '<span class="whend"></span>'+прош+'</small></div>'+
+       '<span class="whend"></span></small>'+прош+'</div>'+
        '</div>';
   }
   // Фильтры лежат в самой панели (см. #calF в разметке), а не в прокручиваемом
