@@ -487,6 +487,17 @@ html.light .cf{box-shadow:0 10px 28px rgba(30,45,70,.18)}
 html.light .cf span:hover{background:rgba(20,30,45,.06)}
 .cf span.on{color:var(--tx);border-color:var(--dim)}
 .cf i{width:6px;height:6px;border-radius:50%;display:inline-block}
+/* Фильтр по странам: флаг, название и галочка у отмеченных.
+   Страны без событий в загруженном отрезке — приглушены, но выбирать можно. */
+.cf{min-width:160px}
+.cf .fl{font-size:14px;line-height:1;font-weight:400;font-family:"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",var(--sans)}
+.cf span.pale .fl{opacity:.45}
+.cf span.on{background:rgba(255,255,255,.07)}
+html.light .cf span.on{background:rgba(20,30,45,.07)}
+.cf span.on::after{content:'✓';margin-left:auto;padding-left:8px;color:var(--amber);font-size:11px}
+.cf span.cfall{border-bottom:1px solid var(--line);border-radius:5px 5px 0 0;margin-bottom:2px;padding-bottom:6px}
+.fb .fl{font-size:12px;line-height:1;font-weight:400}
+.fb .fmore{font-size:9.5px;color:var(--dim);margin-left:1px}
 .cpast{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;
   padding:14px 14px 0;border-top:1px solid var(--line);margin-top:8px;opacity:.7}
 .c-cbr{background:#7fb0ff}.c-fed{background:#7bb8d4}.c-fin{background:#aeb9c7}.c-stat{background:#9aa78f}.c-corp{background:#d9b46a}
@@ -1592,8 +1603,18 @@ function calДень(d, сегодня){
 }
 
 // Фильтр по ведомствам и раскрытые события переживают перерисовку
-const CAL_F_KEY='ff-calf-v1';
-let calФильтр=localStorage.getItem(CAL_F_KEY)||'all';
+const CAL_F_KEY='ff-calc-v1';
+// Флаги стран. Пустой набор = показываем все страны.
+const CAL_СТРАНЫ=[['ru','Россия','🇷🇺'],['us','США','🇺🇸'],['eu','Еврозона','🇪🇺'],
+  ['cn','Китай','🇨🇳'],['gb','Британия','🇬🇧'],['jp','Япония','🇯🇵'],
+  ['de','Германия','🇩🇪'],['tr','Турция','🇹🇷']];
+const CAL_СИМВОЛ=Object.fromEntries(CAL_СТРАНЫ.map(([c,,f])=>[c,f]));
+const CAL_СИМЯ=Object.fromEntries(CAL_СТРАНЫ.map(([c,n])=>[c,n]));
+let calСтраны=new Set();
+try{ const v=JSON.parse(localStorage.getItem(CAL_F_KEY)||'[]'); if(Array.isArray(v))calСтраны=new Set(v); }catch(e){}
+function calСохранитьФильтр(){ try{localStorage.setItem(CAL_F_KEY,JSON.stringify([...calСтраны]))}catch(e){} }
+// подходит ли событие под выбор стран
+function calПодходит(e){ return !calСтраны.size || calСтраны.has(e.cc||'ru'); }
 const calОткрыто=new Set();
 let calДержатьПрокрутку=null;   // при подгрузке прошлого не дёргать прокрутку
 let calДнейНазад=7;             // сколько прошедших дней загружено
@@ -1603,10 +1624,13 @@ let calГрузитПрошлое=false;
 function calЗаполнитьФильтр(){
   const box=document.getElementById('calF');
   if(!box)return;
-  const есть=new Set(calСобытия.map(e=>e.kind));
-  let h='<span data-k="all" class="'+(calФильтр==='all'?'on':'')+'">все ведомства</span>';
-  for(const [k,nm] of CAL_KINDS) if(есть.has(k))
-    h+='<span data-k="'+k+'" class="'+(calФильтр===k?'on':'')+'"><i class="c-'+k+'"></i>'+nm+'</span>';
+  // Показываем все известные страны, даже если событий по ним пока нет:
+  // так видно, что календарь их поддерживает.
+  const есть=new Set(calСобытия.map(e=>e.cc||'ru'));
+  let h='<span data-c="all" class="cfall'+(calСтраны.size?'':' on')+'">все страны</span>';
+  for(const [c,nm,fl] of CAL_СТРАНЫ)
+    h+='<span data-c="'+c+'" class="'+(calСтраны.has(c)?'on':'')+(есть.has(c)?'':' pale')+
+       '"><b class="fl">'+fl+'</b>'+nm+'</span>';
   box.innerHTML=h;
   box.classList.toggle('show',calФПоказать);
   if(calФПоказать){
@@ -1673,7 +1697,9 @@ document.addEventListener('keydown',ev=>{
 // у верха — подгружаем ещё месяц прошлого, прокрутку оставляем на месте
 calBody.addEventListener('scroll',()=>{
   calОбновитьКнопку();
-  if(calФПоказать){ calФПоказать=false; calЗаполнитьФильтр(); }
+  // Прокрутка от собственной перерисовки (сменили страну в фильтре) не должна
+  // закрывать список: страны отмечают по нескольку подряд.
+  if(calФПоказать&&!calСвояПрокрутка){ calФПоказать=false; calЗаполнитьФильтр(); }
   if(calСтавимПрокрутку)return;   // это мы сами только что встали на «сегодня»
   if(calBody.scrollTop>40||calГрузитПрошлое||calДнейНазад>=120)return;
   calГрузитПрошлое=true;
@@ -1683,6 +1709,7 @@ calBody.addEventListener('scroll',()=>{
 },{passive:true});
 let calСегодня='';
 let calФПоказать=false;                    // видна ли шторка фильтров
+let calСвояПрокрутка=false;                 // перерисовка меняет высоту — это не жест пользователя
 const CAL_ЦВЕТ={cbr:'#7fb0ff',fed:'#7bb8d4',fin:'#aeb9c7',stat:'#9aa78f',corp:'#d9b46a'};
 const CAL_KINDS=[['cbr','ЦБ'],['fed','США'],['fin','Минфин'],['stat','Росстат'],['corp','компании']];
 const CAL_ИМЯ=Object.fromEntries(CAL_KINDS);
@@ -1739,13 +1766,16 @@ function calОтрисовать(сегодня){
   // Ближайшее — именно ближайшее по времени, без предпочтения «важным»:
   // иначе отсчёт перескакивает через аукцион в 11:00 к событию в 15:30,
   // хотя в списке сверху стоит аукцион.
-  calБлижайшее = calСобытия.find(e=>!e.past && (calФильтр==='all'||e.kind===calФильтр)) || null;
+  calБлижайшее = calСобытия.find(e=>!e.past && calПодходит(e)) || null;
   if(calБлижайшее){
     // цвет отсчёта — цвет ведомства ближайшего события, как у полоски слева
     const ц=CAL_ЦВЕТ[calБлижайшее.kind]||'var(--amber)';
-    const мет=calФильтр==='all'
-      ? '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M1.5 3.5h11M3.5 7h7M6 10.5h2"/></svg>фильтр'
-      : '<i style="background:'+(CAL_ЦВЕТ[calФильтр]||'var(--dim)')+'"></i>'+esc(CAL_ИМЯ[calФильтр]||'');
+    // На кнопке — флаги выбранных стран; больше трёх сворачиваем в «+N».
+    const выб=[...calСтраны];
+    const мет=!выб.length
+      ? '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M1.5 3.5h11M3.5 7h7M6 10.5h2"/></svg>страны'
+      : выб.slice(0,3).map(c=>'<b class="fl">'+(CAL_СИМВОЛ[c]||'')+'</b>').join('')+
+        (выб.length>3?'<span class="fmore">+'+(выб.length-3)+'</span>':'');
     // «Прошлый раз»: когда было предыдущее такое же событие и с каким итогом.
     // Если факта нет — показываем только дату, числа не выдумываем.
     let прош='';
@@ -1760,7 +1790,7 @@ function calОтрисовать(сегодня){
            '</div></div>';
     }
     h+='<div class="cnext" style="--ac:'+ц+'"><div class="lb">Ближайшее'+
-       '<button class="fb'+(calФильтр!=='all'?' on':'')+'" id="calFB" title="фильтр по ведомствам">'+мет+'</button></div>'+
+       '<button class="fb'+(calСтраны.size?' on':'')+'" id="calFB" title="фильтр по странам">'+мет+'</button></div>'+
        '<div class="nm">'+esc(calБлижайшее.name)+'</div>'+
        '<div class="cd" id="calCd">—<small id="calWhen"></small></div>'+
        прош+'</div>';
@@ -1769,7 +1799,7 @@ function calОтрисовать(сегодня){
   // списке — так выпадающий список не обрезается и не уезжает при прокрутке.
   calЗаполнитьФильтр();
 
-  const видно=calСобытия.filter(e=>calФильтр==='all'||e.kind===calФильтр);
+  const видно=calСобытия.filter(calПодходит);
   // сегодня и будущее — сверху; прошедшие дни — внизу, самые свежие первыми
   const впереди=видно.filter(e=>e.date>=сегодня);
   const позади=видно.filter(e=>e.date<сегодня).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
@@ -1829,8 +1859,17 @@ document.getElementById('cal').addEventListener('click',ev=>{
   if(ev.target.closest('a'))return;
   if(ev.target.closest('#calFB')){ calФПоказать=!calФПоказать; calЗаполнитьФильтр(); return; }
   const ф=ev.target.closest('#calF span');
-  if(ф){ calФильтр=ф.dataset.k; localStorage.setItem(CAL_F_KEY,calФильтр);
-         calФПоказать=false; calОтрисовать(calСегодня); return; }
+  if(ф){
+    const c=ф.dataset.c;
+    if(c==='all') calСтраны.clear();
+    else if(calСтраны.has(c)) calСтраны.delete(c);
+    else calСтраны.add(c);
+    calСохранитьФильтр();
+    // список не закрываем: отмечают обычно несколько стран подряд
+    calСвояПрокрутка=true;
+    calОтрисовать(calСегодня);
+    setTimeout(()=>{calСвояПрокрутка=false},250);
+    return; }
   // щелчок мимо списка — закрываем его
   if(calФПоказать&&!ev.target.closest('#calF')){ calФПоказать=false; calЗаполнитьФильтр(); }
   // Раскрытие события по щелчку отключено вместе с показом новостей.
