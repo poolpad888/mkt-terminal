@@ -101,6 +101,9 @@ header #q{line-height:24px;font-size:12.5px;vertical-align:middle}
 /* логотип, LIVE и часы тоже по центру строки, чтобы ничего не тянуло вверх */
 header>*{align-self:center}
 header .hbtn{display:inline-flex;align-items:center;justify-content:center;line-height:1}
+/* атрибут hidden слабее правила выше — задаём скрытие явно, иначе кнопка,
+   спрятанная до включения раздела, всё равно видна */
+header .hbtn[hidden]{display:none}
 #q:focus{border-color:var(--amber)}
 #q::placeholder{color:var(--dim)}
 .hbtn{background:none;border:1px solid var(--line);color:var(--dim);font:inherit;font-size:11px;
@@ -310,6 +313,71 @@ body.compact .row.lvl2,body.compact .row.reg:not(.lvl2){padding:6px 14px;margin:
 }
 .note{color:var(--dim);text-align:center;padding:40px 20px;font-size:12.5px}
 footer{color:var(--dim);font-size:10.5px;line-height:1.6;text-align:center;padding:18px 14px 26px;border-top:1px solid var(--line);max-width:820px;margin:0 auto}
+/* ── левая панель: календарь событий ──
+   Зеркало панели котировок: та же ширина, тот же строй заголовка и разделов.
+   Пока показывается только по адресу с параметром calendar=1 — обычные
+   посетители её не видят. */
+#cal{position:fixed;top:0;left:0;bottom:0;width:296px;z-index:40;
+  background:color-mix(in srgb,var(--panel) 82%,transparent);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
+  border-right:1px solid var(--line);
+  box-shadow:14px 0 40px rgba(0,0,0,.35), inset -1px 0 0 rgba(255,255,255,.05);
+  transform:translateX(-100%);transition:transform .3s cubic-bezier(.3,.9,.3,1);
+  will-change:transform;backface-visibility:hidden;contain:layout paint;
+  display:flex;flex-direction:column;overflow:hidden}
+html.light #cal{box-shadow:14px 0 40px rgba(30,45,70,.12), inset -1px 0 0 rgba(255,255,255,.6)}
+body.cal-on #cal{transform:translateX(0)}
+#cal .sh{display:flex;align-items:center;gap:8px;padding:0 14px;flex:none;
+  height:var(--hh,41px);box-sizing:border-box;background:var(--panel);border-bottom:1px solid var(--line)}
+#cal .sh b{font-size:12px;letter-spacing:.09em;color:var(--tx);font-weight:400}
+#cal .sx{background:none;border:none;color:var(--dim);font:inherit;font-size:17px;cursor:pointer;padding:0 2px;line-height:1;margin-left:auto}
+#cal .sx:hover{color:var(--amber)}
+#cal .cbody{flex:1;overflow-y:auto;overscroll-behavior:contain}
+
+/* ближайшее событие — единственное громкое место панели */
+.cnext{padding:12px 14px 11px;border-bottom:1px solid var(--line)}
+.cnext .lb{font-size:10.5px;color:var(--dim);margin-bottom:5px}
+.cnext .nm{font-size:12.5px;font-weight:600;line-height:1.3}
+.cnext .cd{font-family:var(--mono);font-size:24px;font-weight:600;margin-top:5px;color:var(--amber);
+  font-variant-numeric:tabular-nums;line-height:1.1}
+.cnext .cd small{font-size:10.5px;font-weight:400;color:var(--dim);margin-left:6px;font-family:var(--sans)}
+.cnext .bar{height:2px;background:var(--line);margin-top:9px;border-radius:1px;overflow:hidden}
+.cnext .bar i{display:block;height:100%;background:var(--amber);opacity:.85;width:0}
+
+/* дни и события */
+.cday{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;padding:10px 14px 3px}
+.cday.today{color:var(--amber)}
+.cev{display:grid;grid-template-columns:3px 40px 1fr;gap:0 9px;padding:8px 14px 8px 11px;
+  border-bottom:1px solid var(--line);align-items:start;cursor:default}
+.cev .m{width:3px;border-radius:2px;align-self:stretch;min-height:26px}
+.cev .t{font-family:var(--mono);font-size:11.5px;color:var(--dim);line-height:16px}
+.cev .n{font-size:12px;line-height:16px}
+.cev .who{font-size:10px;color:var(--dim);margin-top:1px;line-height:1.35}
+.cev.hot{box-shadow:inset 0 0 0 1px rgba(229,72,77,.5);background:rgba(229,72,77,.05)}
+.cev.hot .t{color:var(--red);font-weight:600}
+.cev.past{opacity:.5}
+.cev.past .t{color:var(--dim)}
+.c-cbr{background:#7fb0ff}.c-fed{background:#7bb8d4}.c-fin{background:#aeb9c7}.c-stat{background:#9aa78f}.c-corp{background:#d9b46a}
+.cempty{color:var(--dim);font-size:11.5px;padding:16px 14px;line-height:1.5}
+
+/* кнопка календаря в шапке */
+button#calBtn{color:var(--dim);border-color:var(--line);padding:0 9px;line-height:1;position:relative}
+button#calBtn svg{width:13px;height:13px;display:block;stroke:currentColor;fill:none}
+body.cal-on button#calBtn{color:var(--amber);border-color:var(--amber)}
+button#calBtn .cdot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;
+  background:var(--amber);box-shadow:0 0 7px var(--amber)}
+#calBack{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;
+  transition:opacity .3s;z-index:39}
+body.cal-on #calBack{opacity:1;pointer-events:auto}
+/* панель сдвигает содержимое там, где хватает ширины */
+@media(min-width:720px){
+  body.cal-on{padding-left:var(--sw,296px)}
+  #calBack{display:none}
+}
+@media(max-width:719px){#cal{width:min(88vw,320px)}}
+/* обе панели открыты — на узком экране это невозможно, прячем левую */
+@media(max-width:1500px){body.cal-on.side-on #cal{transform:translateX(-100%)}}
+
 /* ── боковая панель котировок ── */
 #side{position:fixed;top:0;right:0;bottom:0;width:296px;z-index:40;
   background:color-mix(in srgb,var(--panel) 82%,transparent);
@@ -508,6 +576,9 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
   <input id="q" type="search" placeholder="поиск" autocomplete="off" size="1">
   <!-- <a class="hbtn" href="/quotes">котировки</a> --><!-- страница котировок скрыта; вернуть при необходимости -->
   <!-- <a class="hbtn" href="/map">карта</a> --><!-- ссылка убрана из шапки; страница живёт по адресу /map -->
+  <button class="hbtn" id="calBtn" title="календарь событий" hidden>
+    <svg viewBox="0 0 14 14" stroke-width="1.5" stroke-linecap="round"><rect x="1.5" y="2.5" width="11" height="10" rx="2"/><path d="M1.5 6h11M4.5 1v3M9.5 1v3"/></svg>
+  </button>
   <button class="hbtn" id="sideBtn" title="панель котировок" aria-label="панель котировок"><svg viewBox="0 0 14 12" aria-hidden="true"><rect x="0.5" y="7" width="3" height="5" rx="1"/><rect x="5.5" y="4" width="3" height="8" rx="1"/><rect x="10.5" y="0.5" width="3" height="11.5" rx="1"/></svg></button>
   <button class="hbtn" id="thBtn" title="светлая / тёмная тема">◑</button>
   <button class="hbtn" id="instBtn" title="добавить ярлык на экран телефона" aria-label="добавить ярлык на экран" hidden>
@@ -517,6 +588,12 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
 </header>
 <nav id="nav"></nav>
 <main id="feed"><div class="note">Загружаю ленту…</div></main>
+<div id="calBack"></div>
+<aside id="cal">
+  <div class="sh"><b>Календарь</b><span class="sbeta" title="раздел в разработке">бета</span>
+    <button class="sx" id="calClose" title="закрыть">×</button></div>
+  <div class="cbody" id="calBody"><div class="cempty">Загружаю…</div></div>
+</aside>
 <div id="sideBack"></div>
 <aside id="side">
   <div class="sh"><b>Котировки</b><span class="sbeta" title="раздел в разработке">бета</span><span class="su" id="sideUpd" hidden></span>
@@ -1209,6 +1286,140 @@ function sideOpen(on){
     });
   });
 })();
+
+
+// ── Календарь событий ────────────────────────────────────────────────────
+// Пока показывается только по адресу с параметром calendar=1 — обычные
+// посетители кнопку не видят. Признак запоминается, чтобы не дописывать
+// параметр каждый раз; убрать можно через calendar=0.
+const CAL_KEY='ff-cal-v1';
+let calВключён=false;
+try{
+  const q=new URLSearchParams(location.search);
+  if(q.has('calendar')){
+    calВключён=q.get('calendar')!=='0';
+    localStorage.setItem(CAL_KEY, calВключён?'1':'0');
+  }else{
+    calВключён=localStorage.getItem(CAL_KEY)==='1';
+  }
+}catch(e){}
+
+let calСобытия=[], calБлижайшее=null, calТаймер=null, calОтсчёт=null;
+const calBody=document.getElementById('calBody');
+const МЕС=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const ДНИ=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+
+function calДень(d, сегодня){
+  const [y,m,dd]=d.split('-').map(Number);
+  const дата=new Date(Date.UTC(y,m-1,dd));
+  const назв=ДНИ[дата.getUTCDay()]+' '+dd+' '+МЕС[m-1];
+  if(d===сегодня)return 'Сегодня · '+назв;
+  const вчера=new Date(new Date(сегодня+'T00:00:00Z').getTime()-864e5).toISOString().slice(0,10);
+  const завтра=new Date(new Date(сегодня+'T00:00:00Z').getTime()+864e5).toISOString().slice(0,10);
+  if(d===вчера)return 'Вчера · '+назв;
+  if(d===завтра)return 'Завтра · '+назв;
+  return назв.charAt(0).toUpperCase()+назв.slice(1);
+}
+
+async function calЗагрузить(){
+  try{
+    const r=await fetch('/api/calendar',{cache:'no-cache'});
+    const d=await r.json();
+    calСобытия=d.events||[];
+    calБлижайшее=calСобытия.find(e=>e.id===d.next)||null;
+    calОтрисовать(d.today);
+    calОбновитьТочку();
+  }catch(e){
+    if(!calBody.querySelector('.cev'))
+      calBody.innerHTML='<div class="cempty">Не удалось загрузить календарь.</div>';
+  }
+}
+
+function calОтрисовать(сегодня){
+  if(!calСобытия.length){
+    calBody.innerHTML='<div class="cempty">На ближайшие два месяца событий не найдено.</div>';
+    return;
+  }
+  let h='';
+  if(calБлижайшее){
+    h+='<div class="cnext"><div class="lb">Ближайшее</div>'+
+       '<div class="nm">'+esc(calБлижайшее.name)+'</div>'+
+       '<div class="cd" id="calCd">—<small id="calWhen"></small></div>'+
+       '<div class="bar"><i id="calBar"></i></div></div>';
+  }
+  let текущийДень='';
+  for(const e of calСобытия){
+    if(e.date!==текущийДень){
+      текущийДень=e.date;
+      h+='<div class="cday'+(e.date===сегодня?' today':'')+'">'+esc(calДень(e.date,сегодня))+'</div>';
+    }
+    h+='<div class="cev'+(e.hot&&!e.past?' hot':'')+(e.past?' past':'')+'">'+
+         '<span class="m c-'+e.kind+'"></span>'+
+         '<span class="t">'+e.time+'</span>'+
+         '<div><div class="n">'+esc(e.name)+'</div>'+
+           '<div class="who">'+esc(e.who)+(e.note?' · '+esc(e.note):'')+'</div>'+
+         '</div></div>';
+  }
+  calBody.innerHTML=h;
+  calТикер();
+}
+
+// Обратный отсчёт до ближайшего события. Полоска показывает, какая доля
+// суток до события уже прошла — чтобы движение было видно и на длинных сроках.
+function calТикер(){
+  if(calОтсчёт)clearInterval(calОтсчёт);
+  const цифры=document.getElementById('calCd');
+  if(!цифры||!calБлижайшее)return;
+  const когда=document.getElementById('calWhen'), полоска=document.getElementById('calBar');
+  const тик=()=>{
+    let d=calБлижайшее.ts-Date.now();
+    if(d<=0){ цифры.textContent='идёт сейчас'; if(полоска)полоска.style.width='100%'; calЗагрузить(); return; }
+    const дн=Math.floor(d/864e5), ч=Math.floor(d%864e5/36e5), м=Math.floor(d%36e5/6e4), с=Math.floor(d%6e4/1e3);
+    цифры.textContent = дн>0 ? дн+' дн '+ч+' ч' : ч+':'+String(м).padStart(2,'0')+':'+String(с).padStart(2,'0');
+    if(когда){
+      цифры.appendChild(когда);
+      const дата=calБлижайшее.date.slice(8)*1+' '+МЕС[calБлижайшее.date.slice(5,7)*1-1];
+      когда.textContent=(дн>0?дата:'сегодня')+' в '+calБлижайшее.time;
+    }
+    if(полоска){ const сутки=Math.min(1,Math.max(0,1-d/864e5)); полоска.style.width=(сутки*100).toFixed(1)+'%'; }
+  };
+  тик(); calОтсчёт=setInterval(тик,1000);
+}
+
+// Точка на кнопке — важное событие меньше чем через час.
+function calОбновитьТочку(){
+  const кн=document.getElementById('calBtn'); if(!кн)return;
+  const скоро=calБлижайшее&&calБлижайшее.hot&&calБлижайшее.ts-Date.now()<36e5&&calБлижайшее.ts>Date.now();
+  let точка=кн.querySelector('.cdot');
+  if(скоро&&!точка){ точка=document.createElement('span'); точка.className='cdot';
+    точка.title='важное событие меньше чем через час'; кн.appendChild(точка); }
+  if(!скоро&&точка)точка.remove();
+}
+
+function calOpen(on){
+  document.body.classList.toggle('cal-on',on);
+  if(on){
+    calЗагрузить();
+    if(!calТаймер)calТаймер=setInterval(()=>{ if(!document.hidden)calЗагрузить(); },60000);
+  }else if(calТаймер){ clearInterval(calТаймер); calТаймер=null;
+    if(calОтсчёт){clearInterval(calОтсчёт);calОтсчёт=null;} }
+  try{ const pr=JSON.parse(localStorage.getItem('mkt_prefs')||'{}'); pr.cal=on;
+       localStorage.setItem('mkt_prefs',JSON.stringify(pr)); }catch(e){}
+}
+
+if(calВключён){
+  const кн=document.getElementById('calBtn');
+  кн.hidden=false;
+  кн.onclick=()=>calOpen(!document.body.classList.contains('cal-on'));
+  document.getElementById('calClose').onclick=()=>calOpen(false);
+  document.getElementById('calBack').onclick=()=>calOpen(false);
+  // сразу подтягиваем события, чтобы точка на кнопке была честной ещё до открытия
+  calЗагрузить();
+  let открыть=false;
+  try{ открыть=!!JSON.parse(localStorage.getItem('mkt_prefs')||'{}').cal; }catch(e){}
+  if(открыть&&window.innerWidth>=1500)calOpen(true);
+  setInterval(calОбновитьТочку,30000);
+}
 
 document.getElementById('sideBtn').onclick=()=>sideOpen(!document.body.classList.contains('side-on'));
 document.getElementById('sideClose').onclick=()=>sideOpen(false);

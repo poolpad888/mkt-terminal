@@ -1666,6 +1666,49 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
 process.on('unhandledRejection', r => console.error('[unhandledRejection]', r));
 process.on('uncaughtException',  e => console.error('[uncaughtException]', e));
 
+// ── Календарь событий ────────────────────────────────────────────────────
+// Первый слой — заседания Банка России и ФРС. Их графики известны на год
+// вперёд и публикуются самими регуляторами, поэтому держим списком: это
+// надёжнее, чем разбирать страницы, и не зависит от доступности сайтов.
+// Время московское. Позже сюда добавятся Росстат, аукционы ОФЗ и компании.
+const CAL_CBR = [
+  // Банк России: решения по ключевой ставке, пятницы, 13:30
+  ['2026-02-13', 'Решение по ключевой ставке', 'пресс-конференция в 15:00'],
+  ['2026-03-20', 'Решение по ключевой ставке', ''],
+  ['2026-04-24', 'Решение по ключевой ставке', 'с обновлением прогноза'],
+  ['2026-06-05', 'Решение по ключевой ставке', ''],
+  ['2026-07-24', 'Решение по ключевой ставке', 'с обновлением прогноза'],
+  ['2026-09-11', 'Решение по ключевой ставке', 'пресс-конференция в 15:00'],
+  ['2026-10-23', 'Решение по ключевой ставке', 'с обновлением прогноза'],
+  ['2026-12-18', 'Решение по ключевой ставке', ''],
+];
+const CAL_FED = [
+  // ФРС: решения по ставке, среды, 21:00 по Москве
+  ['2026-01-28', 'Решение ФРС по ставке', ''],
+  ['2026-03-18', 'Решение ФРС по ставке', 'с прогнозами участников'],
+  ['2026-04-29', 'Решение ФРС по ставке', ''],
+  ['2026-06-17', 'Решение ФРС по ставке', 'с прогнозами участников'],
+  ['2026-07-29', 'Решение ФРС по ставке', ''],
+  ['2026-09-16', 'Решение ФРС по ставке', 'с прогнозами участников'],
+  ['2026-11-04', 'Решение ФРС по ставке', ''],
+  ['2026-12-16', 'Решение ФРС по ставке', 'с прогнозами участников'],
+];
+
+function calEvents() {
+  const out = [];
+  for (const [d, name, note] of CAL_CBR)
+    out.push({ id: 'cbr-' + d, date: d, time: '13:30', kind: 'cbr', who: 'Банк России', name, note, hot: true });
+  for (const [d, name, note] of CAL_FED)
+    out.push({ id: 'fed-' + d, date: d, time: '21:00', kind: 'fed', who: 'Федеральная резервная система', name, note, hot: true });
+  out.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  return out;
+}
+
+// Момент события в московском времени, приведённый к абсолютному времени.
+function calTs(ev) {
+  return new Date(ev.date + 'T' + ev.time + ':00+03:00').getTime();
+}
+
 function addSec(res) {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -1753,6 +1796,21 @@ const srv = http.createServer(async (req, res) => {
       trackVisit(clientIp, null, req, true);
       req.on('close', () => { sseClients.delete(res); sseIp.delete(res); });
       return;
+    }
+    if (u.pathname === '/api/calendar') {
+      // ?from=YYYY-MM-DD&days=N — окно по дням, по умолчанию от сегодня на 60 дней
+      // вперёд и на 7 назад: панель показывает и что будет, и что недавно вышло.
+      const сегодня = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
+      const from = /^\d{4}-\d{2}-\d{2}$/.test(u.searchParams.get('from') || '') ? u.searchParams.get('from') : null;
+      const days = Math.min(Math.max(parseInt(u.searchParams.get('days') || '60', 10) || 60, 1), 400);
+      const начало = from || new Date(Date.now() - 7 * 864e5).toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
+      const конец = new Date(new Date(начало + 'T00:00:00+03:00').getTime() + days * 864e5)
+        .toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
+      const события = calEvents().filter(e => e.date >= начало && e.date <= конец);
+      const now = Date.now();
+      for (const e of события) { const t = calTs(e); e.ts = t; e.past = t < now; }
+      const ближайшее = события.find(e => !e.past && e.hot) || события.find(e => !e.past) || null;
+      return sendJson(req, res, { today: сегодня, from: начало, to: конец, next: ближайшее ? ближайшее.id : null, events: события });
     }
     if (u.pathname === '/api/feed') {
       const feed = await getFeed();
