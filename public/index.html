@@ -1960,9 +1960,13 @@ function calТикер(){
   const цифры=document.getElementById('calCd');
   if(!цифры||!calБлижайшее)return;
   const когда=document.getElementById('calWhen'), полоска=document.getElementById('calBar');
+  // Блок прошлых чисел лежит в том же #calCd, а мы каждую секунду переписываем
+  // его текст — поэтому держим ссылку и возвращаем блок обратно после записи.
+  const числа=цифры.querySelector('.prevf');
   const тик=()=>{
     let d=calБлижайшее.ts-Date.now();
-    if(d<=0){ цифры.textContent='идёт сейчас'; if(полоска)полоска.style.width='100%'; calЗагрузить(); return; }
+    if(d<=0){ цифры.textContent='идёт сейчас'; if(числа)цифры.appendChild(числа);
+              if(полоска)полоска.style.width='100%'; calЗагрузить(); return; }
     const дн=Math.floor(d/864e5), ч=Math.floor(d%864e5/36e5), м=Math.floor(d%36e5/6e4), с=Math.floor(d%6e4/1e3);
     // сутки и больше — дни, часы, минуты; в последний час — минуты и секунды,
     // чтобы перед выходом данных было видно движение
@@ -1970,6 +1974,7 @@ function calТикер(){
     цифры.textContent = дн>0 ? дн+'д '+ч+'ч '+м+'м'
                      : ч>0  ? ч+'ч '+String(м).padStart(2,'0')+'м'
                             : String(м).padStart(2,'0')+':'+String(с).padStart(2,'0');
+    if(числа)цифры.appendChild(числа);
     if(когда){
       цифры.appendChild(когда);
       // Месяц сокращаем: рядом стоят прошлые числа, полное «сентября»
