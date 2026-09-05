@@ -353,6 +353,18 @@ body.cal-on #cal{transform:translateX(0)}
 .cev .t{font-family:var(--mono);font-size:11.5px;color:var(--dim);line-height:16px}
 .cev .n{font-size:12px;line-height:16px}
 .cev .who{font-size:10px;color:var(--dim);margin-top:1px;line-height:1.35}
+/* Три числа под событием: прогноз, предыдущее, факт. Держим в одну строку —
+   в узкой панели перенос выглядел бы рвано, поэтому размер мелкий, а длинные
+   диапазоны вида «4,00–4,25%» ужимаются по месту. */
+.cev .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+.cev .nums div{display:flex;flex-direction:column;gap:1px;min-width:0}
+.cev .nums b{font-family:var(--mono);font-size:11px;font-weight:600;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.cev .nums s{text-decoration:none;color:var(--dim);font-size:8.5px;letter-spacing:.06em;
+  font-family:var(--mono);text-transform:uppercase}
+.cev .nums b.dim{color:var(--dim);font-weight:400}
+.cev .nums b.up{color:var(--green)}
+.cev .nums b.dn{color:var(--red)}
 .cev.hot{box-shadow:inset 0 0 0 1px rgba(229,72,77,.5);background:rgba(229,72,77,.05)}
 .cev.hot .t{color:var(--red);font-weight:600}
 .cev.past{opacity:.5}
@@ -1353,11 +1365,21 @@ function calОтрисовать(сегодня){
       текущийДень=e.date;
       h+='<div class="cday'+(e.date===сегодня?' today':'')+'">'+esc(calДень(e.date,сегодня))+'</div>';
     }
+    // числа показываем только если хоть одно известно — иначе строка была бы
+    // тремя пустыми точками без пользы
+    const есть=e.f||e.prev||e.fact;
+    const чис=v=>v?esc(v):'·';
+    const nums=есть?('<div class="nums">'+
+        '<div><b class="'+(e.f?'':'dim')+'">'+чис(e.f)+'</b><s>прогноз</s></div>'+
+        '<div><b class="'+(e.prev?'':'dim')+'">'+чис(e.prev)+'</b><s>пред.</s></div>'+
+        '<div><b class="'+(e.fact?(e.move||''):'dim')+'">'+чис(e.fact)+'</b><s>факт</s></div>'+
+      '</div>'):'';
     h+='<div class="cev'+(e.hot&&!e.past?' hot':'')+(e.past?' past':'')+'">'+
          '<span class="m c-'+e.kind+'"></span>'+
          '<span class="t">'+e.time+'</span>'+
          '<div><div class="n">'+esc(e.name)+'</div>'+
            '<div class="who">'+esc(e.who)+(e.note?' · '+esc(e.note):'')+'</div>'+
+           nums+
          '</div></div>';
   }
   calBody.innerHTML=h;
