@@ -455,20 +455,20 @@ html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
   font-family:var(--sans);letter-spacing:0}
 /* Верх блока привязан к первой строке отсчёта, а числа внутри сидят на её
    базовой линии: выравниваем по низу строки, а не по верху блока. */
-.cnext .prevf{position:absolute;right:0;top:0;display:grid;
-  grid-template-columns:auto auto;column-gap:10px;align-items:end;
-  justify-items:end;text-align:right;white-space:nowrap}
-.cnext .prevf b:nth-of-type(1){grid-area:1/1}
-.cnext .prevf b:nth-of-type(2){grid-area:1/2}
-.cnext .prevf s:nth-of-type(1){grid-area:2/1}
-.cnext .prevf s:nth-of-type(2){grid-area:2/2}
+.cnext .prevf{position:absolute;right:0;top:0;display:flex;gap:10px;
+  align-items:flex-end;text-align:right;white-space:nowrap}
+.cnext .prevf i{display:flex;flex-direction:column;align-items:flex-end;font-style:normal}
 .cnext .prevf b{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--blue);
-  line-height:1;align-self:end;
+  line-height:1;
   /* сажаем число на нижнюю границу строки отсчёта: она крупнее, поэтому
      без сдвига число висит выше */
   transform:translateY(6px)}
 .cnext .prevf s{text-decoration:none;color:var(--dim);font-size:8.5px;letter-spacing:.04em;
   text-transform:uppercase;font-family:var(--sans);margin-top:14px}
+.cnext .nm{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.cnext .nm .unit{color:var(--dim);font-size:11px;font-weight:400;white-space:nowrap}
+.cnext .prevf.n3{gap:7px}
+.cnext .prevf.n3 b{font-size:11.5px}
 .cnext .prevf b.dim{color:var(--dim);font-weight:400}
 .cnext .prevf b.up{color:var(--green)}
 .cnext .prevf b.dn{color:var(--red)}
@@ -1903,12 +1903,15 @@ function calОтрисовать(сегодня){
     const pv=calБлижайшее.prevEv;
     const пред=(pv&&(pv.fact||pv.prev))||calБлижайшее.prev||'';
     const факт=calБлижайшее.fact||'';
-    if(пред||факт){
+    const прог=calБлижайшее.f||'';
+    if(пред||факт||прог){
       const pf=v=>v?esc(v):'—';
-      прош='<span class="prevf">'+
-           '<b class="'+(пред?'':'dim')+'">'+pf(пред)+'</b>'+
-           '<b class="'+(факт?esc(calБлижайшее.move||''):'dim')+'">'+pf(факт)+'</b>'+
-           '<s>пред.</s><s>факт</s>'+
+      const три=!!прог;
+      const ст=(v,кл,п)=>'<i><b class="'+кл+'">'+pf(v)+'</b><s>'+п+'</s></i>';
+      прош='<span class="prevf'+(три?' n3':'')+'">'+
+           ст(пред,пред?'':'dim',три?'пред':'пред.')+
+           (три?ст(прог,'dim','прог'):'')+
+           ст(факт,факт?esc(calБлижайшее.move||''):'dim','факт')+
            '</span>';
     }
     // Заголовок честно говорит, своё это событие или просто ближайшее.
@@ -1916,7 +1919,8 @@ function calОтрисовать(сегодня){
     h+='<div class="cnext'+(своёЖе?' pinned':'')+'" style="--ac:'+ц+'"><div class="lb">'+
        (своёЖе?'<span class="pinl" id="calUnpin" title="снять отметку">★ Ваше событие</span>':'Ближайшее')+
        '<button class="fb'+(calСтраны.size?' on':'')+'" id="calFB" title="фильтр по странам">'+мет+'</button></div>'+
-       '<div class="nm">'+esc(calБлижайшее.name)+'</div>'+
+       '<div class="nm">'+esc(calБлижайшее.name)+
+         (calБлижайшее.unit?'<span class="unit">'+esc(calБлижайшее.unit)+'</span>':'')+'</div>'+
        '<div class="cd" id="calCd">—<small id="calWhen">'+
        '<span class="whend"></span></small>'+прош+'</div>'+
        '</div>';
@@ -2030,8 +2034,9 @@ function calТикер(){
     // сутки и больше — дни, часы, минуты; в последний час — минуты и секунды,
     // чтобы перед выходом данных было видно движение
     // подписи прижаты к числам: «3д 17ч 6м», а не «3 дн 17 ч 6 мин»
-    цифры.textContent = дн>0 ? дн+'д '+ч+'ч '+м+'м'
-                     : ч>0  ? ч+'ч '+String(м).padStart(2,'0')+'м'
+    // волосяной пробел (U+200A) — самый узкий
+    цифры.textContent = дн>0 ? дн+'д\u200a'+ч+'ч\u200a'+м+'м'
+                     : ч>0  ? ч+'ч\u200a'+String(м).padStart(2,'0')+'м'
                             : String(м).padStart(2,'0')+':'+String(с).padStart(2,'0');
     if(числа)цифры.appendChild(числа);
     if(когда){
