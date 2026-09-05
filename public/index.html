@@ -348,7 +348,8 @@ body.cal-on #cal{transform:translateX(0)}
 #cal .cbody{flex:1;overflow-y:auto;overscroll-behavior:contain}
 
 /* ближайшее событие — единственное громкое место панели */
-.cnext{padding:12px 14px 11px;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:3;background:var(--panel)}
+.cnext{padding:10px 12px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:3;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--ac) 7%,var(--panel)),var(--panel))}
 .cnext .lb{font-size:10.5px;color:var(--dim);margin-bottom:5px;display:flex;align-items:center;gap:6px}
 .cnext .lb .fb{margin-left:auto;background:none;border:1px solid var(--line);border-radius:5px;color:var(--dim);
   cursor:pointer;padding:2px 6px;line-height:1;display:inline-flex;align-items:center;gap:5px;font:inherit;font-size:10px}
@@ -356,17 +357,17 @@ body.cal-on #cal{transform:translateX(0)}
 .cnext .lb .fb.on{color:var(--amber);border-color:var(--amber)}
 .cnext .lb .fb svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:1.6;display:block}
 .cnext .lb .fb i{width:6px;height:6px;border-radius:50%;display:inline-block}
-.cnext .nm{font-size:12.5px;font-weight:600;line-height:1.3}
+.cnext .nm{font-size:12px;font-weight:600;line-height:1.3;color:var(--tx)}
 .cnext{--ac:var(--amber)}
 /* цвета ведомств подобраны под тёмный фон; на белом их надо притемнить,
    иначе отсчёт получается бледным и плохо читается */
 html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
-.cnext .cd{font-family:var(--mono);font-size:26px;font-weight:600;margin-top:5px;color:var(--ac);
+.cnext .cd{font-family:var(--mono);font-size:21px;font-weight:600;margin-top:3px;color:var(--ac);
   font-variant-numeric:tabular-nums;line-height:1.1}
-.cnext .cd small{display:block;font-size:11px;font-weight:400;color:var(--dim);margin:9px 0 0;
+.cnext .cd small{display:block;font-size:10.5px;font-weight:400;color:var(--dim);margin:7px 0 0;
   font-family:var(--sans);letter-spacing:0}
 /* прошлый раз: факт предыдущего события того же вида — виден без раскрытия */
-.cnext .prevf{margin-top:10px;font-size:11px;color:var(--dim)}
+.cnext .prevf{margin-top:8px;font-size:11px;color:var(--dim)}
 .cnext .prevf .dt{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase}
 .cnext .prevf .nums{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:4px}
 .cnext .prevf .nums div{display:flex;flex-direction:column;gap:1px}
@@ -379,14 +380,18 @@ html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
 .cnext .bar i{display:block;height:100%;background:var(--ac);opacity:.85;width:0}
 
 /* дни и события */
-.cday{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;padding:10px 14px 3px}
+.cday{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;
+  padding:11px 12px 4px;position:relative}
+.cday::after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:1px;
+  background:color-mix(in srgb,var(--line) 70%,transparent)}
 .cday.today{color:var(--amber)}
-.cev{display:grid;grid-template-columns:3px 40px 1fr;gap:0 9px;padding:8px 14px 8px 11px;
-  border-bottom:1px solid var(--line);align-items:start;cursor:default}
-.cev .m{width:3px;border-radius:2px;align-self:stretch;min-height:26px}
-.cev .t{font-family:var(--mono);font-size:12px;color:var(--dim);line-height:16px}
-.cev .n{font-size:12.5px;line-height:16px}
-.cev .who{font-size:10px;color:var(--dim);margin-top:1px;line-height:1.35}
+.cev{display:grid;grid-template-columns:3px 40px 1fr;gap:0 9px;padding:8px 12px 8px 9px;
+  border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent);align-items:start;cursor:default;
+  transition:background .15s}
+.cev .m{width:3px;border-radius:2px;align-self:stretch;min-height:26px;opacity:.85}
+.cev .t{font-family:var(--mono);font-size:11.5px;color:var(--tx);opacity:.75;line-height:16px;font-variant-numeric:tabular-nums}
+.cev .n{font-size:12.5px;line-height:16px;color:var(--tx);font-weight:500}
+.cev .who{font-size:10px;color:var(--dim);margin-top:2px;line-height:1.35;letter-spacing:.01em}
 /* Три числа под событием: прогноз, предыдущее, факт. Держим в одну строку —
    в узкой панели перенос выглядел бы рвано, поэтому размер мелкий, а длинные
    диапазоны вида «4,00–4,25%» ужимаются по месту. */
@@ -401,7 +406,7 @@ html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
 .cev .nums b.dn{color:var(--red)}
 .cev.hot{box-shadow:inset 0 0 0 1px rgba(229,72,77,.5);background:rgba(229,72,77,.05)}
 .cev.hot .t{color:var(--red);font-weight:600}
-.cev.past{opacity:.5}
+.cev.past{opacity:.62}
 .cev.past .t{color:var(--dim)}
 .cev.open,.cev:hover{background:rgba(255,255,255,.035)}
 .cev.open{opacity:1}
@@ -416,11 +421,17 @@ html.light .cev.open,html.light .cev:hover{background:rgba(0,0,0,.035)}
 .cev .news .lnk:hover{text-decoration:underline}
 .cev .nonews{grid-column:2/4;margin-top:6px;font-size:11px;color:var(--dim)}
 /* фильтры по ведомствам */
-.cf{display:none;gap:4px;padding:7px 10px;border-bottom:1px solid var(--line);flex-wrap:nowrap;overflow:hidden;
-  position:sticky;z-index:3;background:var(--panel)}
+/* Фильтр — выпадающий список у самой кнопки: не занимает место в панели
+   и не уезжает при прокрутке. */
+.cf{display:none;position:absolute;right:14px;z-index:9;min-width:132px;padding:4px;
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  box-shadow:0 10px 28px rgba(0,0,0,.45);flex-direction:column;gap:1px}
+html.light .cf{box-shadow:0 10px 28px rgba(30,45,70,.18)}
 .cf.show{display:flex}
-.cf span{font-size:10px;padding:2px 6px;border-radius:12px;border:1px solid var(--line);color:var(--dim);
-  cursor:pointer;display:inline-flex;align-items:center;gap:4px;line-height:1.5;user-select:none;white-space:nowrap;flex:none}
+.cf span{font-size:11px;padding:5px 8px;border-radius:5px;color:var(--dim);
+  cursor:pointer;display:flex;align-items:center;gap:7px;line-height:1.4;user-select:none;white-space:nowrap}
+.cf span:hover{background:rgba(255,255,255,.06);color:var(--tx)}
+html.light .cf span:hover{background:rgba(20,30,45,.06)}
 .cf span.on{color:var(--tx);border-color:var(--dim)}
 .cf i{width:6px;height:6px;border-radius:50%;display:inline-block}
 .cpast{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;
@@ -685,6 +696,7 @@ body.cal-on.side-on .hbtn{padding:0 7px}
   <div class="sh"><b>Календарь</b>
     <button class="sx" id="calClose" title="закрыть">×</button></div>
   <div class="cbody" id="calBody"><div class="cempty">Загружаю…</div></div>
+  <div class="cf" id="calF"></div>
   <button id="calNow" title="К сегодняшнему дню" aria-label="К сегодняшнему дню">
     <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg><span>сегодня</span></button>
 </aside>
@@ -1424,6 +1436,24 @@ let calДнейНазад=7;             // сколько прошедших д
 let calГрузитПрошлое=false;
 // Шторка фильтров прилипает сразу под блоком «Ближайшее»: его высота
 // меняется, поэтому отступ вычисляем, а не задаём в стилях.
+function calЗаполнитьФильтр(){
+  const box=document.getElementById('calF');
+  if(!box)return;
+  const есть=new Set(calСобытия.map(e=>e.kind));
+  let h='<span data-k="all" class="'+(calФильтр==='all'?'on':'')+'">все ведомства</span>';
+  for(const [k,nm] of CAL_KINDS) if(есть.has(k))
+    h+='<span data-k="'+k+'" class="'+(calФильтр===k?'on':'')+'"><i class="c-'+k+'"></i>'+nm+'</span>';
+  box.innerHTML=h;
+  box.classList.toggle('show',calФПоказать);
+  if(calФПоказать){
+    const кн=document.getElementById('calFB');
+    if(кн){
+      const п=document.getElementById('cal').getBoundingClientRect();
+      const r=кн.getBoundingClientRect();
+      box.style.top=(r.bottom-п.top+5)+'px';
+    }
+  }
+}
 function calПодогнатьЛипкое(){
   requestAnimationFrame(()=>{
     const ш=calBody.querySelector('.cnext'), ф=document.getElementById('calF');
@@ -1462,9 +1492,14 @@ if(calNow)calNow.onclick=()=>{
   if(цель!==null)calBody.scrollTo({top:цель,behavior:'smooth'});
 };
 
+document.addEventListener('keydown',ev=>{
+  if(ev.key==='Escape'&&calФПоказать){ calФПоказать=false; calЗаполнитьФильтр(); }
+});
+
 // у верха — подгружаем ещё месяц прошлого, прокрутку оставляем на месте
 calBody.addEventListener('scroll',()=>{
   calОбновитьКнопку();
+  if(calФПоказать){ calФПоказать=false; calЗаполнитьФильтр(); }
   if(calBody.scrollTop>40||calГрузитПрошлое||calДнейНазад>=120)return;
   calГрузитПрошлое=true;
   calДнейНазад+=30;
@@ -1541,9 +1576,9 @@ function calОтрисовать(сегодня){
     let прош='';
     const pv=calБлижайшее.prevEv;
     if(pv){
-      const д=pv.date.slice(8)*1+' '+МЕС[pv.date.slice(5,7)*1-1];
       const pf=v=>v?esc(v):'·';
-      прош='<div class="prevf"><span class="dt">прошлый раз · '+esc(д)+'</span>'+
+      // Дату прошлого события не показываем — важны сами числа.
+      прош='<div class="prevf">'+
            '<div class="nums">'+
            '<div><b class="'+(pv.prev?'':'dim')+'">'+pf(pv.prev)+'</b><s>пред.</s></div>'+
            '<div><b class="'+(pv.fact?esc(pv.move||''):'dim')+'">'+pf(pv.fact)+'</b><s>факт</s></div>'+
@@ -1555,12 +1590,9 @@ function calОтрисовать(сегодня){
        '<div class="cd" id="calCd">—<small id="calWhen"></small></div>'+
        прош+'</div>';
   }
-  // фильтры: показываем только те ведомства, у которых есть события
-  const есть=new Set(calСобытия.map(e=>e.kind));
-  h+='<div class="cf'+(calФПоказать?' show':'')+'" id="calF"><span data-k="all" class="'+(calФильтр==='all'?'on':'')+'">все</span>';
-  for(const [k,nm] of CAL_KINDS) if(есть.has(k))
-    h+='<span data-k="'+k+'" class="'+(calФильтр===k?'on':'')+'"><i class="c-'+k+'"></i>'+nm+'</span>';
-  h+='</div>';
+  // Фильтры лежат в самой панели (см. #calF в разметке), а не в прокручиваемом
+  // списке — так выпадающий список не обрезается и не уезжает при прокрутке.
+  calЗаполнитьФильтр();
 
   const видно=calСобытия.filter(e=>calФильтр==='all'||e.kind===calФильтр);
   // сегодня и будущее — сверху; прошедшие дни — внизу, самые свежие первыми
@@ -1618,12 +1650,14 @@ function calОтрисовать(сегодня){
 }
 
 // щелчок по событию раскрывает связанную новость; по фильтру — переключает ведомство
-calBody.addEventListener('click',ev=>{
+document.getElementById('cal').addEventListener('click',ev=>{
   if(ev.target.closest('a'))return;
-  if(ev.target.closest('#calFB')){ calФПоказать=!calФПоказать; calОтрисовать(calСегодня); return; }
+  if(ev.target.closest('#calFB')){ calФПоказать=!calФПоказать; calЗаполнитьФильтр(); return; }
   const ф=ev.target.closest('#calF span');
   if(ф){ calФильтр=ф.dataset.k; localStorage.setItem(CAL_F_KEY,calФильтр);
          calФПоказать=false; calОтрисовать(calСегодня); return; }
+  // щелчок мимо списка — закрываем его
+  if(calФПоказать&&!ev.target.closest('#calF')){ calФПоказать=false; calЗаполнитьФильтр(); }
   // Раскрытие события по щелчку отключено вместе с показом новостей.
   // Вернуть — раскомментировать:
   // const c=ev.target.closest('.cev'); if(!c)return;
