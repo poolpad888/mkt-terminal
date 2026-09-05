@@ -1520,8 +1520,12 @@ async function buildCatalog() {
   jobs.push(fetchUrl('https://iss.moex.com/iss/engines/stock/markets/index/securities.json?iss.meta=off&iss.only=securities&securities.columns=SECID,SHORTNAME')
     .then(raw => {
       const j = JSON.parse(raw);
+      // Названия с биржи длинные («Индекс МосБиржи (все сессии)»,
+      // «Индекс МосБиржи гособлигаций»); в узкой панели нужны короткие.
+      const КОРОТКО = { IMOEX: 'Индекс Мосбиржи', IMOEX2: 'Индекс Мосбиржи', RGBI: 'Индекс RGBI',
+                        RTSI: 'Индекс РТС', MOEXBC: 'Индекс голубых фишек', RUCBITR: 'Индекс корп. облигаций' };
       for (const [secid, name] of (j.securities && j.securities.data) || [])
-        if (secid) out.push({ id: 'idx:' + secid, name: name || secid, tk: secid, g: 'Индексы' });
+        if (secid) out.push({ id: 'idx:' + secid, name: КОРОТКО[secid] || name || secid, tk: secid, g: 'Индексы' });
     }).catch(() => {}));
 
   // сырьё, мировые индексы и крипта с площадки
@@ -1878,7 +1882,7 @@ const srv = http.createServer(async (req, res) => {
       for (const e of события) {
         const род = e.kind + '|' + e.name;
         const пред = поРоду[род];
-        if (пред) e.prevEv = { date: пред.date, time: пред.time, fact: пред.fact || '', move: пред.move || '' };
+        if (пред) e.prevEv = { date: пред.date, time: пред.time, prev: пред.prev || '', fact: пред.fact || '', move: пред.move || '' };
         поРоду[род] = e;
       }
       const видимые = события.filter(e => e.date >= начало && e.date <= конец);
