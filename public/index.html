@@ -29,6 +29,11 @@ html.light{
   --tx:#1c2530; --dim:#6b7a8a;
 }
 html.light .chip.on{color:#fff}
+/* на белом фоне те же подкраски берём насыщеннее по тексту и рамке */
+html.light .chip.imp{color:#c62828;border-color:#f0bcbc;background:#fdf2f2}
+html.light .chip.cbr{color:#1e4fa8;border-color:#c3d4f5;background:#f1f5fe}
+html.light .chip.minfin{color:#4a5563;border-color:#d3dae2;background:#f5f7f9}
+html.light .chip.fed{color:#1a5b78;border-color:#c2dce8;background:#f1f8fb}
 html.light mark{background:#ffe08a;color:#1c2530}
 html.light .tag{border-color:#ddd0f2;background:#f4eefe}
 html.light .tk{border-color:#c8e6d2;background:#eef8f1}
@@ -271,6 +276,17 @@ nav.off{opacity:.35;pointer-events:none}
 .coin{vertical-align:-3px;margin-right:1px}
 .coin2{display:block}
 .chip.on{color:#0b0d10;background:var(--amber);border-color:var(--amber);font-weight:700}
+/* Фильтры ведомств подкрашены и в спокойном состоянии — те же цвета, что
+   у плашек в ленте, но еле заметной заливкой, чтобы шапка не пестрела. */
+.chip.imp{color:color-mix(in srgb,var(--red) 78%,var(--tx));
+  border-color:color-mix(in srgb,var(--red) 42%,var(--line));
+  background:color-mix(in srgb,var(--red) 9%,var(--panel))}
+.chip.cbr{color:#7ba6f0;border-color:color-mix(in srgb,#1e3a8a 55%,var(--line));
+  background:color-mix(in srgb,#1e3a8a 16%,var(--panel))}
+.chip.minfin{color:#b8c4d2;border-color:color-mix(in srgb,#3f4854 70%,var(--line));
+  background:color-mix(in srgb,#3f4854 18%,var(--panel))}
+.chip.fed{color:#8fc4dd;border-color:color-mix(in srgb,#1e3d50 65%,var(--line));
+  background:color-mix(in srgb,#1e3d50 20%,var(--panel))}
 .chip.imp.on{background:var(--red);border-color:var(--red);color:#fff}
 .chip.cbr.on{background:#1e3a8a;border-color:#1e3a8a;color:#e8f0ff}
 .chip.minfin.on{background:#3f4854;border-color:#3f4854;color:#eef2f6}
@@ -488,6 +504,14 @@ html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
 .cev.hot .t{color:var(--red);font-weight:600}
 .cev.past{opacity:.62}
 .cev.past .t{color:var(--dim)}
+/* Закреплённое событие: звёздочка слева и подсветка строки. Курсор-палец
+   только у будущих событий — прошедшие закреплять нельзя. */
+.cev.can{cursor:pointer}
+.cev.pin{background:color-mix(in srgb,var(--amber) 9%,transparent)}
+.cev.pin .t{color:var(--amber)}
+.cev.pin .n::after{content:'★';color:var(--amber);font-size:10px;margin-left:6px;vertical-align:1px}
+.cnext .lb .pinl{color:var(--amber);cursor:pointer;letter-spacing:.02em}
+.cnext .lb .pinl:hover{text-decoration:underline}
 .cev.open,.cev:hover{background:rgba(255,255,255,.035)}
 .cev.open{opacity:1}
 html.light .cev.open,html.light .cev:hover{background:rgba(0,0,0,.035)}
@@ -1655,6 +1679,16 @@ try{
 }catch(e){}
 
 let calСобытия=[], calБлижайшее=null, calТаймер=null, calОтсчёт=null;
+// Своё событие в отсчёте: человек щёлкает по строке и закрепляет её наверху.
+// Храним только id; когда событие прошло, отметка снимается сама и наверх
+// возвращается ближайшее по времени.
+const CAL_ПРИК='ff-calpin-v1';
+let calПрикреплено=null;
+try{ calПрикреплено=localStorage.getItem(CAL_ПРИК)||null; }catch(e){}
+function calЗакрепить(id){
+  calПрикреплено=id||null;
+  try{ if(id)localStorage.setItem(CAL_ПРИК,id); else localStorage.removeItem(CAL_ПРИК); }catch(e){}
+}
 const calBody=document.getElementById('calBody');
 const МЕС=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const ДНИ=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
@@ -1846,7 +1880,11 @@ function calОтрисовать(сегодня){
   // Ближайшее — именно ближайшее по времени, без предпочтения «важным»:
   // иначе отсчёт перескакивает через аукцион в 11:00 к событию в 15:30,
   // хотя в списке сверху стоит аукцион.
-  calБлижайшее = calСобытия.find(e=>!e.past && calПодходит(e)) || null;
+  // Закреплённое событие держим наверху, пока оно не прошло; фильтр по
+  // странам ему не мешает — человек выбрал его сам.
+  const своё = calПрикреплено ? calСобытия.find(e=>e.id===calПрикреплено && !e.past) : null;
+  if(calПрикреплено && !своё) calЗакрепить(null);   // прошло — отметка снимается сама
+  calБлижайшее = своё || calСобытия.find(e=>!e.past && calПодходит(e)) || null;
   if(calБлижайшее){
     // цвет отсчёта — цвет ведомства ближайшего события, как у полоски слева
     const ц=CAL_ЦВЕТ[calБлижайшее.kind]||'var(--amber)';
@@ -1873,7 +1911,10 @@ function calОтрисовать(сегодня){
            '<s>пред.</s><s>факт</s>'+
            '</span>';
     }
-    h+='<div class="cnext" style="--ac:'+ц+'"><div class="lb">Ближайшее'+
+    // Заголовок честно говорит, своё это событие или просто ближайшее.
+    const своёЖе=calБлижайшее.id===calПрикреплено;
+    h+='<div class="cnext'+(своёЖе?' pinned':'')+'" style="--ac:'+ц+'"><div class="lb">'+
+       (своёЖе?'<span class="pinl" id="calUnpin" title="снять отметку">★ Ваше событие</span>':'Ближайшее')+
        '<button class="fb'+(calСтраны.size?' on':'')+'" id="calFB" title="фильтр по странам">'+мет+'</button></div>'+
        '<div class="nm">'+esc(calБлижайшее.name)+'</div>'+
        '<div class="cd" id="calCd">—<small id="calWhen">'+
@@ -1912,7 +1953,9 @@ function calОтрисовать(сегодня){
       //   const нов=calНовости(e);
       //   связ=нов.length?нов.map(calКарточка).join(''):'<div class="nonews">В ленте пока нет новости об этом.</div>';
       // }
-      out+='<div class="cev'+(e.hot&&!e.past?' hot':'')+(e.past?' past':'')+(открыто?' open':'')+'" data-id="'+esc(e.id)+'">'+
+      const прик=e.id===calПрикреплено;
+      out+='<div class="cev'+(e.hot&&!e.past?' hot':'')+(e.past?' past':'')+(открыто?' open':'')+
+           (прик?' pin':'')+(e.past?'':' can')+'" data-id="'+esc(e.id)+'">'+
            '<span class="m c-'+e.kind+'"></span>'+
            '<span class="t">'+e.time+'</span>'+
            '<div><div class="n">'+esc(e.name)+'</div>'+
@@ -1942,6 +1985,7 @@ function calОтрисовать(сегодня){
 // щелчок по событию раскрывает связанную новость; по фильтру — переключает ведомство
 document.getElementById('cal').addEventListener('click',ev=>{
   if(ev.target.closest('a'))return;
+  if(ev.target.closest('#calUnpin')){ calЗакрепить(null); calОтрисовать(calСегодня); return; }
   if(ev.target.closest('#calFB')){ calФПоказать=!calФПоказать; calЗаполнитьФильтр(); return; }
   const ф=ev.target.closest('#calF span');
   if(ф){
@@ -1957,12 +2001,15 @@ document.getElementById('cal').addEventListener('click',ev=>{
     return; }
   // щелчок мимо списка — закрываем его
   if(calФПоказать&&!ev.target.closest('#calF')){ calФПоказать=false; calЗаполнитьФильтр(); }
-  // Раскрытие события по щелчку отключено вместе с показом новостей.
-  // Вернуть — раскомментировать:
-  // const c=ev.target.closest('.cev'); if(!c)return;
-  // const id=c.dataset.id;
-  // if(calОткрыто.has(id))calОткрыто.delete(id); else calОткрыто.add(id);
-  // calОтрисовать(calСегодня);
+  // Щелчок по будущему событию закрепляет его в отсчёте; повторный — снимает.
+  // Прошедшие не закрепляем: отсчитывать до них нечего.
+  const стр=ev.target.closest('.cev');
+  if(стр&&!стр.classList.contains('past')){
+    const id=стр.dataset.id;
+    calЗакрепить(id===calПрикреплено?null:id);
+    calДержатьПрокрутку=calBody.scrollTop;   // чтобы список не прыгнул
+    calОтрисовать(calСегодня);
+  }
 });
 
 // Обратный отсчёт до ближайшего события. Полоска показывает, какая доля
