@@ -436,6 +436,12 @@ body.cal-on #cal{transform:translateX(0)}
 .cnext .lb .fb svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:1.6;display:block}
 .cnext .lb .fb i{width:6px;height:6px;border-radius:50%;display:inline-block}
 .cnext .nm{font-size:12px;font-weight:600;line-height:1.3;color:var(--tx)}
+/* Смена события в шапке: содержимое коротко подхватывается, чтобы подмена
+   не выглядела рывком. Кто просил меньше движения — анимацию не показываем. */
+.cnext .lb,.cnext .nm,.cnext .cd{transition:opacity .18s ease}
+.cnext.swap .lb,.cnext.swap .nm,.cnext.swap .cd{animation:cnfade .34s ease}
+@keyframes cnfade{0%{opacity:0;transform:translateY(-3px)}100%{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.cnext.swap .lb,.cnext.swap .nm,.cnext.swap .cd{animation:none}}
 .cnext{--ac:var(--amber)}
 /* цвета ведомств подобраны под тёмный фон; на белом их надо притемнить,
    иначе отсчёт получается бледным и плохо читается */
@@ -1688,6 +1694,7 @@ let calСобытия=[], calБлижайшее=null, calТаймер=null, cal�
 // возвращается ближайшее по времени.
 const CAL_ПРИК='ff-calpin-v1';
 let calПрикреплено=null;
+let calПоказанноеId=null;   // что стоит в шапке сейчас — чтобы заметить смену
 try{ calПрикреплено=localStorage.getItem(CAL_ПРИК)||null; }catch(e){}
 function calЗакрепить(id){
   calПрикреплено=id||null;
@@ -1981,7 +1988,13 @@ function calОтрисовать(сегодня){
   const держать=calДержатьПрокрутку; calДержатьПрокрутку=null;
   calПодогнатьЛипкое();
   const быв=calBody.scrollHeight;
+  // Событие в шапке сменилось — помечаем блок, чтобы содержимое перетекло
+  // плавно, а не подменилось рывком. При обычном обновлении ленты не мигаем.
+  const сталоId=calБлижайшее?calБлижайшее.id:null;
+  const сменилось=сталоId&&calПоказанноеId&&сталоId!==calПоказанноеId;
+  calПоказанноеId=сталоId;
   calBody.innerHTML=h;
+  if(сменилось){ const бл=calBody.querySelector('.cnext'); if(бл)бл.classList.add('swap'); }
   if(держать!==null){ calBody.scrollTop=calBody.scrollHeight-быв+держать; }   // 0 — тоже позиция
   else calПрокрутитьКСегодня();
   calОбновитьКнопку();
