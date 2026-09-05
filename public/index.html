@@ -166,33 +166,68 @@ header{flex-wrap:nowrap}
 .verbox{max-height:none;overflow:visible}
 @media(max-height:520px){.verbox{max-height:82vh;overflow-y:auto}}
 @media(max-width:640px){.verbox{max-width:calc(100vw - 24px)}}
-/* Просьба обновить страницу. Появляется сверху, не перекрывая ленту надолго:
-   спокойная янтарная полоса в стиле сайта, с кнопкой и подсказкой клавиш. */
-#updbar{position:fixed;left:50%;top:-80px;transform:translateX(-50%);z-index:200;
-  display:flex;align-items:center;gap:12px;padding:10px 14px 10px 16px;
-  background:#1a1508;border:1px solid rgba(240,166,60,.55);border-radius:10px;
-  box-shadow:0 8px 30px rgba(0,0,0,.5),0 0 18px rgba(240,166,60,.18);
-  color:var(--tx);font-size:13px;line-height:1.35;white-space:nowrap;
-  transition:top .45s cubic-bezier(.2,.8,.2,1)}
-#updbar.on{top:12px}
+/* Окно обновления: по центру экрана, фон за ним размывается — как показ
+   новинок в мессенджерах. Список изменений берётся из version.json, поэтому
+   человек видит не только просьбу обновиться, но и что именно поменялось. */
+#updwrap{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;
+  background:rgba(4,6,9,.55);-webkit-backdrop-filter:blur(7px) saturate(115%);backdrop-filter:blur(7px) saturate(115%);
+  opacity:0;transition:opacity .28s ease}
+#updwrap.on{display:flex}
+#updwrap.vis{opacity:1}
+html.light #updwrap{background:rgba(150,165,185,.42)}
+#updbar{width:100%;max-width:440px;max-height:calc(100vh - 40px);overflow-y:auto;
+  background:var(--panel);border:1px solid rgba(240,166,60,.45);border-radius:14px;
+  box-shadow:0 24px 70px rgba(0,0,0,.6),0 0 30px rgba(240,166,60,.10);
+  color:var(--tx);font-size:13px;line-height:1.45;padding:20px 20px 16px;
+  transform:translateY(14px) scale(.97);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+#updwrap.vis #updbar{transform:none}
+html.light #updbar{box-shadow:0 24px 70px rgba(30,45,70,.22)}
+#updbar .uh{display:flex;align-items:center;gap:9px;margin-bottom:3px}
 #updbar .ud{width:8px;height:8px;border-radius:50%;background:var(--amber);flex:none;
   box-shadow:0 0 8px var(--amber);animation:udp 1.6s ease-in-out infinite}
 @keyframes udp{0%,100%{opacity:1}50%{opacity:.35}}
+#updbar .ut{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber)}
+#updbar h3{margin:0 0 12px;font-size:17px;font-weight:700;letter-spacing:.01em;color:var(--tx)}
 #updbar b{color:var(--amber);font-weight:600}
-#updbar kbd{font-family:var(--mono);font-size:11px;background:#0b0d10;border:1px solid var(--line);
+/* Список новинок: у каждой — рисованная подсказка, где её искать. */
+#updbar .ulist{display:flex;flex-direction:column;gap:12px;margin:0 0 16px}
+#updbar .ui{display:flex;gap:11px;align-items:flex-start}
+#updbar .ui .un{flex:none;width:20px;height:20px;border-radius:50%;margin-top:1px;
+  background:rgba(240,166,60,.13);border:1px solid rgba(240,166,60,.4);color:var(--amber);
+  font-family:var(--mono);font-size:10.5px;font-weight:700;
+  display:flex;align-items:center;justify-content:center}
+#updbar .ui .utx{min-width:0}
+#updbar .ui .utx i{font-style:normal;color:var(--dim);font-size:11.5px;display:block;margin-top:3px}
+/* Рисованная подсказка: уголок интерфейса со стрелкой на нужную кнопку. */
+#updbar .uhint{margin-top:7px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--bg)}
+#updbar .uhint .ubar{display:flex;align-items:center;gap:5px;padding:6px 8px;border-bottom:1px solid var(--line);
+  background:color-mix(in srgb,var(--panel) 70%,transparent)}
+#updbar .uhint .ulg{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;color:var(--amber);font-weight:700}
+#updbar .uhint .uchip{height:11px;border-radius:5px;background:var(--line);flex:none}
+#updbar .uhint .usp{flex:1}
+#updbar .uhint .umark{position:relative;font-family:var(--mono);font-size:10px;flex:none;
+  border:1px solid var(--amber);color:var(--amber);border-radius:5px;padding:2px 5px;
+  box-shadow:0 0 0 3px rgba(240,166,60,.16);animation:umk 1.8s ease-in-out infinite}
+@keyframes umk{0%,100%{box-shadow:0 0 0 3px rgba(240,166,60,.16)}50%{box-shadow:0 0 0 6px rgba(240,166,60,.05)}}
+#updbar .uhint .ucap{padding:5px 8px 6px;font-size:10.5px;color:var(--dim);display:flex;align-items:center;gap:5px}
+#updbar .uhint .ucap svg{width:11px;height:11px;stroke:var(--amber);fill:none;stroke-width:2;flex:none}
+#updbar .uf{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#updbar .uf .usp{flex:1}
+#updbar kbd{font-family:var(--mono);font-size:11px;background:var(--bg);border:1px solid var(--line);
   border-radius:4px;padding:1px 5px;color:var(--dim)}
-#updbar button{background:var(--amber);color:#1a1508;border:none;border-radius:6px;
-  padding:6px 12px;font-family:var(--sans);font-size:12.5px;font-weight:600;cursor:pointer}
+#updbar button{background:var(--amber);color:#1a1508;border:none;border-radius:8px;
+  padding:9px 16px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer}
 #updbar button:hover{filter:brightness(1.08)}
-#updbar .ux{background:none;border:none;color:var(--dim);font-size:16px;line-height:1;
-  padding:0 2px;cursor:pointer;font-weight:400}
+#updbar .ux{background:none;border:none;color:var(--dim);font-size:12.5px;font-weight:400;
+  padding:6px 4px;cursor:pointer}
 #updbar .ux:hover{color:var(--tx);filter:none}
-html.light #updbar{background:#fff7e6;color:#1a1508;border-color:rgba(200,120,20,.5)}
-html.light #updbar kbd{background:#fff;color:#555}
+html.light #updbar .un{background:rgba(200,120,20,.1)}
 @media(max-width:640px){
-  #updbar{left:12px;right:12px;transform:none;white-space:normal;padding:10px 12px;font-size:12.5px}
-  #updbar.on{top:10px}
+  #updwrap{padding:14px}
+  #updbar{padding:17px 16px 14px;font-size:12.5px}
+  #updbar h3{font-size:15.5px}
   #updbar kbd{display:none}
+  #updbar .uks{display:none}
 }
 nav{position:sticky;top:var(--hh,41px);z-index:19;background:var(--bg);border-bottom:1px solid var(--line);
   display:flex;align-items:center;gap:6px;padding:0 14px;overflow-x:auto;scrollbar-width:none;
@@ -858,6 +893,38 @@ setInterval(()=>{clock.textContent=new Date().toLocaleTimeString('ru-RU',{timeZo
 // несёт текущую версию в заголовке; расхождение значит, что на сервере уже
 // новая страница, а эта устарела. Показываем просьбу один раз, повторно —
 // не раньше чем через десять минут, если человек её закрыл.
+// Подсказки «где искать»: для нескольких заметных новинок рисуем уголок
+// интерфейса со стрелкой на нужную кнопку. Ключ — слово в описании изменения.
+const UPD_ПОДСКАЗКИ=[
+  { слова:['шестерён','шестерен','набор котировок','настройка панели'],
+    рис:'<div class="ubar"><span class="uchip" style="width:34px"></span><span class="usp"></span><span class="umark">⚙</span></div>',
+    подпись:'в шапке панели котировок, справа' },
+  { слова:['календар'],
+    рис:'<div class="ubar"><span class="ulg">FINFACTS</span><span class="umark">▦</span><span class="uchip" style="width:46px"></span><span class="usp"></span></div>',
+    подпись:'в шапке сайта, слева от поиска' },
+  { слова:['статистик','посещен'],
+    рис:'<div class="ubar"><span class="ulg">FINFACTS</span><span class="usp"></span><span class="umark">/stats</span></div>',
+    подпись:'по прямому адресу' },
+];
+function updСписок(){
+  const box=document.getElementById('updList');
+  if(!box)return;
+  fetch('/version.json?t='+Date.now(),{cache:'no-store'})
+    .then(r=>r.json())
+    .then(d=>{
+      const пункты=(d.changes||[]).slice(0,3);
+      if(!пункты.length){ box.innerHTML='<div class="ui"><span class="un">!</span><div class="utx">Мы поправили работу сайта.</div></div>'; return; }
+      box.innerHTML=пункты.map((t,k)=>{
+        const низ=t.toLowerCase();
+        const п=UPD_ПОДСКАЗКИ.find(h=>h.слова.some(w=>низ.includes(w)));
+        const hint=п?'<div class="uhint">'+п.рис+
+          '<div class="ucap"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>'+esc(п.подпись)+'</div></div>':'';
+        return '<div class="ui"><span class="un">'+(k+1)+'</span><div class="utx">'+esc(t)+hint+'</div></div>';
+      }).join('');
+    })
+    .catch(()=>{ box.innerHTML='<div class="ui"><span class="un">!</span><div class="utx">Вышло обновление сайта.</div></div>'; });
+}
+
 const PAGE_VER='__PAGE_VER__';
 let updShown=false, updSnoozedUntil=0;
 function checkPageVersion(r){
@@ -868,8 +935,10 @@ function checkPageVersion(r){
     // только что перезагружались по этой же плашке — даём кэшу пять минут
     try{ const t=+sessionStorage.getItem('ff-upd-at')||0; if(Date.now()-t<5*60*1000)return; }catch(e){}
     updShown=true;
+    const wrap=document.getElementById('updwrap');
     const bar=document.getElementById('updbar');
-    if(!bar)return;
+    if(!bar||!wrap)return;
+    updСписок();
     // Плашка стоит в самом конце страницы, позже этого скрипта, поэтому кнопки
     // подключаем при первом показе, а не при загрузке — иначе они глухие.
     if(!bar._hooked){
@@ -887,11 +956,21 @@ function checkPageVersion(r){
         }catch(e){}
         location.reload();
       };
-      document.getElementById('updX').onclick=()=>{
-        bar.classList.remove('on'); updShown=false; updSnoozedUntil=Date.now()+10*60*1000;
+      const позже=()=>{
+        wrap.classList.remove('vis');
+        setTimeout(()=>wrap.classList.remove('on'),280);
+        updShown=false; updSnoozedUntil=Date.now()+10*60*1000;
       };
+      document.getElementById('updX').onclick=позже;
+      // щелчок по размытому фону и Escape — то же, что «позже»
+      wrap.onclick=ev=>{ if(ev.target===wrap)позже(); };
+      document.addEventListener('keydown',ev=>{
+        if(ev.key==='Escape'&&wrap.classList.contains('on'))позже();
+      });
     }
-    bar.classList.add('on');
+    wrap.classList.add('on');
+    requestAnimationFrame(()=>wrap.classList.add('vis'));   // чтобы сработал переход
+    const кн=document.getElementById('updGo'); if(кн)кн.focus();
   }catch(e){}
 }
 
@@ -2064,11 +2143,18 @@ const toTop=document.getElementById('toTop');
 window.addEventListener('scroll',()=>{toTop.classList.toggle('vis',window.scrollY>200)},{passive:true});
 toTop.onclick=()=>window.scrollTo({top:0,behavior:'smooth'});   // спрашиваем сервер каждые 15 секунд
 </script>
-<div id="updbar" role="status" aria-live="polite">
-  <span class="ud"></span>
-  <span>Вышло обновление сайта. <b>Пожалуйста, обновите страницу</b> — <kbd>Ctrl</kbd>+<kbd>F5</kbd></span>
-  <button id="updGo">Обновить</button>
-  <button class="ux" id="updX" title="напомнить позже">×</button>
+<div id="updwrap" role="dialog" aria-modal="true" aria-labelledby="updH">
+  <div id="updbar">
+    <div class="uh"><span class="ud"></span><span class="ut">обновление</span></div>
+    <h3 id="updH">Что нового на сайте</h3>
+    <div class="ulist" id="updList"></div>
+    <div class="uf">
+      <button id="updGo">Обновить страницу</button>
+      <span class="usp"></span>
+      <span class="uks"><kbd>Ctrl</kbd>+<kbd>F5</kbd></span>
+      <button class="ux" id="updX" title="напомнить позже">позже</button>
+    </div>
+  </div>
 </div>
 </body>
 </html>
