@@ -198,6 +198,15 @@ html.light #updbar{box-shadow:0 24px 70px rgba(30,45,70,.22)}
   display:flex;align-items:center;justify-content:center}
 #updbar .ui .utx{min-width:0}
 #updbar .ui .utx i{font-style:normal;color:var(--dim);font-size:11.5px;display:block;margin-top:3px}
+/* Заголовок раздела: значок в рамке и название вразрядку. Намеренно без
+   жёлтого — иначе спорит с номерами правок и заголовком окна. */
+#updbar .ugrp{display:flex;align-items:center;gap:8px;margin:4px 0 -4px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+#updbar .ugrp:first-child{margin-top:0}
+#updbar .ugrp .ug{flex:none;width:20px;height:20px;border-radius:5px;
+  background:color-mix(in srgb,var(--blue) 12%,transparent);border:1px solid color-mix(in srgb,var(--blue) 35%,transparent);
+  color:var(--blue);font-size:11px;letter-spacing:0;
+  display:flex;align-items:center;justify-content:center}
 /* Рисованная подсказка: уголок интерфейса со стрелкой на нужную кнопку. */
 #updbar .uhint{margin-top:7px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--bg)}
 #updbar .uhint .ubar{display:flex;align-items:center;gap:5px;padding:6px 8px;border-bottom:1px solid var(--line);
@@ -972,6 +981,23 @@ const UPD_ПОДСКАЗКИ=[
 const UPD_СЕК=4;                  // сколько держится один слайд
 let updСлайды=[], updТек=0, updТаймер=null;
 
+// Разделы для мелких правок: по слову в описании относим правку к разделу
+// и рисуем над ней значок с названием. Порядок задаёт порядок разделов
+// в слайде. Последний раздел без слов — сюда падает всё остальное.
+const UPD_РАЗДЕЛЫ=[
+  { имя:'Календарь',  знак:'▦', слова:['календар','отсчёт','отсчет','заседани','аукцион','ставк'] },
+  { имя:'Котировки',  знак:'▲', слова:['котировк','панел','инструмент','курс','крипт','индекс'] },
+  { имя:'Лента',      знак:'≡', слова:['лент','новост','поиск','источник','канал','фильтр'] },
+  { имя:'Оформление', знак:'◑', слова:['тема','шрифт','вёрстк','верстк','шапк','мобильн','цвет'] },
+  { имя:'Прочее',     знак:'•', слова:[] },
+];
+
+// Правку относим к первому разделу, чьё слово встретилось в описании.
+function updРаздел(t){
+  const низ=t.toLowerCase();
+  return UPD_РАЗДЕЛЫ.find(r=>r.слова.some(w=>низ.includes(w))) || UPD_РАЗДЕЛЫ[UPD_РАЗДЕЛЫ.length-1];
+}
+
 function updСобрать(changes){
   const крупные=[], мелкие=[];
   for(const t of (changes||[]).slice(0,6)){
@@ -980,8 +1006,16 @@ function updСобрать(changes){
     if(п)крупные.push({текст:t,подсказка:п}); else мелкие.push(t);
   }
   const сл=крупные.map(x=>({вид:'одна',...x}));
-  if(мелкие.length)сл.push({вид:'список',пункты:мелкие});
-  return сл.length?сл:[{вид:'список',пункты:['Мы поправили работу сайта.']}];
+  if(мелкие.length){
+    // Раскладываем по разделам, сохраняя их порядок; пустые разделы опускаем.
+    const группы=[];
+    for(const р of UPD_РАЗДЕЛЫ){
+      const свои=мелкие.filter(t=>updРаздел(t)===р);
+      if(свои.length)группы.push({раздел:р,пункты:свои});
+    }
+    сл.push({вид:'список',группы});
+  }
+  return сл.length?сл:[{вид:'список',группы:[{раздел:UPD_РАЗДЕЛЫ[UPD_РАЗДЕЛЫ.length-1],пункты:['Мы поправили работу сайта.']}]}];
 }
 
 function updРисоватьСлайд(){
@@ -995,8 +1029,13 @@ function updРисоватьСлайд(){
       '<div class="ucap"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>'+esc(п.подпись)+'</div>'+
       '</div></div></div>';
   }else{
-    box.innerHTML=сл.пункты.map((t,k)=>
-      '<div class="ui"><span class="un">'+(k+1)+'</span><div class="utx">'+esc(t)+'</div></div>').join('');
+    // Раздел — значок и название, под ним его правки. Нумерация сквозная
+    // по всему слайду, чтобы было видно общее число новинок.
+    let н=0;
+    box.innerHTML=(сл.группы||[]).map(г=>
+      '<div class="ugrp"><span class="ug">'+г.раздел.знак+'</span>'+esc(г.раздел.имя)+'</div>'+
+      г.пункты.map(t=>'<div class="ui"><span class="un">'+(++н)+'</span><div class="utx">'+esc(t)+'</div></div>').join('')
+    ).join('');
   }
   box.classList.remove('uin'); void box.offsetWidth; box.classList.add('uin');
   // кружочки: сколько слайдов, такой и активный
