@@ -1539,29 +1539,39 @@ function calПодогнатьЛипкое(){
     if(ф)ф.style.top=(ш?ш.offsetHeight:0)+'px';
   });
 }
+let calСтавимПрокрутку=false;
 function calПрокрутитьКСегодня(){
-  const якорь=document.getElementById('calToday'), шапка=calBody.querySelector('.cnext');
-  if(!якорь)return;
-  // offsetTop считается от панели, а не от списка — берём положение
-  // относительно самого прокручиваемого блока
-  const y=якорь.getBoundingClientRect().top-calBody.getBoundingClientRect().top+calBody.scrollTop;
-  calBody.scrollTop=y-(шапка?шапка.offsetHeight:0);
+  const цель=calЦельСегодня();
+  if(цель===null)return;
+  calСтавимПрокрутку=true;
+  calBody.scrollTop=цель;
+  // высота шапки могла измениться после вставки разметки — уточняем на след. кадре
+  requestAnimationFrame(()=>{
+    const c2=calЦельСегодня();
+    if(c2!==null)calBody.scrollTop=c2;
+    requestAnimationFrame(()=>{ calСтавимПрокрутку=false; calОбновитьКнопку(); });
+  });
 }
 // Кнопка «сегодня»: показывается, когда сегодняшний день ушёл из вида.
 // Стрелка смотрит туда, куда придётся ехать: вверх, если мы в будущем,
 // вниз — если ушли в прошлое.
 const calNow=document.getElementById('calNow');
+const CAL_ЗАЗОР=6;   // чтобы день не прилипал вплотную к шапке
 function calЦельСегодня(){
   const якорь=document.getElementById('calToday'), шапка=calBody.querySelector('.cnext');
   if(!якорь)return null;
-  const y=якорь.getBoundingClientRect().top-calBody.getBoundingClientRect().top+calBody.scrollTop;
-  return Math.max(0,y-(шапка?шапка.offsetHeight:0));
+  // Ведём отсчёт от заголовка дня, а не от пустой метки нулевой высоты:
+  // у заголовка есть верхний отступ, и он уезжал под прилипшую шапку.
+  const цель=якорь.nextElementSibling||якорь;
+  const h=шапка?шапка.getBoundingClientRect().height:0;
+  const y=цель.getBoundingClientRect().top-calBody.getBoundingClientRect().top+calBody.scrollTop;
+  return Math.max(0,Math.round(y-h-CAL_ЗАЗОР));
 }
 function calОбновитьКнопку(){
   if(!calNow)return;
   const цель=calЦельСегодня();
   if(цель===null){ calNow.classList.remove('vis'); return; }
-  const порог=Math.max(120,calBody.clientHeight*0.4);
+  const порог=Math.max(90,calBody.clientHeight*0.22);
   const сдвиг=calBody.scrollTop-цель;
   calNow.classList.toggle('vis',Math.abs(сдвиг)>порог);
   calNow.classList.toggle('down',сдвиг<0);   // мы выше «сегодня», в прошлом — ехать вниз
@@ -1579,6 +1589,7 @@ document.addEventListener('keydown',ev=>{
 calBody.addEventListener('scroll',()=>{
   calОбновитьКнопку();
   if(calФПоказать){ calФПоказать=false; calЗаполнитьФильтр(); }
+  if(calСтавимПрокрутку)return;   // это мы сами только что встали на «сегодня»
   if(calBody.scrollTop>40||calГрузитПрошлое||calДнейНазад>=120)return;
   calГрузитПрошлое=true;
   calДнейНазад+=30;
