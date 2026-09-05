@@ -1614,7 +1614,10 @@ let calСтраны=new Set();
 try{ const v=JSON.parse(localStorage.getItem(CAL_F_KEY)||'[]'); if(Array.isArray(v))calСтраны=new Set(v); }catch(e){}
 function calСохранитьФильтр(){ try{localStorage.setItem(CAL_F_KEY,JSON.stringify([...calСтраны]))}catch(e){} }
 // подходит ли событие под выбор стран
-function calПодходит(e){ return !calСтраны.size || calСтраны.has(e.cc||'ru'); }
+function calПодходит(e){
+  if(!e.cc)return true;              // ОПЕК и прочее «без страны» — видно всегда
+  return !calСтраны.size || calСтраны.has(e.cc);
+}
 const calОткрыто=new Set();
 let calДержатьПрокрутку=null;   // при подгрузке прошлого не дёргать прокрутку
 let calДнейНазад=7;             // сколько прошедших дней загружено
