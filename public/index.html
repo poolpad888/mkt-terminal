@@ -437,14 +437,20 @@ html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
 .cnext .cd{position:relative}
 .cnext .cd small{display:block;font-size:10.5px;font-weight:400;color:var(--dim);margin:7px 0 0;
   font-family:var(--sans);letter-spacing:0}
+/* Верх блока привязан к первой строке отсчёта, а числа внутри сидят на её
+   базовой линии: выравниваем по низу строки, а не по верху блока. */
 .cnext .prevf{position:absolute;right:0;top:0;display:grid;
-  grid-template-columns:auto auto;column-gap:9px;
+  grid-template-columns:auto auto;column-gap:10px;align-items:end;
   justify-items:end;text-align:right;white-space:nowrap}
 .cnext .prevf b:nth-of-type(1){grid-area:1/1}
 .cnext .prevf b:nth-of-type(2){grid-area:1/2}
 .cnext .prevf s:nth-of-type(1){grid-area:2/1}
 .cnext .prevf s:nth-of-type(2){grid-area:2/2}
-.cnext .prevf b{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--blue);line-height:1.1}
+.cnext .prevf b{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--blue);
+  line-height:1;align-self:end;
+  /* сажаем число на нижнюю границу строки отсчёта: она крупнее, поэтому
+     без сдвига число висит выше */
+  transform:translateY(6px)}
 .cnext .prevf s{text-decoration:none;color:var(--dim);font-size:8.5px;letter-spacing:.04em;
   text-transform:uppercase;font-family:var(--sans);margin-top:14px}
 .cnext .prevf b.dim{color:var(--dim);font-weight:400}
@@ -855,10 +861,16 @@ try{
   if(p.light) document.documentElement.classList.add('light');
 }catch(e){}
 function savePrefs(){
-  try{localStorage.setItem('mkt_prefs',JSON.stringify({
-    filterTag,
-    light:document.documentElement.classList.contains('light'),
-    side:document.body.classList.contains('side-on')}))}catch(e){}
+  // Читаем то, что уже сохранено, и только дописываем свои поля: иначе
+  // смена фильтра или темы затирала «календарь открыт» и панель не
+  // восстанавливалась после обновления страницы.
+  try{
+    const p=JSON.parse(localStorage.getItem('mkt_prefs')||'{}');
+    p.filterTag=filterTag;
+    p.light=document.documentElement.classList.contains('light');
+    p.side=document.body.classList.contains('side-on');
+    localStorage.setItem('mkt_prefs',JSON.stringify(p));
+  }catch(e){}
 }
 
 // ── значок сайта: спокойный / тревожный ──
