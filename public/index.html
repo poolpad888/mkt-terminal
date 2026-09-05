@@ -1633,19 +1633,26 @@ function calЗаполнитьФильтр(){
        '"><b class="fl">'+fl+'</b>'+nm+'</span>';
   box.innerHTML=h;
   box.classList.toggle('show',calФПоказать);
+  // Позицию считаем только в момент открытия и запоминаем. Иначе после каждой
+  // галочки шапка «Ближайшее» меняет высоту (флаги вместо слова «страны»),
+  // и список прыгает вниз прямо под курсором.
   if(calФПоказать){
-    const кн=document.getElementById('calFB');
-    if(кн){
-      const п=document.getElementById('cal').getBoundingClientRect();
-      const r=кн.getBoundingClientRect();
-      box.style.top=(r.bottom-п.top+5)+'px';
+    if(calФВерх===null){
+      const кн=document.getElementById('calFB');
+      if(кн){
+        const п=document.getElementById('cal').getBoundingClientRect();
+        const r=кн.getBoundingClientRect();
+        calФВерх=r.bottom-п.top+5;
+      }
     }
-  }
+    if(calФВерх!==null)box.style.top=calФВерх+'px';
+  }else calФВерх=null;
 }
 function calПодогнатьЛипкое(){
   requestAnimationFrame(()=>{
     const ш=calBody.querySelector('.cnext'), ф=document.getElementById('calF');
-    if(ф)ф.style.top=(ш?ш.offsetHeight:0)+'px';
+    // открытый список не трогаем — у него своя запомненная позиция
+    if(ф&&!calФПоказать)ф.style.top=(ш?ш.offsetHeight:0)+'px';
   });
 }
 let calСтавимПрокрутку=false;
@@ -1709,6 +1716,7 @@ calBody.addEventListener('scroll',()=>{
 },{passive:true});
 let calСегодня='';
 let calФПоказать=false;                    // видна ли шторка фильтров
+let calФВерх=null;                          // запомненная позиция открытого списка
 let calСвояПрокрутка=false;                 // перерисовка меняет высоту — это не жест пользователя
 const CAL_ЦВЕТ={cbr:'#7fb0ff',fed:'#7bb8d4',fin:'#aeb9c7',stat:'#9aa78f',corp:'#d9b46a'};
 const CAL_KINDS=[['cbr','ЦБ'],['fed','США'],['fin','Минфин'],['stat','Росстат'],['corp','компании']];
