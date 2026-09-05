@@ -1862,14 +1862,29 @@ const srv = http.createServer(async (req, res) => {
       const начало = from || new Date(Date.now() - 7 * 864e5).toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
       const конец = new Date(new Date(начало + 'T00:00:00+03:00').getTime() + days * 864e5)
         .toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
-      const события = calEvents(начало, конец).filter(e => e.date >= начало && e.date <= конец);
+      // Считаем на 40 дней раньше запрошенного окна: нужно, чтобы у первого
+      // видимого события нашлось предыдущее того же рода для строки «прошлый раз».
+      const запас = new Date(new Date(начало + 'T00:00:00+03:00').getTime() - 40 * 864e5)
+        .toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
+      const события = calEvents(запас, конец).filter(e => e.date >= запас && e.date <= конец);
       const now = Date.now();
       for (const e of события) {
         const t = calTs(e); e.ts = t; e.past = t < now;
         e.move = e.fact ? calMove(e.prev, e.fact) : '';
       }
-      const ближайшее = события.find(e => !e.past && e.hot) || события.find(e => !e.past) || null;
-      return sendJson(req, res, { today: сегодня, from: начало, to: конец, next: ближайшее ? ближайшее.id : null, events: события });
+      // Для каждого события ищем предыдущее такого же рода (по имени и ведомству):
+      // панель показывает под отсчётом, что было в прошлый раз.
+      const поРоду = {};
+      for (const e of события) {
+        const род = e.kind + '|' + e.name;
+        const пред = поРоду[род];
+        if (пред) e.prevEv = { date: пред.date, time: пред.time, fact: пред.fact || '', move: пред.move || '' };
+        поРоду[род] = e;
+      }
+      const видимые = события.filter(e => e.date >= начало && e.date <= конец);
+      const ближайшее = видимые.find(e => !e.past) || null;   // ближайшее по времени
+
+      return sendJson(req, res, { today: сегодня, from: начало, to: конец, next: ближайшее ? ближайшее.id : null, events: видимые });
     }
     if (u.pathname === '/api/feed') {
       const feed = await getFeed();

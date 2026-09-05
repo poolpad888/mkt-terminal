@@ -350,7 +350,15 @@ body.cal-on #cal{transform:translateX(0)}
 html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
 .cnext .cd{font-family:var(--mono);font-size:26px;font-weight:600;margin-top:5px;color:var(--ac);
   font-variant-numeric:tabular-nums;line-height:1.1}
-.cnext .cd small{font-size:10.5px;font-weight:400;color:var(--dim);margin-left:6px;font-family:var(--sans)}
+.cnext .cd small{display:block;font-size:11px;font-weight:400;color:var(--dim);margin:2px 0 0;
+  font-family:var(--sans);letter-spacing:0}
+/* прошлый раз: факт предыдущего события того же вида — виден без раскрытия */
+.cnext .prevf{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);
+  font-size:11px;color:var(--dim);display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.cnext .prevf b{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--tx)}
+.cnext .prevf b.up{color:var(--green)}
+.cnext .prevf b.dn{color:var(--red)}
+.cnext .prevf .dt{font-family:var(--mono);font-size:10.5px}
 .cnext .bar{height:2px;background:var(--line);margin-top:9px;border-radius:1px;overflow:hidden}
 .cnext .bar i{display:block;height:100%;background:var(--ac);opacity:.85;width:0}
 
@@ -379,7 +387,6 @@ html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
 .cev.hot .t{color:var(--red);font-weight:600}
 .cev.past{opacity:.5}
 .cev.past .t{color:var(--dim)}
-.cev{cursor:pointer}
 .cev.open,.cev:hover{background:rgba(255,255,255,.035)}
 .cev.open{opacity:1}
 html.light .cev.open,html.light .cev:hover{background:rgba(0,0,0,.035)}
@@ -1448,20 +1455,31 @@ function calОтрисовать(сегодня){
   let h='';
   // ближайшее считаем внутри выбранного фильтра: выбрали Минфин — сверху
   // ближайший аукцион ОФЗ, а не событие другого ведомства
-  calБлижайшее = calСобытия.find(e=>!e.past && (calФильтр==='all'||e.kind===calФильтр) && e.hot)
-              || calСобытия.find(e=>!e.past && (calФильтр==='all'||e.kind===calФильтр))
-              || null;
+  // Ближайшее — именно ближайшее по времени, без предпочтения «важным»:
+  // иначе отсчёт перескакивает через аукцион в 11:00 к событию в 15:30,
+  // хотя в списке сверху стоит аукцион.
+  calБлижайшее = calСобытия.find(e=>!e.past && (calФильтр==='all'||e.kind===calФильтр)) || null;
   if(calБлижайшее){
     // цвет отсчёта — цвет ведомства ближайшего события, как у полоски слева
     const ц=CAL_ЦВЕТ[calБлижайшее.kind]||'var(--amber)';
     const мет=calФильтр==='all'
       ? '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M1.5 3.5h11M3.5 7h7M6 10.5h2"/></svg>фильтр'
       : '<i style="background:'+(CAL_ЦВЕТ[calФильтр]||'var(--dim)')+'"></i>'+esc(CAL_ИМЯ[calФильтр]||'');
+    // «Прошлый раз»: когда было предыдущее такое же событие и с каким итогом.
+    // Если факта нет — показываем только дату, числа не выдумываем.
+    let прош='';
+    const pv=calБлижайшее.prevEv;
+    if(pv){
+      const д=pv.date.slice(8)*1+' '+МЕС[pv.date.slice(5,7)*1-1];
+      прош='<div class="prevf">прошлый раз<span class="dt">'+esc(д)+'</span>'+
+           (pv.fact?'<b class="'+esc(pv.move||'')+'">'+esc(pv.fact)+'</b>':'<span class="dt">итога нет в данных</span>')+
+           '</div>';
+    }
     h+='<div class="cnext" style="--ac:'+ц+'"><div class="lb">Ближайшее'+
        '<button class="fb'+(calФильтр!=='all'?' on':'')+'" id="calFB" title="фильтр по ведомствам">'+мет+'</button></div>'+
        '<div class="nm">'+esc(calБлижайшее.name)+'</div>'+
        '<div class="cd" id="calCd">—<small id="calWhen"></small></div>'+
-       '<div class="bar"><i id="calBar"></i></div></div>';
+       '<div class="bar"><i id="calBar"></i></div>'+прош+'</div>';
   }
   // фильтры: показываем только те ведомства, у которых есть события
   const есть=new Set(calСобытия.map(e=>e.kind));
@@ -1489,12 +1507,15 @@ function calОтрисовать(сегодня){
           '<div><b class="'+(e.prev?'':'dim')+'">'+чис(e.prev)+'</b><s>пред.</s></div>'+
           '<div><b class="'+(e.fact?(e.move||''):'dim')+'">'+чис(e.fact)+'</b><s>факт</s></div>'+
         '</div>'):'';
-      const открыто=calОткрыто.has(e.id);
+      const открыто=false;   // раскрытие события отключено: новости в календаре не нужны
       let связ='';
-      if(открыто){
-        const нов=calНовости(e);
-        связ=нов.length?нов.map(calКарточка).join(''):'<div class="nonews">В ленте пока нет новости об этом.</div>';
-      }
+      // Показ связанной новости из ленты. Оставлено на случай, если понадобится:
+      // вернуть — заменить строку выше на const открыто=calОткрыто.has(e.id) и
+      // раскомментировать блок ниже вместе с обработчиком щелчка по событию.
+      // if(открыто){
+      //   const нов=calНовости(e);
+      //   связ=нов.length?нов.map(calКарточка).join(''):'<div class="nonews">В ленте пока нет новости об этом.</div>';
+      // }
       out+='<div class="cev'+(e.hot&&!e.past?' hot':'')+(e.past?' past':'')+(открыто?' open':'')+'" data-id="'+esc(e.id)+'">'+
            '<span class="m c-'+e.kind+'"></span>'+
            '<span class="t">'+e.time+'</span>'+
@@ -1519,10 +1540,12 @@ calBody.addEventListener('click',ev=>{
   const ф=ev.target.closest('#calF span');
   if(ф){ calФильтр=ф.dataset.k; localStorage.setItem(CAL_F_KEY,calФильтр);
          calФПоказать=false; calОтрисовать(calСегодня); return; }
-  const c=ev.target.closest('.cev'); if(!c)return;
-  const id=c.dataset.id;
-  if(calОткрыто.has(id))calОткрыто.delete(id); else calОткрыто.add(id);
-  calОтрисовать(calСегодня);
+  // Раскрытие события по щелчку отключено вместе с показом новостей.
+  // Вернуть — раскомментировать:
+  // const c=ev.target.closest('.cev'); if(!c)return;
+  // const id=c.dataset.id;
+  // if(calОткрыто.has(id))calОткрыто.delete(id); else calОткрыто.add(id);
+  // calОтрисовать(calСегодня);
 });
 
 // Обратный отсчёт до ближайшего события. Полоска показывает, какая доля
