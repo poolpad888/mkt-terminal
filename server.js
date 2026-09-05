@@ -1714,6 +1714,14 @@ const CAL_FED = [
 // (прогноз/предыдущее/факт) для них не известны заранее, поэтому не выдумываем.
 // Поле q — слова для поиска связанной новости в ленте: пробел = «и»,
 // вертикальная черта = «или». Сравнение по началу слова, без учёта регистра.
+// Состоявшиеся аукционы ОФЗ: дата, привлечено (номинал), спрос.
+// Берём из официальных итогов Минфина, публикуемых в день аукциона.
+const CAL_OFZ_FACT = {
+  // prev — спрос, fact — сколько привлекли по номиналу. Панель узкая,
+  // поэтому пишем коротко: «1,42 трлн» вместо «спрос 1425 млрд рублей».
+  '2026-09-02': { prev: '1,42 трлн', fact: '1,00 трлн' },
+};
+
 function calRules(начало, конец) {
   const out = [];
   const d0 = new Date(начало + 'T12:00:00+03:00'), d1 = new Date(конец + 'T12:00:00+03:00');
@@ -1721,8 +1729,10 @@ function calRules(начало, конец) {
     const ymd = d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
     const дн = d.getUTCDay(), число = d.getUTCDate(), мес = d.getUTCMonth() + 1;
     if (дн === 3) {                                   // среда
+      const ф = CAL_OFZ_FACT[ymd] || {};
       out.push({ id: 'ofz-' + ymd, date: ymd, time: '11:00', kind: 'fin', who: 'Минфин России', cc: 'ru',
-                 name: 'Аукцион ОФЗ', note: '', q: 'офз аукцион|офз размещ', hot: false });
+                 name: 'Аукцион ОФЗ', note: '', prev: ф.prev || '', fact: ф.fact || '',
+                 q: 'офз аукцион|офз размещ', hot: false });
       out.push({ id: 'cpi-' + ymd, date: ymd, time: '19:00', kind: 'stat', who: 'Росстат', cc: 'ru',
                  name: 'Инфляция за неделю', note: '', q: 'инфляц недел|росстат инфляц|недельн инфляц', hot: false });
     }
@@ -1958,7 +1968,9 @@ const srv = http.createServer(async (req, res) => {
       const now = Date.now();
       for (const e of события) {
         const t = calTs(e); e.ts = t; e.past = t < now;
-        e.move = e.fact ? calMove(e.prev, e.fact) : '';
+        // У аукциона ОФЗ «пред.» — это спрос, а не прошлое значение того же
+        // показателя, поэтому сравнивать их бессмысленно: стрелку не рисуем.
+        e.move = (e.fact && !e.id.startsWith('ofz-')) ? calMove(e.prev, e.fact) : '';
       }
       // Для каждого события ищем предыдущее такого же рода (по имени и ведомству):
       // панель показывает под отсчётом, что было в прошлый раз.
@@ -1966,7 +1978,7 @@ const srv = http.createServer(async (req, res) => {
       for (const e of события) {
         const род = e.kind + '|' + e.name;
         const пред = поРоду[род];
-        if (пред) e.prevEv = { date: пред.date, time: пред.time, prev: пред.prev || '', fact: пред.fact || '', move: пред.move || '' };
+        if (пред) e.prevEv = { id: пред.id, date: пред.date, time: пред.time, prev: пред.prev || '', fact: пред.fact || '', move: пред.move || '' };
         поРоду[род] = e;
       }
       const видимые = события.filter(e => e.date >= начало && e.date <= конец);
