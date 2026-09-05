@@ -682,6 +682,8 @@ function checkPageVersion(r){
     const v=r.headers.get('X-Page-Version');
     if(!v||!PAGE_VER||PAGE_VER.startsWith('__')||v===PAGE_VER)return;
     if(updShown||Date.now()<updSnoozedUntil)return;
+    // только что перезагружались по этой же плашке — даём кэшу пять минут
+    try{ const t=+sessionStorage.getItem('ff-upd-at')||0; if(Date.now()-t<5*60*1000)return; }catch(e){}
     updShown=true;
     const bar=document.getElementById('updbar');
     if(!bar)return;
@@ -689,7 +691,19 @@ function checkPageVersion(r){
     // подключаем при первом показе, а не при загрузке — иначе они глухие.
     if(!bar._hooked){
       bar._hooked=true;
-      document.getElementById('updGo').onclick=()=>{ location.reload(); };
+      document.getElementById('updGo').onclick=async()=>{
+        const кн=document.getElementById('updGo'); кн.disabled=true; кн.textContent='Обновляю…';
+        // Запоминаем, что перезагрузка была: если после неё версия почему-то
+        // снова разойдётся, не показываем плашку ещё пять минут — иначе круг.
+        try{ sessionStorage.setItem('ff-upd-at',String(Date.now())); }catch(e){}
+        // Сначала заставляем браузер перекачать саму страницу мимо его кэша,
+        // затем перезагружаем — иначе обычная перезагрузка может отдать старую.
+        try{ await fetch(location.pathname+location.search,{cache:'reload',credentials:'same-origin'}); }catch(e){}
+        try{
+          if(navigator.serviceWorker){ const r=await navigator.serviceWorker.getRegistration(); if(r)await r.update(); }
+        }catch(e){}
+        location.reload();
+      };
       document.getElementById('updX').onclick=()=>{
         bar.classList.remove('on'); updShown=false; updSnoozedUntil=Date.now()+10*60*1000;
       };
