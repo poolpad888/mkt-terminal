@@ -211,6 +211,24 @@ html.light #updbar{box-shadow:0 24px 70px rgba(30,45,70,.22)}
 @keyframes umk{0%,100%{box-shadow:0 0 0 3px rgba(240,166,60,.16)}50%{box-shadow:0 0 0 6px rgba(240,166,60,.05)}}
 #updbar .uhint .ucap{padding:5px 8px 6px;font-size:10.5px;color:var(--dim);display:flex;align-items:center;gap:5px}
 #updbar .uhint .ucap svg{width:11px;height:11px;stroke:var(--amber);fill:none;stroke-width:2;flex:none}
+/* Кружочки-переключатели слайдов, как в историях. */
+#updbar .udots{display:none;align-items:center;justify-content:center;gap:6px;margin:0 0 14px}
+#updbar .udot{width:6px;height:6px;border-radius:50%;background:var(--line);cursor:pointer;
+  transition:background .2s,width .2s}
+#updbar .udot:hover{background:var(--dim)}
+#updbar .udot.on{background:color-mix(in srgb,var(--amber) 28%,transparent);width:18px;border-radius:3px;
+  position:relative;overflow:hidden}
+#updbar .udot.on::after{content:'';position:absolute;inset:0;background:var(--amber);
+  transform-origin:left;animation:udgo var(--udsec,10s) linear forwards}
+@keyframes udgo{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+/* Крупная новинка занимает слайд целиком — текст крупнее, без номера. */
+#updbar .ui.uone{gap:0}
+#updbar .ubig{font-size:14px;line-height:1.4;color:var(--tx)}
+#updbar .ulist{min-height:96px}
+#updbar .ulist.uin{animation:uslide .32s cubic-bezier(.2,.8,.2,1)}
+@keyframes uslide{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+#updbar{cursor:pointer}
+#updbar .uf,#updbar .udots{cursor:default}
 #updbar .uf{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 #updbar .uf .usp{flex:1}
 #updbar kbd{font-family:var(--mono);font-size:11px;background:var(--bg);border:1px solid var(--line);
@@ -648,6 +666,19 @@ body.side-on #sideBack{opacity:1;pointer-events:auto}
 @media(max-width:1100px){
   body.side-on #q{width:120px}
 }
+/* Открыт только календарь: правил не было вовсе, и поиск оставался базовым
+   320 — заметно шире нужного. При включении котировок он резко схлопывался,
+   и это читалось как рывок. Задаём ту же ширину, что и с двумя панелями. */
+body.cal-on:not(.side-on) #q{width:280px}
+body.cal-on:not(.side-on) #q:focus{width:320px}
+@media(max-width:1400px){
+  body.cal-on:not(.side-on) #q{width:240px}
+  body.cal-on:not(.side-on) #q:focus{width:280px}
+}
+@media(max-width:1180px){
+  body.cal-on:not(.side-on) #q{width:150px}
+  body.cal-on:not(.side-on) #q:focus{width:190px}
+}
 /* Обе панели открыты — ленте остаётся узкая полоса, а шапке мало места.
    Ужимаем поиск и кнопки, чтобы всё уместилось в одну строку без переносов
    и ничего не уезжало за край. */
@@ -906,23 +937,68 @@ const UPD_ПОДСКАЗКИ=[
     рис:'<div class="ubar"><span class="ulg">FINFACTS</span><span class="usp"></span><span class="umark">/stats</span></div>',
     подпись:'по прямому адресу' },
 ];
+// Показ новинок слайдами, как истории в мессенджерах: крупная новинка
+// (та, для которой есть подсказка «где искать») занимает свой слайд,
+// а мелкие правки собираются в один общий список.
+const UPD_СЕК=10;                 // сколько держится один слайд
+let updСлайды=[], updТек=0, updТаймер=null;
+
+function updСобрать(changes){
+  const крупные=[], мелкие=[];
+  for(const t of (changes||[]).slice(0,6)){
+    const низ=t.toLowerCase();
+    const п=UPD_ПОДСКАЗКИ.find(h=>h.слова.some(w=>низ.includes(w)));
+    if(п)крупные.push({текст:t,подсказка:п}); else мелкие.push(t);
+  }
+  const сл=крупные.map(x=>({вид:'одна',...x}));
+  if(мелкие.length)сл.push({вид:'список',пункты:мелкие});
+  return сл.length?сл:[{вид:'список',пункты:['Мы поправили работу сайта.']}];
+}
+
+function updРисоватьСлайд(){
+  const box=document.getElementById('updList');
+  const сл=updСлайды[updТек];
+  if(!box||!сл)return;
+  if(сл.вид==='одна'){
+    const п=сл.подсказка;
+    box.innerHTML='<div class="ui uone"><div class="utx"><div class="ubig">'+esc(сл.текст)+'</div>'+
+      '<div class="uhint">'+п.рис+
+      '<div class="ucap"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>'+esc(п.подпись)+'</div>'+
+      '</div></div></div>';
+  }else{
+    box.innerHTML=сл.пункты.map((t,k)=>
+      '<div class="ui"><span class="un">'+(k+1)+'</span><div class="utx">'+esc(t)+'</div></div>').join('');
+  }
+  box.classList.remove('uin'); void box.offsetWidth; box.classList.add('uin');
+  // кружочки: сколько слайдов, такой и активный
+  const точки=document.getElementById('updDots');
+  if(точки){
+    точки.style.display=updСлайды.length>1?'flex':'none';
+    точки.style.setProperty('--udsec',UPD_СЕК+'s');
+    точки.innerHTML=updСлайды.map((_,k)=>
+      '<span class="udot'+(k===updТек?' on':'')+'" data-k="'+k+'"></span>').join('');
+  }
+}
+
+function updПерейти(k){
+  if(!updСлайды.length)return;
+  updТек=(k+updСлайды.length)%updСлайды.length;   // после последнего — снова первый
+  updРисоватьСлайд();
+  updЗавести();
+}
+function updЗавести(){
+  if(updТаймер)clearTimeout(updТаймер);
+  if(updСлайды.length>1)updТаймер=setTimeout(()=>updПерейти(updТек+1),UPD_СЕК*1000);
+}
+function updСтоп(){ if(updТаймер){clearTimeout(updТаймер); updТаймер=null;} }
+
 function updСписок(){
   const box=document.getElementById('updList');
   if(!box)return;
   fetch('/version.json?t='+Date.now(),{cache:'no-store'})
     .then(r=>r.json())
-    .then(d=>{
-      const пункты=(d.changes||[]).slice(0,3);
-      if(!пункты.length){ box.innerHTML='<div class="ui"><span class="un">!</span><div class="utx">Мы поправили работу сайта.</div></div>'; return; }
-      box.innerHTML=пункты.map((t,k)=>{
-        const низ=t.toLowerCase();
-        const п=UPD_ПОДСКАЗКИ.find(h=>h.слова.some(w=>низ.includes(w)));
-        const hint=п?'<div class="uhint">'+п.рис+
-          '<div class="ucap"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>'+esc(п.подпись)+'</div></div>':'';
-        return '<div class="ui"><span class="un">'+(k+1)+'</span><div class="utx">'+esc(t)+hint+'</div></div>';
-      }).join('');
-    })
-    .catch(()=>{ box.innerHTML='<div class="ui"><span class="un">!</span><div class="utx">Вышло обновление сайта.</div></div>'; });
+    .then(d=>{ updСлайды=updСобрать(d.changes); updТек=0; updРисоватьСлайд(); updЗавести(); })
+    .catch(()=>{ updСлайды=[{вид:'список',пункты:['Вышло обновление сайта.']}]; updТек=0; updРисоватьСлайд(); });
 }
 
 const PAGE_VER='__PAGE_VER__';
@@ -944,6 +1020,7 @@ function checkPageVersion(r){
     if(!bar._hooked){
       bar._hooked=true;
       document.getElementById('updGo').onclick=async()=>{
+        updСтоп();
         const кн=document.getElementById('updGo'); кн.disabled=true; кн.textContent='Обновляю…';
         // Запоминаем, что перезагрузка была: если после неё версия почему-то
         // снова разойдётся, не показываем плашку ещё пять минут — иначе круг.
@@ -957,6 +1034,7 @@ function checkPageVersion(r){
         location.reload();
       };
       const позже=()=>{
+        updСтоп();
         wrap.classList.remove('vis');
         setTimeout(()=>wrap.classList.remove('on'),280);
         updShown=false; updSnoozedUntil=Date.now()+10*60*1000;
@@ -964,6 +1042,13 @@ function checkPageVersion(r){
       document.getElementById('updX').onclick=позже;
       // щелчок по размытому фону и Escape — то же, что «позже»
       wrap.onclick=ev=>{ if(ev.target===wrap)позже(); };
+      // щелчок по кружочку — на этот слайд, по самому окну — следующий слайд
+      bar.addEventListener('click',ev=>{
+        if(ev.target.closest('button')||ev.target.closest('a'))return;
+        const d=ev.target.closest('.udot');
+        if(d){ updПерейти(+d.dataset.k); return; }
+        if(updСлайды.length>1)updПерейти(updТек+1);
+      });
       document.addEventListener('keydown',ev=>{
         if(ev.key==='Escape'&&wrap.classList.contains('on'))позже();
       });
@@ -2159,6 +2244,7 @@ toTop.onclick=()=>window.scrollTo({top:0,behavior:'smooth'});   // спраши�
     <div class="uh"><span class="ud"></span><span class="ut">обновление</span></div>
     <h3 id="updH">Что нового на сайте</h3>
     <div class="ulist" id="updList"></div>
+    <div class="udots" id="updDots"></div>
     <div class="uf">
       <button id="updGo">Обновить страницу</button>
       <span class="usp"></span>
