@@ -1744,17 +1744,24 @@ function calДень(d, сегодня){
 // Фильтр по ведомствам и раскрытые события переживают перерисовку
 const CAL_F_KEY='ff-calc-v1';
 // Флаги стран. Пустой набор = показываем все страны.
-const CAL_СТРАНЫ=[['ru','Россия','🇷🇺'],['us','США','🇺🇸'],['eu','Еврозона','🇪🇺'],
-  ['cn','Китай','🇨🇳'],['gb','Британия','🇬🇧'],['jp','Япония','🇯🇵'],
-  ['de','Германия','🇩🇪'],['tr','Турция','🇹🇷']];
+// ВРЕМЕННО: пока выверяем данные, в календаре показываем только Россию.
+// Чтобы вернуть остальные страны — раскомментировать строки ниже и убрать
+// принудительный набор в calСтраны.
+const CAL_СТРАНЫ=[['ru','Россия','🇷🇺'],
+  // ['us','США','🇺🇸'],['eu','Еврозона','🇪🇺'],
+  // ['cn','Китай','🇨🇳'],['gb','Британия','🇬🇧'],['jp','Япония','🇯🇵'],
+  // ['de','Германия','🇩🇪'],['tr','Турция','🇹🇷'],
+];
 const CAL_СИМВОЛ=Object.fromEntries(CAL_СТРАНЫ.map(([c,,f])=>[c,f]));
 const CAL_СИМЯ=Object.fromEntries(CAL_СТРАНЫ.map(([c,n])=>[c,n]));
 let calСтраны=new Set();
-try{ const v=JSON.parse(localStorage.getItem(CAL_F_KEY)||'[]'); if(Array.isArray(v))calСтраны=new Set(v); }catch(e){}
+// try{ const v=JSON.parse(localStorage.getItem(CAL_F_KEY)||'[]'); if(Array.isArray(v))calСтраны=new Set(v); }catch(e){}
+calСтраны=new Set(['ru']);   // ВРЕМЕННО, см. примечание выше
 function calСохранитьФильтр(){ try{localStorage.setItem(CAL_F_KEY,JSON.stringify([...calСтраны]))}catch(e){} }
 // подходит ли событие под выбор стран
 function calПодходит(e){
-  if(!e.cc)return true;              // ОПЕК и прочее «без страны» — видно всегда
+  // if(!e.cc)return true;           // ОПЕК и прочее «без страны» — видно всегда
+  if(!e.cc)return false;             // ВРЕМЕННО: пока в календаре только Россия
   return !calСтраны.size || calСтраны.has(e.cc);
 }
 const calОткрыто=new Set();
