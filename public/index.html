@@ -1691,18 +1691,17 @@ function sideOpen(on){
 
 
 // ── Календарь событий ────────────────────────────────────────────────────
-// Пока показывается только по адресу с параметром calendar=1 — обычные
-// посетители кнопку не видят. Признак запоминается, чтобы не дописывать
-// параметр каждый раз; убрать можно через calendar=0.
+// Календарь включён у всех. Спрятать можно адресом с calendar=0
+// (признак запоминается), вернуть — calendar=1.
 const CAL_KEY='ff-cal-v1';
-let calВключён=false;
+let calВключён=true;
 try{
   const q=new URLSearchParams(location.search);
   if(q.has('calendar')){
     calВключён=q.get('calendar')!=='0';
     localStorage.setItem(CAL_KEY, calВключён?'1':'0');
   }else{
-    calВключён=localStorage.getItem(CAL_KEY)==='1';
+    calВключён=localStorage.getItem(CAL_KEY)!=='0';
   }
 }catch(e){}
 
