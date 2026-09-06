@@ -2113,7 +2113,7 @@ const srv = http.createServer(async (req, res) => {
       const ext = path.extname(file);
       // страницы могут меняться в любой момент — браузер сверяет отметку при каждом
       // заходе; картинки и описание приложения меняются редко — держим сутки
-      const cc = (ext === '.html' || ext === '.json' || ext === '.js') ? 'no-cache' : 'public, max-age=86400';
+      const cc = (ext === '.html' || ext === '.json' || ext === '.js' || ext === '.webmanifest') ? 'no-cache' : 'public, max-age=86400';
       let body = fs.readFileSync(file);
       if (p === '/index.html') body = Buffer.from(body.toString('utf8').replace('__PAGE_VER__', pageVersion()));
       return send(req, res, 200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': cc }, body);
