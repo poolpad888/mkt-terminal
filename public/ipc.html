@@ -35,6 +35,14 @@ header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1p
 .hbtn:hover{color:var(--amber);border-color:var(--amber)}
 
 main{max-width:1080px;margin:0 auto;padding:16px 14px 60px}
+/* Вкладки: месячные данные по регионам и недельные по товарам. */
+.tabs{display:flex;gap:6px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);
+  font:inherit;font-size:12px;padding:7px 10px;cursor:pointer;font-family:var(--mono);
+  letter-spacing:.04em;text-transform:uppercase}
+.tabs button:hover{color:var(--tx)}
+.tabs button.on{color:var(--amber);border-bottom-color:var(--amber)}
+section[hidden]{display:none}
 .top{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
 .top h1{font-size:15px;font-weight:700;letter-spacing:.02em}
 .top .note{color:var(--dim);font-size:11.5px}
@@ -117,6 +125,12 @@ main{max-width:1080px;margin:0 auto;padding:16px 14px 60px}
     <span class="note" id="src">данные Росстата · к предыдущему месяцу</span>
   </div>
 
+  <div class="tabs">
+    <button id="tabReg" class="on">по регионам · месяц</button>
+    <button id="tabWeek">по товарам · неделя</button>
+  </div>
+
+  <section id="secReg">
   <div class="bar">
     <select id="terr"></select>
     <select id="mon"></select>
@@ -149,8 +163,38 @@ main{max-width:1080px;margin:0 auto;padding:16px 14px 60px}
     <div id="tblBox" class="load">загружаем данные…</div>
   </div>
 
-  <div class="foot">Источник: Росстат, индексы потребительских цен по субъектам Российской Федерации.<br>
-    Значения — в процентах к предыдущему месяцу.</div>
+  </section>
+
+  <section id="secWeek" hidden>
+    <div class="bar">
+      <select id="good"></select>
+      <select id="week"></select>
+      <input id="qw" placeholder="поиск товара в таблице">
+    </div>
+    <div class="tiles">
+      <div class="tile"><div class="lb">за неделю</div><div class="vl" id="wNow">—</div>
+        <div class="hint" id="wNowH">—</div></div>
+      <div class="tile"><div class="lb">неделей ранее</div><div class="vl" id="wPrev">—</div>
+        <div class="hint">предыдущая регистрация</div></div>
+      <div class="tile"><div class="lb">с начала года</div><div class="vl" id="wYtd">—</div>
+        <div class="hint" id="wYtdH">накопленным итогом</div></div>
+      <div class="tile"><div class="lb">за 12 недель</div><div class="vl" id="w12">—</div>
+        <div class="hint">оценка по недельным</div></div>
+    </div>
+    <div class="card">
+      <h2><span id="wTitle">Динамика по неделям</span>
+        <span class="leg">наведите на график, чтобы увидеть неделю</span></h2>
+      <div class="chart" id="chw"></div>
+    </div>
+    <div class="card">
+      <h2><span id="wTblTitle">Товары</span></h2>
+      <div id="wTblBox" class="load">загружаем данные…</div>
+    </div>
+  </section>
+
+  <div class="foot">Источник: Росстат, индексы потребительских цен по субъектам Российской Федерации
+    и недельная регистрация цен по товарам-представителям.<br>
+    Значения — в процентах к предыдущему периоду.</div>
 </main>
 <script>
 // Тема общая с лентой: тот же ключ настроек, чтобы страницы не спорили.
@@ -300,7 +344,142 @@ function рисоватьТаблицу(){
     кодТерр=tr.dataset.c; document.getElementById('terr').value=кодТерр; обновить();
   });
 }
-window.addEventListener('resize',()=>{clearTimeout(window._рз);window._рз=setTimeout(рисоватьГрафик,150)});
+// ── Недельные цены по товарам ───────────────────────────────────────────
+// Данные тяжелее месячных, поэтому грузим их только когда открыли вкладку.
+let Н=null, товар=null, номНед=0, грузимН=false;
+const датаНед=d=>{const [г,м,ч]=d.split('-');return (+ч)+' '+МЕС[+м-1]+' '+г};
+
+document.getElementById('tabReg').onclick=()=>вкладка('reg');
+document.getElementById('tabWeek').onclick=()=>вкладка('week');
+function вкладка(что){
+  const рег=что==='reg';
+  document.getElementById('secReg').hidden=!рег;
+  document.getElementById('secWeek').hidden=рег;
+  document.getElementById('tabReg').classList.toggle('on',рег);
+  document.getElementById('tabWeek').classList.toggle('on',!рег);
+  if(рег)рисоватьГрафик(); else загрузитьНедели();
+}
+
+function загрузитьНедели(){
+  if(Н){обновитьН();return}
+  if(грузимН)return;
+  грузимН=true;
+  fetch('/data-ipc-week.json').then(r=>r.json()).then(d=>{
+    Н=d; номНед=d.недели.length-1;
+    товар=d.товары.find(x=>/^Говядина/i.test(x))||d.товары[0];
+    const g=document.getElementById('good');
+    g.innerHTML=d.товары.map(x=>'<option'+(x===товар?' selected':'')+'>'+x+'</option>').join('');
+    const wk=document.getElementById('week');
+    wk.innerHTML=d.недели.map((n,i)=>'<option value="'+i+'">'+датаНед(n.d)+'</option>').join('');
+    wk.value=номНед;
+    g.onchange=()=>{товар=g.value;обновитьН()};
+    wk.onchange=()=>{номНед=+wk.value;обновитьН()};
+    document.getElementById('qw').oninput=таблицаН;
+    обновитьН();
+  }).catch(()=>{document.getElementById('wTblBox').textContent='не удалось загрузить данные'})
+   .finally(()=>{грузимН=false});
+}
+
+function обновитьН(){ плиткиН(); графикН(); таблицаН(); }
+
+// Накопленный итог: перемножаем недельные индексы. Первая неделя года у
+// Росстата уже дана к концу прошлого года, поэтому с неё и начинаем.
+function накоплено(р,от,до){
+  let к=1, было=false;
+  for(let i=от;i<=до;i++){ const v=р[i]; if(v==null)continue; к*=v/100; было=true; }
+  return было?Math.round((к-1)*10000)/100:null;
+}
+function началоГода(i){
+  const г=Н.недели[i].d.slice(0,4);
+  for(let j=i;j>=0;j--) if(Н.недели[j].d.slice(0,4)!==г) return j+1;
+  return 0;
+}
+
+function плиткиН(){
+  const р=Н.ряды[товар]||[];
+  const el=(id,зн)=>{const e=document.getElementById(id);e.textContent=чис(зн);e.className='vl '+кл(зн)};
+  el('wNow',впр(р[номНед]));
+  el('wPrev',номНед>0?впр(р[номНед-1]):null);
+  el('wYtd',накоплено(р,началоГода(номНед),номНед));
+  el('w12',накоплено(р,Math.max(0,номНед-11),номНед));
+  document.getElementById('wNowH').textContent='на '+датаНед(Н.недели[номНед].d);
+  // Считаем перемножением недельных индексов, поэтому из-за округлений
+  // значение может на десятые расходиться с расчётом самого Росстата.
+  document.getElementById('wYtdH').textContent='оценка с начала '+Н.недели[номНед].d.slice(0,4)+' года';
+  document.getElementById('wTitle').textContent=товар;
+}
+
+function графикН(){
+  const box=document.getElementById('chw'), р=(Н.ряды[товар]||[]).map(v=>впр(v));
+  const все=р.filter(v=>v!=null);
+  if(!все.length){box.innerHTML='<div class="empty">нет данных</div>';return}
+  const мин=Math.min(0,...все), макс=Math.max(...все);
+  const W=1000,H=230,ЛП=34,ПП=8,ВП=10,НП=20;
+  const x=i=>ЛП+(W-ЛП-ПП)*(i/Math.max(1,Н.недели.length-1));
+  const y=v=>ВП+(H-ВП-НП)*(1-(v-мин)/Math.max(.001,макс-мин));
+  let s='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
+  for(let k=0;k<=4;k++){
+    const v=мин+(макс-мин)*k/4, yy=y(v);
+    s+='<line class="gr" x1="'+ЛП+'" x2="'+(W-ПП)+'" y1="'+yy+'" y2="'+yy+'"/>'+
+       '<text class="ax" x="0" y="'+(yy+3)+'">'+v.toFixed(1)+'</text>';
+  }
+  if(мин<0)s+='<line class="zero" x1="'+ЛП+'" x2="'+(W-ПП)+'" y1="'+y(0)+'" y2="'+y(0)+'"/>';
+  let гПред='';
+  Н.недели.forEach((n,i)=>{ const г=n.d.slice(0,4);
+    if(г!==гПред){ гПред=г;
+      s+='<text class="ax" x="'+x(i)+'" y="'+(H-6)+'" text-anchor="middle">'+г+'</text>'; }});
+  let d='',начат=false;
+  р.forEach((v,i)=>{ if(v==null){начат=false;return}
+    d+=(начат?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' '; начат=true; });
+  s+='<path class="ln" d="'+d+'" style="stroke:var(--amber)"/>';
+  s+='<circle class="mk" id="mkw" r="3.2" style="display:none"/>';
+  s+='<rect class="hit" x="0" y="0" width="'+W+'" height="'+H+'"/></svg>';
+  box.innerHTML=s+'<div class="tip" id="tipw"></div>';
+  const svg=box.querySelector('svg'), tip=document.getElementById('tipw'), mk=document.getElementById('mkw');
+  svg.addEventListener('mousemove',e=>{
+    const r=svg.getBoundingClientRect();
+    let i=Math.round(((e.clientX-r.left)/r.width*W-ЛП)/((W-ЛП-ПП)/Math.max(1,Н.недели.length-1)));
+    i=Math.min(Math.max(i,0),Н.недели.length-1);
+    if(р[i]==null){tip.style.display='none';mk.style.display='none';return}
+    mk.style.display=''; mk.setAttribute('cx',x(i)); mk.setAttribute('cy',y(р[i]));
+    tip.style.display='block';
+    tip.innerHTML='<b>'+датаНед(Н.недели[i].d)+'</b><br>'+чис(р[i])+
+      (Н.недели[i].b==='год'?'<br><span style="opacity:.7">к концу прошлого года</span>':'');
+    tip.style.left=Math.min(Math.max(e.clientX-r.left-60,0),r.width-150)+'px'; tip.style.top='6px';
+  });
+  svg.addEventListener('mouseleave',()=>{tip.style.display='none';mk.style.display='none'});
+}
+
+function таблицаН(){
+  const иск=(document.getElementById('qw').value||'').trim().toLowerCase();
+  let стр=Н.товары.filter(t=>!иск||t.toLowerCase().includes(иск)).map(t=>{
+    const р=Н.ряды[t]||[];
+    return {t,v:впр(р[номНед]),г:накоплено(р,началоГода(номНед),номНед)};
+  }).filter(r=>r.v!=null);
+  стр.sort((a,b)=>b.v-a.v);
+  const пик=Math.max(...стр.map(r=>Math.abs(r.v)),.1);
+  let h='<table class="tbl"><thead><tr><th>товар</th><th>за неделю</th>'+
+        '<th>с начала года</th><th></th></tr></thead><tbody>';
+  for(const r of стр){
+    const ш=Math.abs(r.v)/пик*50, лево=r.v>=0?50:50-ш;
+    h+='<tr'+(r.t===товар?' class="sel"':'')+' data-t="'+r.t.replace(/"/g,'&quot;')+'">'+
+       '<td>'+r.t+'</td><td class="'+кл(r.v)+'">'+чис(r.v)+'</td>'+
+       '<td class="'+кл(r.г)+'">'+чис(r.г)+'</td>'+
+       '<td><span class="bar2"><i style="left:'+лево+'%;width:'+ш+'%;background:'+
+         (r.v>=0?'var(--red)':'var(--green)')+';opacity:.75"></i></span></td></tr>';
+  }
+  h+='</tbody></table>';
+  const box=document.getElementById('wTblBox');
+  box.className=''; box.innerHTML=h;
+  document.getElementById('wTblTitle').textContent='Товары · неделя на '+датаНед(Н.недели[номНед].d);
+  box.querySelectorAll('tbody tr').forEach(tr=>tr.onclick=()=>{
+    товар=tr.dataset.t; document.getElementById('good').value=товар; обновитьН();
+  });
+}
+
+window.addEventListener('resize',()=>{clearTimeout(window._рз);window._рз=setTimeout(()=>{
+  if(document.getElementById('secReg').hidden)графикН(); else рисоватьГрафик();
+},150)});
 </script>
 </body>
 </html>
