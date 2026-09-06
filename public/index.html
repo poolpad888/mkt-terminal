@@ -418,7 +418,7 @@ body.compact .row.lvl2,body.compact .row.reg:not(.lvl2){padding:6px 14px;margin:
   .row.lvl2,.row.reg:not(.lvl2){grid-template-columns:42px 1fr;gap:0 9px;margin:-1px 0 0;padding:10px 10px}
   /* Абсолютно: высоту ряда не тянет, занимает место от времени до низа ряда;
      если надпись не влезает — ужимается по шагам, как на компьютере. */
-  .fband{left:11px;top:31px;bottom:4px;width:20px;padding:6px 0;border-radius:10px}
+  .fband{left:11px;top:31px;bottom:6px;width:20px;padding:6px 0;border-radius:10px}
   .vtxt{font-size:8.5px;letter-spacing:.12em}
   .fband.t2 .vtxt{font-size:8px;letter-spacing:.06em}
   .fband.t3 .vtxt{font-size:7.5px;letter-spacing:.01em}
@@ -2282,10 +2282,21 @@ function rowHTML(x,fresh){
 /* Последний шаг t4 — короткая надпись («МИНФИН США» → «МФ США»). */
 const КОРОТКИЕ_ПЛАШКИ={'МИНФИН США':'МФ США','МИНФИН':'МФ'};
 function подогнатьПлашки(){
+  const мобильно=window.innerWidth<=640;
   for(const f of document.querySelectorAll('.fband')){
     const v=f.querySelector('.vtxt'); if(!v)continue;
     if(v.dataset.full){v.textContent=v.dataset.full;}
     f.classList.remove('t1','t2','t3','t4');
+    // На телефоне низ плашки — по низу текста новости, не по хештегам.
+    // Если места совсем мало (новость в одну строку), тянем до низа ряда.
+    f.style.height='';
+    if(мобильно){
+      const txt=f.parentElement.querySelector('.txt');
+      if(txt){
+        const h=txt.getBoundingClientRect().bottom-f.getBoundingClientRect().top;
+        if(h>=40)f.style.height=h+'px';
+      }
+    }
     for(const c of ['t1','t2','t3','t4']){
       if(f.scrollHeight<=f.clientHeight+1)break;
       if(c==='t4'){ const k=КОРОТКИЕ_ПЛАШКИ[v.textContent]; if(!k)break;
