@@ -40,10 +40,16 @@ html.light .tk{border-color:#c8e6d2;background:#eef8f1}
 html.light .reso{color:#5f6d7a;border-color:#d8dfe6;background:#f0f3f6}
 html.light .srcs{border-color:#c6dcf5;background:#eef5fd}
 html.light .row.reg:not(.lvl2){border-color:#8fb4e8;background:#eef4fc}
-html.light .regband{background:#1565c0}
+html.light .fband{background:#fdf2f2;border-color:#f0bcbc}
+html.light .fband .vtxt{color:#c62828}
+html.light .regband{background:#f1f5fe;border-color:#c3d4f5}
+html.light .regband .vtxt,html.light .regband .ico{color:#1e4fa8}
+html.light .finband{background:#f5f7f9;border-color:#d3dae2}
+html.light .finband .vtxt,html.light .finband .ico{color:#4a5563}
 html.light .row.reg.fin:not(.lvl2){border-color:#c3cad2;background:#f2f4f7}
 html.light .row.reg.fed:not(.lvl2){border-color:#a8c8da;background:#eaf4f9}
-html.light .fedband{background:#2a6080}
+html.light .fedband{background:#f1f8fb;border-color:#c2dce8}
+html.light .fedband .vtxt,html.light .fedband .ico{color:#1a5b78}
 /* светлая тема: на плашках ведомств текст был почти белым — делаем читаемым */
 html.light .row.reg:not(.lvl2) .txt{color:#123a6b}
 html.light .row.reg .time{color:#1a4f9c}
@@ -319,46 +325,49 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
 
 /* важные */
 .row.lvl2{grid-template-columns:52px 1fr;border:1px solid var(--red);
-  background:rgba(255,82,82,.13);margin:-1px 0 0;padding:11px 14px;border-radius:0;
+  background:rgba(255,82,82,.07);margin:-1px 0 0;padding:11px 14px;border-radius:0;
   border-left:none;border-right:none;
   overflow:visible}
-.fband{background:var(--red);display:flex;flex-direction:column;align-items:center;justify-content:space-between;
-  padding:6px 0;border-radius:4px;
+.fband{background:color-mix(in srgb,var(--red) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--red) 45%,var(--line));
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:7px 0;border-radius:12px;box-sizing:border-box;
   position:absolute;left:-30px;top:3px;bottom:3px;width:24px}
-.vtxt{writing-mode:vertical-rl;transform:rotate(180deg);color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.18em}
+.vtxt{writing-mode:vertical-rl;transform:rotate(180deg);color:color-mix(in srgb,var(--red) 80%,var(--tx));font-size:9.5px;font-weight:400;letter-spacing:.18em}
 .ico{font-size:11px}
-.row.lvl2 .time{color:var(--red);font-weight:600}
-.row.lvl2 .txt{color:#ffcf66;font-weight:600}
+.row.lvl2 .time{color:var(--red);font-weight:500}
+.row.lvl2 .txt{color:#ffcf66;font-weight:500}
 .row.fresh{animation:fr 2.4s ease both}
 @keyframes fr{0%{background:rgba(255,176,0,.25)}100%{background:transparent}}
 .row.lvl2.fresh{animation:fr2 2.4s ease both}
-@keyframes fr2{0%{background:rgba(255,82,82,.35)}100%{background:rgba(255,82,82,.13)}}
+@keyframes fr2{0%{background:rgba(255,82,82,.35)}100%{background:rgba(255,82,82,.07)}}
 .row.lvl2,.row.reg:not(.lvl2){position:relative;z-index:1}
 .row.mark{outline:2px solid var(--amber);outline-offset:-2px}
 /* регулятор: вертикальная плашка слева, как у важного, только синяя */
 .row.reg:not(.lvl2){grid-template-columns:52px 1fr;border:1px solid #2f5aa8;
-  background:#101a2b;margin:-1px 0 0;padding:11px 14px;border-radius:0;
+  background:color-mix(in srgb,#1e3a8a 11%,var(--bg));margin:-1px 0 0;padding:11px 14px;border-radius:0;
   border-left:none;border-right:none;
   overflow:visible}
-.row.reg .time{color:#7fb0ff;font-weight:600}
-.row.reg:not(.lvl2) .txt{color:#cfe0ff;font-weight:600}
-.regband{background:#1e3a8a}
-.regband .ico{font-size:14px;font-weight:400;color:#e8f0ff;line-height:1}
-.regband .vtxt{color:#e8f0ff}
+.row.reg .time{color:#7fb0ff;font-weight:500}
+.row.reg:not(.lvl2) .txt{color:#cfe0ff;font-weight:500}
+/* Плашки ведомств: заливка полупрозрачная, как у чипов фильтров в шапке,
+   рамка в цвете ведомства, надпись не жирная. */
+.regband{background:color-mix(in srgb,#1e3a8a 16%,var(--panel));border-color:color-mix(in srgb,#1e3a8a 55%,var(--line))}
+.regband .ico{font-size:14px;font-weight:400;color:#7ba6f0;line-height:1}
+.regband .vtxt{color:#7ba6f0}
 /* Минфин: та же плашка, серая */
-.row.reg.fin:not(.lvl2){border-color:#4a5563;background:#161a20}
+.row.reg.fin:not(.lvl2){border-color:#4a5563;background:color-mix(in srgb,#3f4854 14%,var(--bg))}
 .row.reg.fin .time{color:#aeb9c7}
 .row.reg.fin:not(.lvl2) .txt{color:#d7dde5}
-.finband{background:#3f4854}
-.finband .ico{font-size:14px;font-weight:400;color:#eef2f6;line-height:1}
-.finband .vtxt{color:#eef2f6}
+.finband{background:color-mix(in srgb,#3f4854 18%,var(--panel));border-color:color-mix(in srgb,#3f4854 70%,var(--line))}
+.finband .ico{font-size:14px;font-weight:400;color:#b8c4d2;line-height:1}
+.finband .vtxt{color:#b8c4d2}
 /* ФРС/Минфин США: серо-голубая плашка */
-.row.reg.fed:not(.lvl2){border-color:#2e4a5a;background:#0e1c26}
-.row.reg.fed .time{color:#7bb8d4;font-weight:600}
-.row.reg.fed:not(.lvl2) .txt{color:#c5dce8;font-weight:600}
-.fedband{background:#1e3d50}
-.fedband .ico{font-size:13px;font-weight:700;color:#7bb8d4;line-height:1}
-.fedband .vtxt{color:#a8d4e8}
+.row.reg.fed:not(.lvl2){border-color:#2e4a5a;background:color-mix(in srgb,#1e3d50 16%,var(--bg))}
+.row.reg.fed .time{color:#7bb8d4;font-weight:500}
+.row.reg.fed:not(.lvl2) .txt{color:#c5dce8;font-weight:500}
+.fedband{background:color-mix(in srgb,#1e3d50 20%,var(--panel));border-color:color-mix(in srgb,#1e3d50 65%,var(--line))}
+.fedband .ico{font-size:13px;font-weight:400;color:#8fc4dd;line-height:1}
+.fedband .vtxt{color:#8fc4dd}
 
 /* всплывающий график */
 #tvpop{position:fixed;z-index:50;width:340px;height:240px;background:var(--panel);
