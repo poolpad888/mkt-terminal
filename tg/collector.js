@@ -275,12 +275,16 @@ function rowFrom(msg, uname, name) {
         if (!msg || !msg.id) continue;
 
         const prev = seen.get(uname);
-        if (prev === undefined) { seen.set(uname, msg.id); continue; }
-        if (msg.id <= prev) continue;
+        // Отсчёт запоминаем только на самом первом проходе после запуска.
+        // Канал, который молчал и выпал из сотни последних диалогов, при
+        // следующем посте появляется «впервые» — этот пост нужно отдать,
+        // а не принять за точку отсчёта (так терялись редкие каналы).
+        if (prev === undefined && first) { seen.set(uname, msg.id); continue; }
+        if (prev !== undefined && msg.id <= prev) continue;
 
         // Между опросами могло выйти несколько постов — добираем пропущенные.
         let batch = [msg];
-        if (msg.id > prev + 1) {
+        if (prev !== undefined && msg.id > prev + 1) {
           try {
             const more = await client.getMessages(ent, { minId: prev, limit: 20 });
             if (more && more.length) batch = more;
