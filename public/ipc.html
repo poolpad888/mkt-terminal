@@ -830,7 +830,22 @@ function графикСезон(р,мес){
        '" style="fill:var(--amber);opacity:.85" rx="2"/>';
     s+='<text class="ax" x="'+cx+'" y="'+(H-7)+'" text-anchor="middle">'+МЕСИ[i].slice(0,3)+'</text>';
   });
-  box.innerHTML=s+'</svg>';
+  s+='<rect class="hit" x="0" y="0" width="'+W+'" height="'+H+'"/></svg>';
+  box.innerHTML=s+'<div class="tip"></div>';
+  const svg=box.querySelector('svg'), tip=box.querySelector('.tip');
+  svg.addEventListener('mousemove',e=>{
+    const r=svg.getBoundingClientRect();
+    let i=Math.floor(((e.clientX-r.left)/r.width*W-ЛП)/ш);
+    i=Math.min(Math.max(i,0),11);
+    const x2=с[i];
+    if(!x2){tip.style.display='none';return}
+    tip.style.display='block';
+    tip.innerHTML='<b>'+МЕСИ[i]+'</b><br>в среднем '+чис(Math.round(x2.ср*100)/100)+
+      '<br>от '+чис(Math.round(x2.мин*100)/100)+' до '+чис(Math.round(x2.макс*100)/100)+
+      '<br><span style="opacity:.65">наблюдений: '+x2.н+'</span>';
+    tip.style.left=Math.min(Math.max(e.clientX-r.left-70,0),r.width-150)+'px'; tip.style.top='6px';
+  });
+  svg.addEventListener('mouseleave',()=>{tip.style.display='none'});
 }
 
 function графикПрогноз(р,буд,мес){
@@ -903,8 +918,34 @@ function графикПрогноз(р,буд,мес){
     if(посл2>=0)s+='<text class="ax" x="'+(x(посл2)+4)+'" y="'+(y(л.полн[посл2])-4)+
       '" style="fill:'+цвет(л.г)+'">'+л.г+'</text>';
   }
-  s+='</svg>';
-  box.innerHTML=s;
+  // вертикальная нить и точки под курсором
+  s+='<line id="нитьF" class="zero" y1="'+ВП+'" y2="'+(H-НП)+'" style="display:none"/>';
+  линии.forEach((л,k)=>{ s+='<circle class="mk" data-k="'+k+'" r="3.2" style="display:none;fill:'+цвет(л.г)+'"/>'; });
+  s+='<rect class="hit" x="0" y="0" width="'+W+'" height="'+H+'"/></svg>';
+  box.innerHTML=s+'<div class="tip"></div>';
+  const svg=box.querySelector('svg'), tip=box.querySelector('.tip');
+  const нить=svg.querySelector('#нитьF'), точки=[...svg.querySelectorAll('.mk')];
+  svg.addEventListener('mousemove',e=>{
+    const r=svg.getBoundingClientRect();
+    let i=Math.round(((e.clientX-r.left)/r.width*W-ЛП)/((W-ЛП-ПП)/11));
+    i=Math.min(Math.max(i,0),11);
+    нить.style.display=''; нить.setAttribute('x1',x(i)); нить.setAttribute('x2',x(i));
+    let h='<b>'+МЕСИ[i]+'</b>';
+    линии.forEach((л,k)=>{
+      const v=л.полн[i], т=точки[k];
+      if(v==null){ т.style.display='none'; return }
+      т.style.display=''; т.setAttribute('cx',x(i)); т.setAttribute('cy',y(v));
+      const прогноз=л.факт[i]==null;
+      h+='<br><span style="color:'+цвет(л.г)+'">'+л.г+'</span> '+чис(v)+
+         (прогноз?' <span style="opacity:.6">прогноз</span>':'');
+    });
+    tip.style.display='block'; tip.innerHTML=h;
+    tip.style.left=Math.min(Math.max(e.clientX-r.left-70,0),r.width-160)+'px'; tip.style.top='6px';
+  });
+  svg.addEventListener('mouseleave',()=>{
+    tip.style.display='none'; нить.style.display='none';
+    точки.forEach(т=>т.style.display='none');
+  });
 }
 
 function таблицаПрогноза(буд,р,мес){
