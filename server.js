@@ -1847,6 +1847,64 @@ const CAL_CBR_ВИДЕО = {
   '2026-06-19': '065d6c16508db3980a9cede222efd1da',
   '2026-07-24': 'd2018e77832ae7956aab486e0bc56c34',
 };
+// Страница-указатель: под каждым заседанием лежит ссылка на заявление
+// председателя, а внутри заявления — рамка с записью. По ней сервер находит
+// ролики сам, включая свежее заседание: в день пресс-конференции запись
+// (сначала прямой эфир) появляется на той же странице.
+const ЦБ_РАЗДЕЛ = 'https://www.cbr.ru/dkp/mp_dec/decision_key_rate/';
+const ЦБ_ВИДЕО_ФАЙЛ = path.join(__dirname, 'cbr-video.json');
+let ЦБ_ВИДЕО = {};
+try { ЦБ_ВИДЕО = JSON.parse(fs.readFileSync(ЦБ_ВИДЕО_ФАЙЛ, 'utf8')) || {}; } catch (e) {}
+
+// Из указателя достаём пары «дата заседания → страница заявления».
+function цбЗаявления(html) {
+  const out = {};
+  const куски = html.split(/Заседание Совета директоров от/i).slice(1);
+  for (const к of куски) {
+    const д = к.match(/^\s*(\d{2})\.(\d{2})\.(\d{4})/);
+    if (!д) continue;
+    const дата = `${д[3]}-${д[2]}-${д[1]}`;
+    // берём ссылку именно на заявление, а не на пресс-релиз или прогноз
+    const rx = /href=["']([^"']*\/press\/event\/\?id=\d+)["'][^>]*>([\s\S]{0,300}?)<\/a>/gi;
+    let m;
+    while ((m = rx.exec(к))) {
+      if (/Заявление Председател/i.test(m[2].replace(/<[^>]+>/g, ' '))) {
+        out[дата] = new URL(m[1], 'https://www.cbr.ru/').href;
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+async function цбВидеоОбойти() {
+  const раздел = await fetchUrl(ЦБ_РАЗДЕЛ);
+  const страницы = цбЗаявления(раздел);
+  let новых = 0;
+  const сегодня = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
+  for (const [d] of CAL_CBR) {
+    if (d > сегодня) continue;                       // заседание ещё не состоялось
+    if (ЦБ_ВИДЕО[d] || CAL_CBR_ВИДЕО[d]) continue;   // уже знаем
+    const адрес = страницы[d];
+    if (!адрес) continue;                            // заявления пока нет
+    let html;
+    try { html = await fetchUrl(адрес); } catch (e) { continue; }
+    const в = html.match(/rutube\.ru\/play\/embed\/([0-9a-f]{16,})/i);
+    if (!в) continue;
+    ЦБ_ВИДЕО[d] = в[1];
+    новых++;
+  }
+  if (новых) {
+    try {
+      fs.writeFileSync(ЦБ_ВИДЕО_ФАЙЛ + '.tmp', JSON.stringify(ЦБ_ВИДЕО));
+      fs.renameSync(ЦБ_ВИДЕО_ФАЙЛ + '.tmp', ЦБ_ВИДЕО_ФАЙЛ);
+    } catch (e) {}
+  }
+  return { заседаний: Object.keys(страницы).length, новых, всего: Object.keys(ЦБ_ВИДЕО).length };
+}
+// В день заседания эфир начинается в 15:00, запись подтягивается сама.
+setTimeout(() => { цбВидеоОбойти().catch(() => {}); }, 60 * 1000);
+setInterval(() => { цбВидеоОбойти().catch(() => {}); }, 10 * 60 * 1000);
 
 const CAL_FED = [
   // Проверено по протоколам FOMC на federalreserve.gov: весь 2026 год диапазон
@@ -2257,7 +2315,7 @@ function calEvents(начало, конец) {
     out.push({ id: 'cbrpc-' + d, date: d, time: '15:00', kind: 'cbr', who: 'Банк России', cc: 'ru',
                name: 'Пресс-конференция Банка России', note: 'по итогам заседания',
                q: 'пресс-конференц набиуллин|набиуллина заявил|пресс-конференц цб', hot: false, noNums: true,
-               video: CAL_CBR_ВИДЕО[d] ? 'https://rutube.ru/play/embed/' + CAL_CBR_ВИДЕО[d] : '',
+               video: (ЦБ_ВИДЕО[d] || CAL_CBR_ВИДЕО[d]) ? 'https://rutube.ru/play/embed/' + (ЦБ_ВИДЕО[d] || CAL_CBR_ВИДЕО[d]) : '',
                videoPage: CAL_CBR_ПОДБОРКА });
   }
   for (const [d, name, note, f, prev, fact] of CAL_FED)
@@ -2516,6 +2574,15 @@ const srv = http.createServer(async (req, res) => {
         const предел = Math.min(Math.max(parseInt(u.searchParams.get('n') || '12', 10) || 12, 1), 60);
         const итог = u.searchParams.get('read') ? await ипцОбойти(предел) : null;
         return sendJson(req, res, { ok: true, итог, нед: ИПЦ_ИСТОРИЯ.нед, мес: ИПЦ_ИСТОРИЯ.мес },
+                        { 'Cache-Control': 'no-store' });
+      } catch (e) {
+        return sendJson(req, res, { ok: false, ошибка: e.message }, { 'Cache-Control': 'no-store' });
+      }
+    }
+    if (u.pathname === '/api/cbrvideo') {
+      try {
+        const итог = u.searchParams.get('read') ? await цбВидеоОбойти() : null;
+        return sendJson(req, res, { ok: true, итог, видео: ЦБ_ВИДЕО, вписано: CAL_CBR_ВИДЕО },
                         { 'Cache-Control': 'no-store' });
       } catch (e) {
         return sendJson(req, res, { ok: false, ошибка: e.message }, { 'Cache-Control': 'no-store' });

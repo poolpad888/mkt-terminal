@@ -538,10 +538,12 @@ html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
   box-shadow:0 14px 40px rgba(0,0,0,.55);display:none}
 #vid.on{display:block}
 #vid iframe{width:100%;height:100%;border:0;display:block}
+/* За шапку окно таскают, поэтому она ловит указатель, а не пропускает его. */
 #vid .vh{position:absolute;left:0;right:0;top:0;height:26px;display:flex;align-items:center;
   gap:8px;padding:0 8px;background:linear-gradient(rgba(0,0,0,.75),rgba(0,0,0,0));
   font-size:10px;color:#e8edf5;font-family:var(--mono);letter-spacing:.04em;
-  pointer-events:none;text-transform:uppercase}
+  cursor:move;text-transform:uppercase;touch-action:none}
+#vid.drag iframe{pointer-events:none}   /* иначе рамка съедает движение мыши */
 #vid .vh span{margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #vid .vh button{pointer-events:auto;background:transparent;border:0;color:#e8edf5;
   cursor:pointer;font-size:13px;line-height:1;padding:2px 4px;opacity:.85}
@@ -2013,7 +2015,7 @@ function calОтрисовать(сегодня){
       const чис=v=>v?esc(v):'·';
       // У части событий прогноза не бывает (аукцион ОФЗ) — столбец не рисуем.
       // У прошедшей пресс-конференции вместо чисел — кнопка с записью.
-      const смотреть=(e.noNums&&e.past&&(e.video||e.videoPage))
+      const смотреть=(e.noNums&&(e.video||(e.past&&e.videoPage)))
         ? '<button class="watch" data-vid="'+esc(e.video||'')+'" data-vpage="'+esc(e.videoPage||'')+'"'+
           ' data-vname="'+esc(e.name+' · '+calДень(e.date,сегодня).toLowerCase())+'">'+
           '<b>▶</b>смотреть</button>' : '';
@@ -2122,11 +2124,41 @@ function видОткрыть(url,запас,имя){
       else if(document.fullscreenElement)document.exitFullscreen();
       else box.requestFullscreen&&box.requestFullscreen();
     });
+    видТаскать(box);
   }
   box.querySelector('.vh span').textContent=имя||'';
   box.querySelector('iframe').src=url;
   box.classList.add('on');
 }
+// Перетаскивание за шапку. Окно изначально прижато к правому нижнему углу,
+// поэтому при первом захвате переводим его на координаты слева-сверху,
+// иначе right и left начнут спорить друг с другом.
+function видТаскать(box){
+  const шапка=box.querySelector('.vh');
+  let x0=0,y0=0,л=0,в=0,тащим=false;
+  шапка.addEventListener('pointerdown',e=>{
+    if(e.target.closest('button'))return;
+    const r=box.getBoundingClientRect();
+    box.style.left=r.left+'px'; box.style.top=r.top+'px';
+    box.style.right='auto';     box.style.bottom='auto';
+    л=r.left; в=r.top; x0=e.clientX; y0=e.clientY; тащим=true;
+    box.classList.add('drag');
+    шапка.setPointerCapture(e.pointerId);
+  });
+  шапка.addEventListener('pointermove',e=>{
+    if(!тащим)return;
+    const r=box.getBoundingClientRect();
+    // не даём утащить окно за край экрана: 40 пикселей всегда остаются видны
+    const мх=Math.min(Math.max(л+e.clientX-x0,-r.width+60),window.innerWidth-60);
+    const му=Math.min(Math.max(в+e.clientY-y0,0),window.innerHeight-30);
+    box.style.left=мх+'px'; box.style.top=му+'px';
+  });
+  const конец=e=>{ тащим=false; box.classList.remove('drag');
+    try{шапка.releasePointerCapture(e.pointerId)}catch(_){} };
+  шапка.addEventListener('pointerup',конец);
+  шапка.addEventListener('pointercancel',конец);
+}
+
 function видЗакрыть(){
   const box=document.getElementById('vid');
   if(!box)return;
