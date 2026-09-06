@@ -2,10 +2,11 @@
   "name": "FINFACTS — новости финансов и рынков",
   "short_name": "FINFACTS",
   "description": "Оперативная лента новостей финансов, экономики и рынков без задержки.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0b0d10",
+  "background_color": "#0b1120",
   "theme_color": "#0b0d10",
   "lang": "ru",
   "icons": [
