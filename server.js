@@ -319,9 +319,19 @@ function hashtags(text) {
   return [...out].slice(0, 6);
 }
 
+// ── Хосты с неполной цепочкой сертификатов ──────────────────────────────
+// rosstat.gov.ru не отдаёт промежуточный сертификат: браузер достраивает
+// цепочку сам, Node — нет, и запрос падает на unable to verify the first
+// certificate. Проверку снимаем ровно для этих хостов и только на чтение
+// публичных страниц; на все остальные запросы это не влияет.
+const ХОСТЫ_БЕЗ_ПРОВЕРКИ = new Set(['rosstat.gov.ru', 'www.rosstat.gov.ru']);
+const агентБезПроверки = new https.Agent({ rejectUnauthorized: false, keepAlive: true });
+
 // ── HTTP-загрузка с редиректами и gzip ──────────────────────────────────
 function fetchUrl(url, redirects = 3) {
   return new Promise((resolve, reject) => {
+    let хост = '';
+    try { хост = new URL(url).hostname; } catch (e) {}
     const req = https.get(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
@@ -329,6 +339,7 @@ function fetchUrl(url, redirects = 3) {
         'Accept-Encoding': 'gzip',
         'Accept-Language': 'ru,en;q=0.8',
       },
+      agent: ХОСТЫ_БЕЗ_ПРОВЕРКИ.has(хост) ? агентБезПроверки : undefined,
       timeout: 12000,
     }, res => {
       if ([301,302,303,307,308].includes(res.statusCode) && res.headers.location && redirects > 0) {
