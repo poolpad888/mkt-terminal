@@ -332,7 +332,13 @@ mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
   display:flex;flex-direction:column;align-items:center;justify-content:space-between;
   padding:7px 0;border-radius:12px;box-sizing:border-box;
   position:absolute;left:-30px;top:3px;bottom:3px;width:24px}
-.vtxt{writing-mode:vertical-rl;transform:rotate(180deg);color:color-mix(in srgb,var(--red) 80%,var(--tx));font-size:9.5px;font-weight:400;letter-spacing:.18em}
+.vtxt{writing-mode:vertical-rl;transform:rotate(180deg);color:color-mix(in srgb,var(--red) 80%,var(--tx));font-size:9.5px;font-weight:400;letter-spacing:.18em;white-space:nowrap}
+/* Короткие ряды: плашке не хватает высоты — по шагам убираем значок,
+   потом ужимаем шрифт и разрядку, чтобы надпись шла в одну линию. */
+.fband.t1 .ico{display:none}
+.fband.t1{justify-content:center}
+.fband.t2 .vtxt{font-size:8.5px;letter-spacing:.08em}
+.fband.t3 .vtxt{font-size:8px;letter-spacing:.02em}
 .ico{font-size:11px}
 .row.lvl2 .time{color:var(--red);font-weight:500}
 .row.lvl2 .txt{color:#ffcf66;font-weight:500}
@@ -2265,6 +2271,18 @@ function rowHTML(x,fresh){
       '<button class="share" data-id="'+x.id+'" title="поделиться"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>'+
     '</div></div></article>';
 }
+/* Меряем каждую плашку: если надпись не влезает по высоте, добавляем
+   классы t1→t3, пока не поместится. */
+function подогнатьПлашки(){
+  for(const f of document.querySelectorAll('.fband')){
+    f.classList.remove('t1','t2','t3');
+    for(const c of ['t1','t2','t3']){
+      if(f.scrollHeight<=f.clientHeight+1)break;
+      f.classList.add(c);
+    }
+  }
+}
+window.addEventListener('resize',подогнатьПлашки);
 function renderAll(){
   renderNav();
   sideAlign();
@@ -2297,6 +2315,7 @@ function renderAll(){
     else              html+='<button class="oldbtn" id="deepBtn">более старые новости</button>';
   }
   feed.innerHTML=html;
+  подогнатьПлашки();
   const ob=document.getElementById('oldBtn');
   if(ob)ob.onclick=async()=>{
     searchOld=true;archBusy=true;renderAll();
