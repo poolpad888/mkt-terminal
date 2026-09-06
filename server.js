@@ -1945,10 +1945,15 @@ function calRules(начало, конец) {
     const дн = d.getUTCDay(), число = d.getUTCDate(), мес = d.getUTCMonth() + 1;
     if (дн === 3) {                                   // среда
       const ф = CAL_OFZ_FACT[ymd] || {};
+      // «Пред.» — привлечение на прошлом аукционе, то есть неделей раньше.
+      // Если та среда пропущена (Минфин объявлял непроведение), поля не будет.
+      const прошлаяСреда = new Date(d.getTime() - 7 * 864e5)
+        .toLocaleDateString('sv-SE', { timeZone: 'Europe/Moscow' });
+      const пред = ф.prev || (CAL_OFZ_FACT[прошлаяСреда] || {}).fact || '';
       // Прогноза по аукциону не бывает: объём заранее не объявляют, поэтому
       // столбец скрываем совсем, а не показываем прочерком.
       out.push({ id: 'ofz-' + ymd, date: ymd, time: '11:00', kind: 'fin', who: 'Минфин России', cc: 'ru',
-                 name: 'Аукцион ОФЗ', note: '', prev: ф.prev || '', fact: ф.fact || '',
+                 name: 'Аукцион ОФЗ', note: '', prev: пред, fact: ф.fact || '',
                  q: 'офз аукцион|офз размещ', hot: false, unit: 'трлн руб.', noF: true });
     }
     // Запасы нефти. Институт нефти (API) — по вторникам 16:30 по Вашингтону,
