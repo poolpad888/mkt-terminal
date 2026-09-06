@@ -412,9 +412,19 @@ body.compact .row.lvl2,body.compact .row.reg:not(.lvl2){padding:6px 14px;margin:
   nav{padding:0 10px;top:38px;height:34px}
   .row{grid-template-columns:42px 1fr;gap:0 9px;padding:10px 10px}
   main{margin-left:0}
-  .fband{position:static;width:18px;margin:3px 6px 3px 0}
-  .row.lvl2{grid-template-columns:18px 42px 1fr;gap:0 9px;margin:-1px 0 0;padding:10px 10px 10px 8px}
-  .row.reg:not(.lvl2){grid-template-columns:18px 42px 1fr;gap:0 9px;margin:-1px 0 0;padding:10px 10px 10px 8px}
+  /* Плашка на телефоне — горизонтальная пилюля под временем, в том же
+     столбце: лента не сдвигается вправо. Ряд: время сверху, плашка под ним,
+     текст справа на обе строки. */
+  .row.lvl2,.row.reg:not(.lvl2){grid-template-columns:42px 1fr;grid-template-rows:auto 1fr;
+     gap:0 9px;margin:-1px 0 0;padding:10px 10px}
+  .row.lvl2 .time,.row.reg .time{grid-column:1;grid-row:1}
+  .row.lvl2>div:last-child,.row.reg>div:last-child{grid-column:2;grid-row:1/3}
+  .fband{position:static;grid-column:1;grid-row:2;align-self:start;justify-self:start;
+     width:42px;margin:4px 0 0;padding:3px 0;border-radius:8px;
+     flex-direction:row;justify-content:center}
+  .vtxt{writing-mode:horizontal-tb;transform:none;white-space:normal;text-align:center;
+     font-size:8px;letter-spacing:.02em;line-height:1.25}
+  .fband.t2 .vtxt,.fband.t3 .vtxt{font-size:8px;letter-spacing:.02em}
   .row .time{font-size:11px;line-height:16px}
 }
 .note{color:var(--dim);text-align:center;padding:40px 20px;font-size:12.5px}
@@ -2272,6 +2282,7 @@ function rowHTML(x,fresh){
 /* Меряем каждую плашку: если надпись не влезает по высоте, добавляем
    классы t1→t3, пока не поместится. */
 function подогнатьПлашки(){
+  if(window.innerWidth<=640)return; // на телефоне плашка горизонтальная, подгонка не нужна
   for(const f of document.querySelectorAll('.fband')){
     f.classList.remove('t1','t2','t3');
     for(const c of ['t1','t2','t3']){
