@@ -42,6 +42,14 @@ main{max-width:1080px;margin:0 auto;padding:16px 14px 60px}
   letter-spacing:.04em;text-transform:uppercase}
 .tabs button:hover{color:var(--tx)}
 .tabs button.on{color:var(--amber);border-bottom-color:var(--amber)}
+/* Выбор годов для наложения линий друг на друга. */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chips b{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--dim);align-self:center;margin-right:2px;font-weight:400}
+.chips button{background:transparent;border:1px solid var(--line);color:var(--dim);
+  font:inherit;font-size:11px;font-family:var(--mono);padding:3px 9px;border-radius:12px;cursor:pointer}
+.chips button:hover{color:var(--tx)}
+.chips button.on{color:var(--bg);font-weight:600}
 section[hidden]{display:none}
 .top{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
 .top h1{font-size:15px;font-weight:700;letter-spacing:.02em}
@@ -256,10 +264,9 @@ section[hidden]{display:none}
       <div class="chart" id="chs"></div>
     </div>
     <div class="card">
-      <h2>Факт и прогноз
-        <span class="leg"><i style="background:var(--amber)"></i>факт</span>
-        <span class="leg"><i style="background:var(--violet)"></i>прогноз</span>
-      </h2>
+      <h2>Накопленная инфляция с начала года
+        <span class="leg">пунктиром — прогноз до декабря</span></h2>
+      <div class="chips" id="fГоды"><b>годы</b></div>
       <div class="chart" id="chf"></div>
     </div>
     <div class="card">
@@ -724,14 +731,26 @@ function прогнозРяд(р,гор,мес){
   const из=[]; let [г,м]=мес[мес.length-1].split('-').map(Number);
   for(let k=0;k<гор;k++){
     м++; if(м>12){м=1;г++}
-    из.push({д:г+'-'+String(м).padStart(2,'0'),v:прогнозМесяца(р,р.length,м-1,мес)});
+    const д=г+'-'+String(м).padStart(2,'0');
+    let v=прогнозМесяца(р,р.length,м-1,мес);
+    const поп=ПОПРАВКИ[д];
+    if(v!=null&&поп)v=Math.round((v+поп.v)*100)/100;
+    из.push({д,v,поп:поп?поп.что:''});
   }
   return из;
 }
 const слож=a=>{let к=1,б=false;for(const v of a){if(v==null)continue;к*=1+v/100;б=true}
   return б?Math.round((к-1)*10000)/100:null};
 
+// Разовые события, которые сезонность знать не может. В 2026 году индексацию
+// коммунальных тарифов перенесли с июля на 1 октября: в июле роста не было,
+// значит средний «июльский» сдвиг из истории надо перенести на октябрь.
+// Величина: средняя индексация по стране 9,9% при весе коммунальных услуг
+// 5,75% в расходах — примерно 0,57 процентного пункта.
+const ПОПРАВКИ={'2026-10':{v:0.57,что:'индексация тарифов ЖКХ перенесена на октябрь'}};
+
 let Л=null, грузимЛ=false;
+let фГоды=null;   // какие годы показываем на графике
 function прогнозОткрыть(){
   if(!Д)return;
   if(!Л&&!грузимЛ){
@@ -782,7 +801,12 @@ function прогнозОткрыть(){
     'Модель не знает ни решений по ставке, ни курса рубля, ни разовых событий вроде '+
     'скачка цен на топливо. Поэтому рядом стоит её ошибка: для каждого из последних '+
     'двенадцати месяцев прогноз пересчитан заново, только по данным, известным до него, '+
-    'и сопоставлен с фактом. Это не предсказание, а продолжение сезонной картины.';
+    'и сопоставлен с фактом. Это не предсказание, а продолжение сезонной картины.<br><br>'+
+    'Одно исключение сделано вручную. В 2026 году индексацию коммунальных тарифов '+
+    'перенесли с июля на 1 октября: в июле роста не было, и сезонность об этом не '+
+    'знает. При средней индексации 9,9% и весе коммунальных услуг 5,75% в расходах '+
+    'к прогнозу октября добавлено 0,57 процентного пункта — такие месяцы отмечены '+
+    'звёздочкой в таблице.';
 }
 
 function графикСезон(р,мес){
@@ -812,32 +836,75 @@ function графикСезон(р,мес){
 function графикПрогноз(р,буд,мес){
   мес=мес||Д.месяцы;
   const box=document.getElementById('chf');
-  const хвост=24, от=Math.max(0,р.length-хвост);
-  const факт=р.slice(от), прог=буд.map(x=>x.v);
-  const подписи=мес.slice(от).concat(буд.map(x=>x.д));
-  const все=факт.concat(прог).filter(v=>v!=null);
+  // Раскладываем ряд по годам и считаем накопленный итог с января: так линии
+  // разных лет ложатся друг на друга и видно, идём мы быстрее или медленнее.
+  const поГодам={};
+  мес.forEach((m,i)=>{ const г=m.slice(0,4), н=+m.slice(5)-1;
+    (поГодам[г]=поГодам[г]||Array(12).fill(null))[н]=р[i]; });
+  const посл=мес[мес.length-1], текГод=посл.slice(0,4);
+  // прогноз дописываем в текущий год, дальше — в следующий
+  const прог={};
+  for(const b of буд){ const г=b.д.slice(0,4), н=+b.д.slice(5)-1;
+    (прог[г]=прог[г]||Array(12).fill(null))[н]=b.v; }
+  const годы=Object.keys(поГодам).filter(г=>поГодам[г].some(v=>v!=null)).sort();
+  // по умолчанию — три последних года
+  if(!фГоды)фГоды=new Set(годы.slice(-3));
+  const цвета=['var(--amber)','var(--blue)','var(--green)','var(--violet)','var(--red)','#8fa3b8'];
+  const цвет=г=>цвета[(годы.indexOf(г))%цвета.length];
+
+  // чипы выбора
+  const кор=document.getElementById('fГоды');
+  кор.innerHTML='<b>годы</b>'+годы.slice().reverse().map(г=>
+    '<button data-г="'+г+'" class="'+(фГоды.has(г)?'on':'')+'"'+
+    (фГоды.has(г)?' style="background:'+цвет(г)+';border-color:'+цвет(г)+'"':'')+'>'+г+'</button>').join('');
+  кор.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    const г=b.dataset.г;
+    if(фГоды.has(г)){ if(фГоды.size>1)фГоды.delete(г); } else фГоды.add(г);
+    прогнозОткрыть();
+  });
+
+  // накопленный итог по месяцам
+  const накоп=(ряд,допол)=>{
+    let к=1; const из=[];
+    for(let i=0;i<12;i++){
+      let v=ряд?ряд[i]:null;
+      if(v==null&&допол)v=допол[i];
+      if(v==null){ из.push(null); continue; }
+      к*=1+v/100; из.push(Math.round((к-1)*10000)/100);
+    }
+    return из;
+  };
+  const линии=[...фГоды].sort().map(г=>({
+    г, факт:накоп(поГодам[г]),
+    полн:накоп(поГодам[г],прог[г]||null),
+    естьПрогноз:!!(прог[г]&&прог[г].some(v=>v!=null))
+  }));
+  const все=линии.flatMap(l=>l.полн).filter(v=>v!=null);
   if(!все.length){box.innerHTML='';return}
   const мин=Math.min(0,...все), макс=Math.max(...все);
-  const N=факт.length+прог.length;
   const W=1000,H=230,ЛП=34,ПП=8,ВП=10,НП=20;
-  const x=i=>ЛП+(W-ЛП-ПП)*(i/Math.max(1,N-1));
+  const x=i=>ЛП+(W-ЛП-ПП)*(i/11);
   const y=v=>ВП+(H-ВП-НП)*(1-(v-мин)/Math.max(.001,макс-мин));
   let s='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
   for(let k=0;k<=4;k++){ const v=мин+(макс-мин)*k/4;
     s+='<line class="gr" x1="'+ЛП+'" x2="'+(W-ПП)+'" y1="'+y(v)+'" y2="'+y(v)+'"/>'+
        '<text class="ax" x="0" y="'+(y(v)+3)+'">'+v.toFixed(1)+'</text>'; }
-  if(мин<0)s+='<line class="zero" x1="'+ЛП+'" x2="'+(W-ПП)+'" y1="'+y(0)+'" y2="'+y(0)+'"/>';
-  подписи.forEach((m,i)=>{ if(m.slice(5)==='01')
-    s+='<text class="ax" x="'+x(i)+'" y="'+(H-6)+'" text-anchor="middle">'+m.slice(0,4)+'</text>'; });
-  let d='',н=false;
-  факт.forEach((v,i)=>{ if(v==null){н=false;return} d+=(н?'L':'M')+x(i)+' '+y(v)+' '; н=true; });
-  s+='<path class="ln" d="'+d+'" style="stroke:var(--amber)"/>';
-  // прогноз стыкуем с последней фактической точкой, иначе линия висит в воздухе
-  let d2='', старт=факт.length-1;
-  if(факт[старт]!=null)d2='M'+x(старт)+' '+y(факт[старт])+' ';
-  прог.forEach((v,i)=>{ if(v==null)return; d2+=(d2?'L':'M')+x(факт.length+i)+' '+y(v)+' '; });
-  s+='<path class="ln" d="'+d2+'" style="stroke:var(--violet);stroke-dasharray:5 4"/>';
-  box.innerHTML=s+'</svg>';
+  for(let i=0;i<12;i++)
+    s+='<text class="ax" x="'+x(i)+'" y="'+(H-6)+'" text-anchor="middle">'+МЕСИ[i].slice(0,3)+'</text>';
+  for(const л of линии){
+    const пут=a=>{ let d='',н=false;
+      a.forEach((v,i)=>{ if(v==null){н=false;return} d+=(н?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' '; н=true; });
+      return d; };
+    if(л.естьПрогноз)
+      s+='<path class="ln" d="'+пут(л.полн)+'" style="stroke:'+цвет(л.г)+';stroke-dasharray:5 4;opacity:.85"/>';
+    s+='<path class="ln" d="'+пут(л.факт)+'" style="stroke:'+цвет(л.г)+'"/>';
+    // подпись года у последней известной точки
+    const посл2=л.полн.reduce((a,v,i)=>v==null?a:i,-1);
+    if(посл2>=0)s+='<text class="ax" x="'+(x(посл2)+4)+'" y="'+(y(л.полн[посл2])-4)+
+      '" style="fill:'+цвет(л.г)+'">'+л.г+'</text>';
+  }
+  s+='</svg>';
+  box.innerHTML=s;
 }
 
 function таблицаПрогноза(буд,р,мес){
@@ -852,7 +919,8 @@ function таблицаПрогноза(буд,р,мес){
     h+='<tr><td>'+МЕСИ[м]+' '+b.д.slice(0,4)+'</td>'+
        '<td class="'+кл(b.v)+'">'+чис(b.v)+'</td>'+
        '<td class="'+кл(н)+'">'+чис(н)+'</td>'+
-       '<td style="color:var(--dim)">'+(с[м]?чис(Math.round(с[м].ср*100)/100):'—')+'</td></tr>';
+       '<td style="color:var(--dim)">'+(с[м]?чис(Math.round(с[м].ср*100)/100):'—')+
+       (b.поп?' <span style="color:var(--amber)" title="'+b.поп+'">✳</span>':'')+'</td></tr>';
   }
   h+='</tbody></table>';
   const box=document.getElementById('fTblBox'); box.className=''; box.innerHTML=h;
