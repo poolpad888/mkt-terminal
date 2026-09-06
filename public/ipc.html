@@ -128,6 +128,7 @@ section[hidden]{display:none}
   <div class="tabs">
     <button id="tabReg" class="on">по регионам · месяц</button>
     <button id="tabWeek">по товарам · неделя</button>
+    <button id="tabStr">вклад в инфляцию</button>
     <button id="tabF">сезонность и прогноз</button>
   </div>
 
@@ -195,12 +196,47 @@ section[hidden]{display:none}
     </div>
   </section>
 
+  <section id="secStr" hidden>
+    <div class="bar">
+      <select id="sMon"></select>
+      <select id="sБаза">
+        <option value="0">за месяц</option>
+        <option value="2" selected>за 12 месяцев</option>
+        <option value="1">с начала года</option>
+      </select>
+      <input id="qs" placeholder="поиск товара или группы">
+    </div>
+    <div class="tiles">
+      <div class="tile"><div class="lb">все товары и услуги</div><div class="vl" id="sAll">—</div>
+        <div class="hint" id="sAllH">—</div></div>
+      <div class="tile"><div class="lb">еда</div><div class="vl" id="sF">—</div>
+        <div class="hint" id="sFw">вклад в общий рост</div></div>
+      <div class="tile"><div class="lb">непродовольственные</div><div class="vl" id="sN">—</div>
+        <div class="hint" id="sNw">вклад в общий рост</div></div>
+      <div class="tile"><div class="lb">услуги</div><div class="vl" id="sS">—</div>
+        <div class="hint" id="sSw">вклад в общий рост</div></div>
+    </div>
+    <div class="card">
+      <h2><span id="sTitle">Кто разгоняет инфляцию</span>
+        <span class="leg">вклад = вес товара в расходах × его подорожание</span></h2>
+      <div id="sTop" class="load">—</div>
+    </div>
+    <div class="card">
+      <h2>Все позиции</h2>
+      <div id="sTbl" class="load">—</div>
+    </div>
+  </section>
+
   <section id="secF" hidden>
     <div class="bar">
       <select id="fTerr"></select>
       <select id="fГор">
         <option value="6">прогноз на 6 месяцев</option>
         <option value="12" selected>прогноз на 12 месяцев</option>
+      </select>
+      <select id="fБаза">
+        <option value="0">сезонность по 2022–2026</option>
+        <option value="2010" selected>сезонность с 2010 года</option>
       </select>
     </div>
     <div class="tiles">
@@ -408,13 +444,16 @@ const датаНед=d=>{const [г,м,ч]=d.split('-');return (+ч)+' '+МЕС[+
 document.getElementById('tabReg').onclick=()=>вкладка('reg');
 document.getElementById('tabWeek').onclick=()=>вкладка('week');
 document.getElementById('tabF').onclick=()=>вкладка('f');
+document.getElementById('tabStr').onclick=()=>вкладка('str');
 function вкладка(что){
-  for(const [к,сек,кн] of [['reg','secReg','tabReg'],['week','secWeek','tabWeek'],['f','secF','tabF']]){
+  for(const [к,сек,кн] of [['reg','secReg','tabReg'],['week','secWeek','tabWeek'],
+                           ['str','secStr','tabStr'],['f','secF','tabF']]){
     document.getElementById(сек).hidden=(к!==что);
     document.getElementById(кн).classList.toggle('on',к===что);
   }
   if(что==='reg')рисоватьГрафик();
   else if(что==='week')загрузитьНедели();
+  else if(что==='str')загрузитьСтруктуру();
   else прогнозОткрыть();
 }
 
@@ -535,6 +574,105 @@ function таблицаН(){
   });
 }
 
+// ── Вклад в инфляцию ────────────────────────────────────────────────────
+// У каждой позиции есть вес в потребительских расходах. Вклад = вес × рост.
+// Сумма вкладов сходится с общим индексом — это и делает разбор честным.
+let С=null, sМес=0, sБаза=2, грузимС=false;
+
+function загрузитьСтруктуру(){
+  if(С){обновитьС();return}
+  if(грузимС)return; грузимС=true;
+  document.getElementById('sTop').textContent='загружаем данные…';
+  fetch('/data-ipc-str.json').then(r=>r.json()).then(d=>{
+    С=d; sМес=d.месяцы.length-1;
+    С.по={}; d.поз.forEach(p=>С.по[p.c]=p);
+    const m=document.getElementById('sMon');
+    m.innerHTML=d.месяцы.map((x,i)=>'<option value="'+i+'">'+имяМес(x)+'</option>').join('');
+    m.value=sМес;
+    m.onchange=()=>{sМес=+m.value;обновитьС()};
+    document.getElementById('sБаза').onchange=e=>{sБаза=+e.target.value;обновитьС()};
+    document.getElementById('qs').oninput=таблицаС;
+    обновитьС();
+  }).catch(()=>{document.getElementById('sTop').textContent='не удалось загрузить данные'})
+   .finally(()=>{грузимС=false});
+}
+
+// Значение позиции в выбранной базе: к месяцу, к декабрю или к прошлому году.
+function зн(код){ const з=(С.ряды[код]||[])[sМес]; return з?з[sБаза]:null; }
+function вклад(код){
+  const p=С.по[код], v=зн(код);
+  if(!p||p.w==null||v==null)return null;
+  return Math.round(p.w*(v-100)/100*1000)/1000;
+}
+const имяПо=н=>С.поз.find(x=>x.n===н);
+
+function обновитьС(){
+  const el=(id,v)=>{const e=document.getElementById(id);e.textContent=чис(v);e.className='vl '+кл(v)};
+  el('sAll',впр(зн('1')));
+  const базы=['к предыдущему месяцу','к декабрю прошлого года','к тому же месяцу прошлого года'];
+  document.getElementById('sAllH').textContent=имяМес(С.месяцы[sМес])+' · '+базы[sБаза];
+  for(const [ид,имя] of [['sF','Продовольственные товары'],['sN','Непродовольственные товары'],['sS','Услуги']]){
+    const p=имяПо(имя); if(!p)continue;
+    el(ид,впр(зн(p.c)));
+    const в=вклад(p.c), общ=впр(зн('1'));
+    const доля=(в!=null&&общ)?Math.round(в/общ*100):null;
+    document.getElementById(ид+'w').textContent=
+      (в==null?'—':'вклад '+(в>0?'+':'')+в.toFixed(2).replace('.',',')+' п.п.')+
+      (доля!=null?' · '+доля+'% роста':'')+' · вес '+(p.w||0).toFixed(1).replace('.',',')+'%';
+  }
+  топС(); таблицаС();
+}
+
+// Верх и низ списка: что сильнее всего толкает цены вверх и что тянет вниз.
+function топС(){
+  // Берём только конкретные товары, а не группы: иначе «все товары и услуги»
+  // окажется на первом месте и задвоит вклад своих же составляющих. Иерархии
+  // в кодах Росстата нет, зато у товара в названии стоит единица измерения
+  // после запятой — «Говядина бескостная, кг». Сумма весов таких строк даёт
+  // сто процентов, значит отбор верный.
+  const ЕДИНИЦА=/,\s*[^,]{1,16}$/;
+  const листья=С.поз.filter(p=>ЕДИНИЦА.test(p.n)&&p.w!=null&&p.w>0&&вклад(p.c)!=null);
+  const по=[...листья].sort((a,b)=>вклад(b.c)-вклад(a.c));
+  const верх=по.slice(0,10), низ=по.slice(-6).reverse().filter(x=>вклад(x.c)<0);
+  const пик=Math.max(...по.map(x=>Math.abs(вклад(x.c))),.001);
+  const строка=p=>{
+    const в=вклад(p.c), ш=Math.abs(в)/пик*50, лево=в>=0?50:50-ш;
+    return '<tr><td>'+p.n+'</td>'+
+      '<td class="'+кл(впр(зн(p.c)))+'">'+чис(впр(зн(p.c)))+'</td>'+
+      '<td style="color:var(--dim)">'+p.w.toFixed(2).replace('.',',')+'%</td>'+
+      '<td class="'+кл(в)+'">'+(в>0?'+':'')+в.toFixed(3).replace('.',',')+'</td>'+
+      '<td><span class="bar2"><i style="left:'+лево+'%;width:'+ш+'%;background:'+
+        (в>=0?'var(--red)':'var(--green)')+';opacity:.75"></i></span></td></tr>';
+  };
+  let h='<table class="tbl"><thead><tr><th>позиция</th><th>рост цен</th><th>вес</th>'+
+        '<th>вклад, п.п.</th><th></th></tr></thead><tbody>';
+  h+=верх.map(строка).join('');
+  if(низ.length)h+='<tr><td colspan="5" style="color:var(--dim);padding-top:10px;'+
+    'font-family:var(--sans);border-top:1px solid var(--line)">Тянут цены вниз</td></tr>'+
+    низ.map(строка).join('');
+  h+='</tbody></table>';
+  const box=document.getElementById('sTop'); box.className=''; box.innerHTML=h;
+  document.getElementById('sTitle').textContent='Кто разгоняет инфляцию · '+имяМес(С.месяцы[sМес]);
+}
+
+function таблицаС(){
+  if(!С)return;
+  const иск=(document.getElementById('qs').value||'').trim().toLowerCase();
+  const ЕД=/,\s*[^,]{1,16}$/;
+  let стр=С.поз.filter(p=>(!иск||p.n.toLowerCase().includes(иск))&&ЕД.test(p.n));
+  стр=стр.map(p=>({p,v:впр(зн(p.c)),в:вклад(p.c)})).filter(x=>x.v!=null);
+  стр.sort((a,b)=>(b.в==null?-1e9:b.в)-(a.в==null?-1e9:a.в));
+  стр=стр.slice(0,300);
+  let h='<table class="tbl"><thead><tr><th>позиция</th><th>рост цен</th>'+
+        '<th>вес</th><th>вклад, п.п.</th></tr></thead><tbody>';
+  for(const x of стр)
+    h+='<tr><td>'+x.p.n+'</td><td class="'+кл(x.v)+'">'+чис(x.v)+'</td>'+
+       '<td style="color:var(--dim)">'+(x.p.w==null?'—':x.p.w.toFixed(2).replace('.',',')+'%')+'</td>'+
+       '<td class="'+кл(x.в)+'">'+(x.в==null?'—':(x.в>0?'+':'')+x.в.toFixed(3).replace('.',','))+'</td></tr>';
+  h+='</tbody></table>';
+  const box=document.getElementById('sTbl'); box.className=''; box.innerHTML=h;
+}
+
 // ── Сезонность и прогноз ────────────────────────────────────────────────
 // Разложение простое и проверяемое: у каждого календарного месяца свой
 // сезонный сдвиг, поверх него — текущий уровень инфляции (среднее за
@@ -545,12 +683,13 @@ let фТерр='643';
 function рядТерр(код){ return (Д.ряды[код]||[]).map(з=>з?впр(з[0]):null); }
 
 // Сезонный профиль: среднее, минимум и максимум по каждому месяцу года.
-function сезонность(р,доИндекса){
+function сезонность(р,доИндекса,мес){
+  мес=мес||Д.месяцы;
   const по=Array.from({length:12},()=>[]);
   const пред=доИндекса==null?р.length:доИндекса;
   for(let i=0;i<пред;i++){
     const v=р[i]; if(v==null)continue;
-    по[(+Д.месяцы[i].slice(5)-1+12)%12].push(v);
+    по[(+мес[i].slice(5)-1+12)%12].push(v);
   }
   return по.map(a=>a.length?{ср:a.reduce((x,y)=>x+y,0)/a.length,
     мин:Math.min(...a),макс:Math.max(...a),н:a.length}:null);
@@ -558,10 +697,10 @@ function сезонность(р,доИндекса){
 const среднее=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
 
 // Прогноз одного месяца: уровень последних 12 месяцев плюс сезонный сдвиг.
-function прогнозМесяца(р,доИндекса,месяц){
+function прогнозМесяца(р,доИндекса,месяц,мес){
   const посл=[]; for(let i=Math.max(0,доИндекса-12);i<доИндекса;i++) if(р[i]!=null)посл.push(р[i]);
   const уровень=среднее(посл); if(уровень==null)return null;
-  const сез=сезонность(р,доИндекса);
+  const сез=сезонность(р,доИндекса,мес);
   const общее=среднее(сез.filter(x=>x).map(x=>x.ср));
   const s=сез[месяц]?сез[месяц].ср-общее:0;
   return Math.round((уровень+s)*100)/100;
@@ -569,29 +708,37 @@ function прогнозМесяца(р,доИндекса,месяц){
 
 // Проверка на истории: считаем прогноз для каждого из последних 12 месяцев,
 // пользуясь только теми данными, что были известны до него.
-function ошибкаМодели(р){
+function ошибкаМодели(р,мес){
+  мес=мес||Д.месяцы;
   const ош=[];
   for(let i=Math.max(13,р.length-12);i<р.length;i++){
     if(р[i]==null)continue;
-    const п=прогнозМесяца(р,i,(+Д.месяцы[i].slice(5)-1+12)%12);
+    const п=прогнозМесяца(р,i,(+мес[i].slice(5)-1+12)%12,мес);
     if(п!=null)ош.push(Math.abs(п-р[i]));
   }
   return ош.length?Math.round(среднее(ош)*100)/100:null;
 }
 
-function прогнозРяд(р,гор){
-  const из=[]; let [г,м]=Д.месяцы[Д.месяцы.length-1].split('-').map(Number);
+function прогнозРяд(р,гор,мес){
+  мес=мес||Д.месяцы;
+  const из=[]; let [г,м]=мес[мес.length-1].split('-').map(Number);
   for(let k=0;k<гор;k++){
     м++; if(м>12){м=1;г++}
-    из.push({д:г+'-'+String(м).padStart(2,'0'),v:прогнозМесяца(р,р.length,м-1)});
+    из.push({д:г+'-'+String(м).padStart(2,'0'),v:прогнозМесяца(р,р.length,м-1,мес)});
   }
   return из;
 }
 const слож=a=>{let к=1,б=false;for(const v of a){if(v==null)continue;к*=1+v/100;б=true}
   return б?Math.round((к-1)*10000)/100:null};
 
+let Л=null, грузимЛ=false;
 function прогнозОткрыть(){
   if(!Д)return;
+  if(!Л&&!грузимЛ){
+    грузимЛ=true;
+    fetch('/data-ipc-long.json').then(r=>r.json()).then(d=>{Л=d;прогнозОткрыть()})
+      .catch(()=>{}).finally(()=>{грузимЛ=false});
+  }
   const sel=document.getElementById('fTerr');
   if(!sel.options.length){
     const спис=[...Д.терр].sort((a,b)=>a.l-b.l||a.n.localeCompare(b.n,'ru'));
@@ -599,9 +746,20 @@ function прогнозОткрыть(){
     sel.value=фТерр;
     sel.onchange=()=>{фТерр=sel.value;прогнозОткрыть()};
     document.getElementById('fГор').onchange=прогнозОткрыть;
+    document.getElementById('fБаза').onchange=прогнозОткрыть;
   }
-  const р=рядТерр(фТерр), гор=+document.getElementById('fГор').value;
-  const буд=прогнозРяд(р,гор);
+  const гор=+document.getElementById('fГор').value;
+  const отГода=+document.getElementById('fБаза').value;
+  // Для России есть помесячный ряд с 1991 года — на нём сезонность устойчивее,
+  // чем на четырёх годах: ошибка модели падает с 0,44 до 0,32 п.п. Девяностые
+  // не берём вовсе: месяцы гиперинфляции ломают средние, и прогноз до конца
+  // года улетает за 80%.
+  let р=рядТерр(фТерр), мес=Д.месяцы;
+  if(фТерр==='643'&&отГода&&Л){
+    const от=Л.месяцы.findIndex(m=>+m.slice(0,4)>=отГода);
+    if(от>=0){ мес=Л.месяцы.slice(от); р=Л.ряды.всего.slice(от).map(v=>впр(v)); }
+  }
+  const буд=прогнозРяд(р,гор,мес);
   const el=(id,зн)=>{const e=document.getElementById(id);e.textContent=чис(зн);e.className='vl '+кл(зн)};
   el('fNow',накопленоМ(фТерр,Д.месяцы.length-12,Д.месяцы.length-1));
   el('fNext',слож(буд.slice(0,12).map(x=>x.v)));
@@ -612,10 +770,10 @@ function прогнозОткрыть(){
   const остаток=буд.filter(x=>x.д.slice(0,4)===год).map(x=>x.v);
   el('fEoy',слож(факт.concat(остаток)));
   document.getElementById('fEoyH').textContent='факт по '+имяМес(посл)+' плюс '+остаток.length+' мес. прогноза';
-  const ош=ошибкаМодели(р);
+  const ош=ошибкаМодели(р,мес);
   const eo=document.getElementById('fErr'); eo.textContent=ош==null?'—':'±'+ош.toFixed(2).replace('.',',')+' п.п.'; eo.className='vl';
   document.getElementById('fNowH').textContent='по '+имяМес(посл);
-  графикСезон(р); графикПрогноз(р,буд); таблицаПрогноза(буд,р);
+  графикСезон(р,мес); графикПрогноз(р,буд,мес); таблицаПрогноза(буд,р,мес);
   document.getElementById('метод').innerHTML=
     'Прогноз строится по двум слагаемым. Первое — сезонный сдвиг месяца: '+
     'насколько в среднем за 2022–2026 годы этот месяц отличался от обычного. '+
@@ -627,8 +785,8 @@ function прогнозОткрыть(){
     'и сопоставлен с фактом. Это не предсказание, а продолжение сезонной картины.';
 }
 
-function графикСезон(р){
-  const box=document.getElementById('chs'), с=сезонность(р,null);
+function графикСезон(р,мес){
+  const box=document.getElementById('chs'), с=сезонность(р,null,мес);
   const все=с.filter(x=>x); if(!все.length){box.innerHTML='';return}
   const мин=Math.min(0,...все.map(x=>x.мин)), макс=Math.max(...все.map(x=>x.макс));
   const W=1000,H=230,ЛП=34,ПП=8,ВП=10,НП=22, ш=(W-ЛП-ПП)/12;
@@ -651,11 +809,12 @@ function графикСезон(р){
   box.innerHTML=s+'</svg>';
 }
 
-function графикПрогноз(р,буд){
+function графикПрогноз(р,буд,мес){
+  мес=мес||Д.месяцы;
   const box=document.getElementById('chf');
   const хвост=24, от=Math.max(0,р.length-хвост);
   const факт=р.slice(от), прог=буд.map(x=>x.v);
-  const подписи=Д.месяцы.slice(от).concat(буд.map(x=>x.д));
+  const подписи=мес.slice(от).concat(буд.map(x=>x.д));
   const все=факт.concat(прог).filter(v=>v!=null);
   if(!все.length){box.innerHTML='';return}
   const мин=Math.min(0,...все), макс=Math.max(...все);
@@ -681,11 +840,11 @@ function графикПрогноз(р,буд){
   box.innerHTML=s+'</svg>';
 }
 
-function таблицаПрогноза(буд,р){
+function таблицаПрогноза(буд,р,мес){
   let нак=1;
   let h='<table class="tbl"><thead><tr><th>месяц</th><th>прогноз</th>'+
         '<th>накопленным итогом</th><th>сезонная норма</th></tr></thead><tbody>';
-  const с=сезонность(р,null);
+  const с=сезонность(р,null,мес);
   for(const b of буд){
     const м=+b.д.slice(5)-1;
     if(b.v!=null)нак*=1+b.v/100;
