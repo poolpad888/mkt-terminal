@@ -1118,9 +1118,9 @@ const ipHash = ip => crypto.createHash('sha1').update('finfacts:' + ip).digest('
 // какие адреса считаем страницами (а не фоновыми запросами)
 const PAGE_NAMES = { '/': 'лента', '/map': 'карта', '/quotes': 'котировки',
                      '/cbr': 'ЦБ', '/fonts': 'шрифты', '/stats': 'статистика',
-                     '/pick': 'свой набор' };
+                     '/pick': 'свой набор', '/ipc': 'инфляция' };
 const PAGE_ALIAS = { '/карта': '/map', '/котировки': '/quotes', '/цб': '/cbr',
-                     '/шрифты': '/fonts', '/статистика': '/stats' };
+                     '/шрифты': '/fonts', '/статистика': '/stats', '/инфляция': '/ipc' };
 function pageOf(pathname) {
   let x = pathname;
   try { x = decodeURIComponent(x); } catch (e) {}
@@ -2639,6 +2639,7 @@ const srv = http.createServer(async (req, res) => {
     if (p === '/quotes' || p === '/котировки' || p === encodeURI('/котировки')) p = '/quotes.html';
     if (p === '/stats' || p === '/статистика' || p === encodeURI('/статистика')) p = '/stats.html';
     if (p === '/pick') p = '/pick.html';                  // пробная: свой набор котировок
+    if (p === '/ipc' || p === '/инфляция' || p === encodeURI('/инфляция')) p = '/ipc.html';
     p = path.normalize(p).replace(/^(\.\.[/\\])+/, '');
     const file = path.join(__dirname, 'public', p);
     if (file.startsWith(path.join(__dirname, 'public')) && fs.existsSync(file) && fs.statSync(file).isFile()) {

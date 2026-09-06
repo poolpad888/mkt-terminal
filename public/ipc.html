@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Инфляция по регионам — FINFACTS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090c; --panel:#0d1117; --line:#1b232e;
+  --amber:#ffb000; --red:#ff5252; --green:#2ee06f; --blue:#4db8ff; --violet:#b48cff;
+  --tx:#c9d4e0; --dim:#5b6b7c;
+  --mono:"IBM Plex Mono","SF Mono",Consolas,Menlo,monospace;
+  --sans:"IBM Plex Sans","Segoe UI",Arial,sans-serif;
+}
+html.light{
+  --bg:#f7f8fa; --panel:#ffffff; --line:#dde3ea;
+  --amber:#b06f00; --red:#c62828; --green:#0f7a3d; --blue:#1565c0; --violet:#6a3fb5;
+  --tx:#1c2530; --dim:#6b7a8a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font:12.5px/1.45 var(--sans)}
+a{color:inherit;text-decoration:none}
+header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;padding:9px 14px}
+.logo{color:var(--amber);font-weight:700;letter-spacing:.08em;white-space:nowrap;font-family:var(--mono)}
+.sub{color:var(--dim);font-size:12px}
+.sp{flex:1}
+.hbtn{background:none;border:1px solid var(--line);color:var(--dim);font:inherit;font-size:11px;
+  padding:4px 9px;border-radius:4px;cursor:pointer;white-space:nowrap;display:inline-block}
+.hbtn:hover{color:var(--amber);border-color:var(--amber)}
+
+main{max-width:1080px;margin:0 auto;padding:16px 14px 60px}
+.top{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.top h1{font-size:15px;font-weight:700;letter-spacing:.02em}
+.top .note{color:var(--dim);font-size:11.5px}
+
+/* Выбор территории и месяца */
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.bar select,.bar input{background:var(--panel);border:1px solid var(--line);color:var(--tx);
+  font:inherit;font-size:12px;padding:6px 9px;border-radius:5px;min-width:0}
+.bar select{font-family:var(--sans);max-width:340px;flex:1 1 260px}
+.bar input{flex:1 1 180px}
+.bar input::placeholder{color:var(--dim)}
+
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+@media(max-width:820px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:0}
+.tile .lb{color:var(--dim);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .vl{font-family:var(--mono);font-weight:700;font-size:26px;line-height:1.25;margin-top:4px;white-space:nowrap}
+.tile .hint{color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.up{color:var(--red)} .dn{color:var(--green)}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px 14px;margin-bottom:12px}
+.card h2{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);
+  font-family:var(--mono);margin-bottom:10px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.card h2 .leg{font-size:10.5px;letter-spacing:.04em;text-transform:none;font-weight:400;color:var(--dim)}
+.card h2 .leg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle}
+
+/* График помесячной динамики */
+.chart{position:relative;width:100%;height:230px}
+.chart svg{width:100%;height:100%;display:block;overflow:visible}
+.chart .gr{stroke:var(--line);stroke-width:1}
+.chart .zero{stroke:var(--dim);stroke-width:1;stroke-dasharray:3 3;opacity:.7}
+.chart .ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart .ax{fill:var(--dim);font-family:var(--mono);font-size:9.5px}
+.chart .hit{fill:transparent;cursor:crosshair}
+.chart .mk{fill:var(--amber)}
+.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);
+  border-radius:5px;padding:6px 8px;font-family:var(--mono);font-size:10.5px;white-space:nowrap;
+  box-shadow:0 6px 18px rgba(0,0,0,.4);display:none;z-index:5;line-height:1.5}
+.tip b{font-weight:600}
+
+/* Таблица регионов */
+.tbl{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px}
+.tbl th{text-align:right;color:var(--dim);font-weight:400;font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;padding:0 0 7px;cursor:pointer;white-space:nowrap;user-select:none}
+.tbl th:first-child{text-align:left}
+.tbl th:hover{color:var(--amber)}
+.tbl th .ar{opacity:.55;font-size:9px}
+.tbl td{padding:3px 0;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+.tbl td:first-child{text-align:left;font-family:var(--sans);font-size:12px;
+  max-width:340px;overflow:hidden;text-overflow:ellipsis}
+.tbl tr:hover td{background:rgba(120,130,145,.07)}
+.tbl tr.sel td{background:color-mix(in srgb,var(--amber) 11%,transparent)}
+.tbl tr.lvl0 td:first-child,.tbl tr.lvl1 td:first-child{color:var(--amber)}
+.tbl tr td:first-child{cursor:pointer}
+.bar2{position:relative;height:7px;width:78px;background:rgba(120,130,145,.10);border-radius:3px;
+  overflow:hidden;display:inline-block;vertical-align:middle}
+.bar2 i{position:absolute;top:0;bottom:0;display:block;border-radius:3px}
+.foot{color:var(--dim);font-size:11px;text-align:center;margin-top:18px;line-height:1.6}
+.load{color:var(--dim);padding:20px 0;text-align:center;font-family:var(--mono);font-size:11.5px}
+@media(max-width:520px){
+  .tile .vl{font-size:20px} .tile{padding:10px 11px}
+  .tbl td:first-child{max-width:150px} .bar2{width:44px}
+  .chart{height:190px}
+}
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">FINFACTS</span>
+  <span class="sub">Инфляция</span>
+  <span class="sp"></span>
+  <a class="hbtn" href="/">← лента</a>
+  <a class="hbtn" href="/quotes">котировки</a>
+  <button class="hbtn" id="thBtn" title="светлая / тёмная тема">◑</button>
+</header>
+<main>
+  <div class="top">
+    <h1>Индекс потребительских цен</h1>
+    <span class="note" id="src">данные Росстата · к предыдущему месяцу</span>
+  </div>
+
+  <div class="bar">
+    <select id="terr"></select>
+    <select id="mon"></select>
+    <input id="q" placeholder="поиск региона в таблице">
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="lb">всего</div><div class="vl" id="tAll">—</div>
+      <div class="hint" id="tAllH">—</div></div>
+    <div class="tile"><div class="lb">продовольственные</div><div class="vl" id="tFood">—</div>
+      <div class="hint">товары</div></div>
+    <div class="tile"><div class="lb">непродовольственные</div><div class="vl" id="tNon">—</div>
+      <div class="hint">товары</div></div>
+    <div class="tile"><div class="lb">услуги</div><div class="vl" id="tSrv">—</div>
+      <div class="hint">включая ЖКХ и транспорт</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Помесячная динамика
+      <span class="leg"><i style="background:var(--amber)"></i>всего</span>
+      <span class="leg"><i style="background:var(--green)"></i>еда</span>
+      <span class="leg"><i style="background:var(--blue)"></i>непрод.</span>
+      <span class="leg"><i style="background:var(--violet)"></i>услуги</span>
+    </h2>
+    <div class="chart" id="ch"><div class="tip" id="tip"></div></div>
+  </div>
+
+  <div class="card">
+    <h2><span id="tblTitle">Регионы</span></h2>
+    <div id="tblBox" class="load">загружаем данные…</div>
+  </div>
+
+  <div class="foot">Источник: Росстат, индексы потребительских цен по субъектам Российской Федерации.<br>
+    Значения — в процентах к предыдущему месяцу.</div>
+</main>
+<script>
+// Тема общая с лентой: тот же ключ настроек, чтобы страницы не спорили.
+try{const p=JSON.parse(localStorage.getItem('mkt_prefs')||'{}');
+  if(p.theme==='light')document.documentElement.classList.add('light');}catch(e){}
+document.getElementById('thBtn').onclick=()=>{
+  const св=document.documentElement.classList.toggle('light');
+  try{const p=JSON.parse(localStorage.getItem('mkt_prefs')||'{}');
+    p.theme=св?'light':'dark'; localStorage.setItem('mkt_prefs',JSON.stringify(p));}catch(e){}
+  рисоватьГрафик();
+};
+
+const МЕС=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const МЕСИ=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+let Д=null, кодТерр='643', номМес=0, порядок={поле:0,вниз:true};
+
+// Росстат печатает индекс (100,54), читателю привычнее изменение (+0,54%).
+const впр=v=>v==null?null:Math.round((v-100)*100)/100;
+const чис=v=>v==null?'—':(v>0?'+':'')+v.toFixed(2).replace('.',',')+'%';
+const кл=v=>v==null?'':(v>0?'up':(v<0?'dn':''));
+const имяМес=s=>{const [г,м]=s.split('-');return МЕСИ[+м-1]+' '+г};
+
+fetch('/data-ipc.json').then(r=>r.json()).then(d=>{
+  Д=d; номМес=d.месяцы.length-1;
+  const t=document.getElementById('terr');
+  // Россия и округа сверху, дальше регионы по алфавиту — так проще искать
+  const спис=[...d.терр].sort((a,b)=>a.l-b.l||a.n.localeCompare(b.n,'ru'));
+  t.innerHTML=спис.map(x=>'<option value="'+x.c+'">'+(x.l===2?'   ':'')+x.n+'</option>').join('');
+  t.value='643';
+  const m=document.getElementById('mon');
+  m.innerHTML=d.месяцы.map((s,i)=>'<option value="'+i+'">'+имяМес(s)+'</option>').join('');
+  m.value=номМес;
+  t.onchange=()=>{кодТерр=t.value;обновить()};
+  m.onchange=()=>{номМес=+m.value;обновить()};
+  document.getElementById('q').oninput=рисоватьТаблицу;
+  document.getElementById('src').textContent='данные Росстата · '+имяМес(d.месяцы[0])+' — '+имяМес(d.месяцы[номМес]);
+  обновить();
+}).catch(()=>{document.getElementById('tblBox').textContent='не удалось загрузить данные';});
+
+function обновить(){ плитки(); рисоватьГрафик(); рисоватьТаблицу(); }
+
+function плитки(){
+  const р=Д.ряды[кодТерр]||[], з=р[номМес]||[null,null,null,null];
+  const пред=номМес>0?(р[номМес-1]||[])[0]:null;
+  const v=впр(з[0]);
+  const el=(id,зн)=>{const e=document.getElementById(id);e.textContent=чис(зн);e.className='vl '+кл(зн)};
+  el('tAll',v); el('tFood',впр(з[1])); el('tNon',впр(з[2])); el('tSrv',впр(з[3]));
+  document.getElementById('tAllH').textContent=
+    имяМес(Д.месяцы[номМес])+(пред!=null?' · месяцем ранее '+чис(впр(пред)):'');
+}
+
+// График: четыре линии за всю историю наблюдений по выбранной территории.
+function рисоватьГрафик(){
+  if(!Д)return;
+  const box=document.getElementById('ch'), р=Д.ряды[кодТерр]||[];
+  const ряды=[0,1,2,3].map(k=>р.map(z=>z?впр(z[k]):null));
+  const цвета=['var(--amber)','var(--green)','var(--blue)','var(--violet)'];
+  const все=ряды.flat().filter(v=>v!=null);
+  if(!все.length){box.innerHTML='';return}
+  const мин=Math.min(0,...все), макс=Math.max(...все);
+  const W=1000,H=230,ЛП=34,ПП=8,ВП=10,НП=20;
+  const x=i=>ЛП+(W-ЛП-ПП)*(i/Math.max(1,Д.месяцы.length-1));
+  const y=v=>ВП+(H-ВП-НП)*(1-(v-мин)/Math.max(.001,макс-мин));
+  let s='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
+  // сетка и подписи оси
+  for(let k=0;k<=4;k++){
+    const v=мин+(макс-мин)*k/4, yy=y(v);
+    s+='<line class="gr" x1="'+ЛП+'" x2="'+(W-ПП)+'" y1="'+yy+'" y2="'+yy+'"/>'+
+       '<text class="ax" x="0" y="'+(yy+3)+'">'+v.toFixed(1)+'</text>';
+  }
+  if(мин<0)s+='<line class="zero" x1="'+ЛП+'" x2="'+(W-ПП)+'" y1="'+y(0)+'" y2="'+y(0)+'"/>';
+  // подписи лет по январям
+  Д.месяцы.forEach((m,i)=>{ if(m.slice(5)==='01')
+    s+='<text class="ax" x="'+x(i)+'" y="'+(H-6)+'" text-anchor="middle">'+m.slice(0,4)+'</text>'; });
+  ряды.forEach((р2,k)=>{
+    let d='',начат=false;
+    р2.forEach((v,i)=>{ if(v==null){начат=false;return}
+      d+=(начат?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' '; начат=true; });
+    s+='<path class="ln" d="'+d+'" style="stroke:'+цвета[k]+(k?';opacity:.62':'')+'"/>';
+  });
+  s+='<circle class="mk" id="mk" r="3.2" style="display:none"/>';
+  s+='<rect class="hit" x="0" y="0" width="'+W+'" height="'+H+'"/></svg>';
+  box.innerHTML=s+'<div class="tip" id="tip"></div>';
+  const svg=box.querySelector('svg'), tip=document.getElementById('tip'), mk=document.getElementById('mk');
+  svg.addEventListener('mousemove',e=>{
+    const r=svg.getBoundingClientRect();
+    const дх=(e.clientX-r.left)/r.width*W;
+    let i=Math.round((дх-ЛП)/((W-ЛП-ПП)/Math.max(1,Д.месяцы.length-1)));
+    i=Math.min(Math.max(i,0),Д.месяцы.length-1);
+    const з=(Д.ряды[кодТерр]||[])[i]; if(!з)return;
+    mk.style.display=''; mk.setAttribute('cx',x(i)); mk.setAttribute('cy',y(впр(з[0])));
+    tip.style.display='block';
+    tip.innerHTML='<b>'+имяМес(Д.месяцы[i])+'</b><br>всего '+чис(впр(з[0]))+
+      '<br>еда '+чис(впр(з[1]))+'<br>непрод. '+чис(впр(з[2]))+'<br>услуги '+чис(впр(з[3]));
+    const лев=Math.min(Math.max(e.clientX-r.left-60,0),r.width-130);
+    tip.style.left=лев+'px'; tip.style.top='6px';
+  });
+  svg.addEventListener('mouseleave',()=>{tip.style.display='none';mk.style.display='none'});
+}
+
+// Таблица: все территории за выбранный месяц, с полоской отклонения от нуля.
+function рисоватьТаблицу(){
+  if(!Д)return;
+  const иск=(document.getElementById('q').value||'').trim().toLowerCase();
+  let стр=Д.терр.filter(t=>!иск||t.n.toLowerCase().includes(иск)).map(t=>{
+    const з=(Д.ряды[t.c]||[])[номМес]||[null,null,null,null];
+    return {t,v:[впр(з[0]),впр(з[1]),впр(з[2]),впр(з[3])]};
+  });
+  const п=порядок;
+  стр.sort((a,b)=>{
+    if(п.поле===0) return (a.t.l-b.t.l)||a.t.n.localeCompare(b.t.n,'ru');
+    const av=a.v[п.поле-1], bv=b.v[п.поле-1];
+    if(av==null)return 1; if(bv==null)return -1;
+    return п.вниз?bv-av:av-bv;
+  });
+  const пик=Math.max(...стр.map(r=>Math.abs(r.v[0]||0)),.1);
+  const стрелка=к=>п.поле===к?'<span class="ar">'+(п.вниз?'▼':'▲')+'</span>':'';
+  let h='<table class="tbl"><thead><tr>'+
+    '<th data-k="0">территория '+стрелка(0)+'</th>'+
+    '<th data-k="1">всего '+стрелка(1)+'</th>'+
+    '<th data-k="2">еда '+стрелка(2)+'</th>'+
+    '<th data-k="3">непрод. '+стрелка(3)+'</th>'+
+    '<th data-k="4">услуги '+стрелка(4)+'</th>'+
+    '<th></th></tr></thead><tbody>';
+  for(const r of стр){
+    const v=r.v[0]||0, ш=Math.abs(v)/пик*50;
+    const лево=v>=0?50:50-ш;
+    h+='<tr class="lvl'+r.t.l+(r.t.c===кодТерр?' sel':'')+'" data-c="'+r.t.c+'">'+
+       '<td>'+r.t.n+'</td>'+
+       '<td class="'+кл(r.v[0])+'">'+чис(r.v[0])+'</td>'+
+       '<td class="'+кл(r.v[1])+'">'+чис(r.v[1])+'</td>'+
+       '<td class="'+кл(r.v[2])+'">'+чис(r.v[2])+'</td>'+
+       '<td class="'+кл(r.v[3])+'">'+чис(r.v[3])+'</td>'+
+       '<td><span class="bar2"><i style="left:'+лево+'%;width:'+ш+'%;background:'+
+         (v>=0?'var(--red)':'var(--green)')+';opacity:.75"></i></span></td></tr>';
+  }
+  h+='</tbody></table>';
+  document.getElementById('tblBox').className='';
+  document.getElementById('tblBox').innerHTML=h;
+  document.getElementById('tblTitle').textContent='Территории · '+имяМес(Д.месяцы[номМес]);
+  document.querySelectorAll('.tbl th').forEach(th=>th.onclick=()=>{
+    const к=+th.dataset.k;
+    if(порядок.поле===к)порядок.вниз=!порядок.вниз; else {порядок.поле=к;порядок.вниз=true}
+    рисоватьТаблицу();
+  });
+  document.querySelectorAll('.tbl tbody tr').forEach(tr=>tr.onclick=()=>{
+    кодТерр=tr.dataset.c; document.getElementById('terr').value=кодТерр; обновить();
+  });
+}
+window.addEventListener('resize',()=>{clearTimeout(window._рз);window._рз=setTimeout(рисоватьГрафик,150)});
+</script>
+</body>
+</html>
