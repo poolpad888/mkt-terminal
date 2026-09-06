@@ -120,8 +120,32 @@ setInterval(() => {
     console.log('Сессии нет. Запустите один раз: node tg/collector.js --login');
     process.exit(1);
   }
+  // Прокси. С сентября 2026 из российских дата-центров адреса Телеграма
+  // недоступны, поэтому ходим через сервер за границей. Настройки берём из
+  // переменных окружения; без них подключаемся напрямую, как раньше.
+  //   SOCKS5:  TG_PROXY=socks5://пользователь:пароль@адрес:порт
+  //   MTProto: TG_PROXY=mtproto://секрет@адрес:порт
+  let proxy;
+  if (process.env.TG_PROXY) {
+    try {
+      const u = new URL(process.env.TG_PROXY);
+      if (u.protocol === 'mtproto:') {
+        proxy = { ip: u.hostname, port: +u.port, MTProxy: true,
+                  secret: decodeURIComponent(u.username) };
+        console.log('через MTProto-прокси ' + u.hostname + ':' + u.port);
+      } else {
+        try { require.resolve('socks'); }
+        catch (e) { console.log('для SOCKS5 нужен пакет socks: npm i socks'); }
+        proxy = { ip: u.hostname, port: +u.port, socksType: 5 };
+        if (u.username) proxy.username = decodeURIComponent(u.username);
+        if (u.password) proxy.password = decodeURIComponent(u.password);
+        console.log('через SOCKS5-прокси ' + u.hostname + ':' + u.port);
+      }
+    } catch (e) { console.log('TG_PROXY разобрать не вышло: ' + e.message); }
+  }
   const client = new TelegramClient(new StringSession(saved), API_ID, API_HASH,
-    { connectionRetries: 20, autoReconnect: true });
+    Object.assign({ connectionRetries: 20, autoReconnect: true,
+                    useWSS: false, timeout: 20 }, proxy ? { proxy } : {}));
 
   if (!saved) {
     const input = require('readline/promises')
