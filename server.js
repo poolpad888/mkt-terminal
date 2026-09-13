@@ -2727,6 +2727,26 @@ const srv = http.createServer(async (req, res) => {
         return sendJson(req, res, { ok: false, ошибка: e.message }, { 'Cache-Control': 'no-store' });
       }
     }
+    // Служебная: показать, что именно сервер вычитал из документов итогов.
+    if (u.pathname === '/api/ofzres') {
+      const дата = (u.searchParams.get('d') || '').slice(0, 10);
+      try {
+        const списк = await fetchUrl(ОФЗ.РАЗДЕЛ);
+        const ссылки = ОФЗ.найтиРезультаты(списк, дата);
+        const разбор = [];
+        for (const с of ссылки) {
+          const док = await fetchUrl(с.url);
+          const т = ОФЗ.текст(док);
+          const i = т.search(/Итоги\s+размещения/i);
+          разбор.push({ url: с.url, ...ОФЗ.разборРезультатов(док),
+                        кусок: i >= 0 ? т.slice(i, i + 400) : т.slice(0, 300) });
+        }
+        return sendJson(req, res, { ok: true, дата, найдено: ссылки.length, разбор },
+                        { 'Cache-Control': 'no-store' });
+      } catch (e) {
+        return sendJson(req, res, { ok: false, ошибка: e.message }, { 'Cache-Control': 'no-store' });
+      }
+    }
     // Служебная: посмотреть, что сборщик видит на сайте Минфина.
     // ?read=ГГГГ-ММ-ДД — принудительно перечитать объявление этого вторника.
     if (u.pathname === '/api/ofz') {
