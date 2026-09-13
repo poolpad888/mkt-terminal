@@ -2773,6 +2773,31 @@ const srv = http.createServer(async (req, res) => {
         return sendJson(req, res, { ok: false, ошибка: e.message }, { 'Cache-Control': 'no-store' });
       }
     }
+    // Служебная: свежие срочные информации Росстата с началом текста. Нужна,
+    // чтобы написать разбор для ВВП, промышленности и цен производителей.
+    if (u.pathname === '/api/rosraw') {
+      const сколько = Math.min(12, Number(u.searchParams.get('n')) || 6);
+      const слово = u.searchParams.get('q') || '';
+      try {
+        const раздел = await fetchUrl(РОССТАТ_РАЗДЕЛ);
+        let ссылки = ссылкиРосстата(раздел);
+        if (слово) ссылки = ссылки.filter(с => new RegExp(слово, 'i').test(с.имя));
+        ссылки = ссылки.slice(0, сколько);
+        const out = [];
+        for (const с of ссылки) {
+          let кусок = '';
+          try {
+            const док = await fetchUrl(с.url);
+            кусок = текстСтраницы(док).replace(/\s+/g, ' ').slice(0, 500);
+          } catch (e) { кусок = 'ошибка: ' + e.message; }
+          out.push({ дата: с.дата, имя: с.имя, url: с.url, кусок });
+        }
+        return sendJson(req, res, { ok: true, всего: ссылки.length, out },
+                        { 'Cache-Control': 'no-store' });
+      } catch (e) {
+        return sendJson(req, res, { ok: false, ошибка: e.message }, { 'Cache-Control': 'no-store' });
+      }
+    }
     // Служебная: видно ли заявление председателя по заседанию и что в нём.
     if (u.pathname === '/api/keydec') {
       const дата = (u.searchParams.get('d') || '').slice(0, 10);
