@@ -2868,7 +2868,10 @@ const srv = http.createServer(async (req, res) => {
     // Служебная: что собрано по остальным показателям Росстата.
     if (u.pathname === '/api/rosstat') {
       try {
-        const итог = u.searchParams.get('read') ? await росстатОбойти(20) : null;
+        // По умолчанию читаем немного: двадцать страниц подряд не успевают
+        // ответить, и шлюз обрывает ожидание. Больше — параметром n.
+        const сколько = Math.min(12, Number(u.searchParams.get('n')) || 4);
+        const итог = u.searchParams.get('read') ? await росстатОбойти(сколько) : null;
         return sendJson(req, res, { ok: true, итог, факты: РОССТАТ_ФАКТЫ.факты },
                         { 'Cache-Control': 'no-store' });
       } catch (e) {
