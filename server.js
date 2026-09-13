@@ -2769,6 +2769,29 @@ const srv = http.createServer(async (req, res) => {
         return sendJson(req, res, { ok: false, ошибка: e.message }, { 'Cache-Control': 'no-store' });
       }
     }
+    // Служебная: видно ли заявление председателя по заседанию и что в нём.
+    if (u.pathname === '/api/keydec') {
+      const дата = (u.searchParams.get('d') || '').slice(0, 10);
+      try {
+        const раздел = await fetchUrl(ЦБ_РАЗДЕЛ);
+        const стр = цбЗаявления(раздел);
+        const адрес = стр[дата] || '';
+        let кусок = '', число = '';
+        if (адрес) {
+          const док = await fetchUrl(адрес);
+          const т = String(док).replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;|&#\d+;/gi, ' ')
+                               .replace(/\s+/g, ' ');
+          const i = т.search(/ключев\S*\s+ставк/i);
+          кусок = i >= 0 ? т.slice(i, i + 300) : т.slice(0, 300);
+          const m = /ключев\S*\s+ставк\S*[^.]{0,120}?(\d{1,2},\d{2})\s*%\s*годовых/i.exec(т);
+          число = m ? m[1] : '';
+        }
+        return sendJson(req, res, { ok: true, дата, даты: Object.keys(стр), адрес, число, кусок },
+                        { 'Cache-Control': 'no-store' });
+      } catch (e) {
+        return sendJson(req, res, { ok: false, ошибка: e.message }, { 'Cache-Control': 'no-store' });
+      }
+    }
     // Служебная: сырой ответ Банка России по ставке — какой из адресов отвечает.
     if (u.pathname === '/api/keyraw') {
       const с = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10);
