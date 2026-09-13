@@ -499,7 +499,7 @@ html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
 /* Верх блока привязан к первой строке отсчёта, а числа внутри сидят на её
    базовой линии: выравниваем по низу строки, а не по верху блока. */
 .cnext .prevf{position:absolute;right:0;top:0;display:flex;gap:12px;
-  align-items:flex-end;text-align:right;white-space:nowrap;max-width:62%}
+  align-items:flex-end;text-align:right;white-space:nowrap;max-width:52%}
 .cnext .prevf i{display:flex;flex-direction:column;align-items:flex-end;font-style:normal}
 .cnext .prevf b{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--blue);
   line-height:1;
@@ -512,9 +512,10 @@ html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
 .cnext .nm .unit{color:var(--dim);font-size:11px;font-weight:400;white-space:nowrap}
 /* Длинная строка вместо числа (выпуски ОФЗ) переносится и мельчает, чтобы не
    налезать на обратный отсчёт слева. */
-.cnext .prevf i{max-width:150px}
+.cnext .prevf i{max-width:84px}
 .cnext .prevf b{white-space:normal;overflow-wrap:anywhere}
-.cnext .prevf b.long{font-size:10.5px;line-height:1.2;transform:none}
+/* Перечисление выпусков: каждая строка под предыдущей, мельче и плотнее. */
+.cnext .prevf b.long{font-size:10.5px;line-height:1.25;transform:translateY(2px)}
 .cnext .prevf b.dim{color:var(--dim);font-weight:400}
 .cnext .prevf b.up{color:var(--green)}
 .cnext .prevf b.dn{color:var(--red)}
@@ -570,8 +571,10 @@ html.light .cnext .cd{filter:saturate(1.5) brightness(.62)}
 .cev .nums div{display:flex;flex-direction:column;gap:1px;min-width:0}
 .cev .nums b{font-family:var(--mono);font-size:11px;font-weight:600;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-.cev .nums .wide b{white-space:normal;overflow:visible;overflow-wrap:anywhere;
-  line-height:1.25;font-size:10.5px}
+/* Длинные значения переносим в обеих ячейках: обрезание многоточием прячет
+   номер второго выпуска, а он такой же важный, как первый. */
+.cev .nums b.long{white-space:normal;overflow:visible;overflow-wrap:anywhere;
+  line-height:1.3;font-size:10.5px}
 .cev .nums s{text-decoration:none;color:var(--dim);font-size:8.5px;letter-spacing:.06em;
   font-family:var(--mono);text-transform:uppercase}
 .cev .nums b.dim{color:var(--dim);font-weight:400}
@@ -1993,8 +1996,12 @@ function calОтрисовать(сегодня){
     // Два столбца: «пред.» и «факт». Пустое значение показываем прочерком,
     // чтобы место под него было видно заранее.
     const pf=v=>v?esc(v):'—';
+    // В шапке место дорогое: годы погашения опускаем, номера выпусков
+    // говорят сами за себя. В строках событий годы остаются.
+    const встолбик=v=>esc(String(v).replace(/\s*\(\d{4}\)/g,''))
+         .replace(/,\s+/g,'<br>').replace(/\s+и\s+/g,'<br>');
     const ст=(v,кл,п)=>'<i><b class="'+кл+(String(v||'').length>9?' long':'')+'">'+
-         pf(v)+'</b><s>'+п+'</s></i>';
+         (v?встолбик(v):'—')+'</b><s>'+п+'</s></i>';
     const прош='<span class="prevf">'+
          ст(пред,пред?'':'dim','пред')+
          ст(факт,факт?esc(calБлижайшее.move||''):'dim','факт')+
@@ -2029,7 +2036,11 @@ function calОтрисовать(сегодня){
       // Числа показываем всем, кроме событий, где их не бывает вовсе
       // (пресс-конференция): три прочерка там выглядят как потерянные данные.
       const есть=!e.noNums;
-      const чис=v=>v?esc(v):'·';
+      // Перечисление выпусков («26218 (2031) и 26230 (2039)») ставим в столбик:
+      // в одну строку оно не помещается и выглядит рвано.
+      const столбик=v=>esc(v).replace(/,\s+/g,'<br>').replace(/\s+и\s+/g,'<br>');
+      const чис=v=>v?столбик(v):'·';
+      const длинно=v=>String(v||'').length>9?' long':'';
       // Столбца прогноза нет: своих прогнозов мы не считаем, а чужие ставить
       // не из чего. Освободившееся место отдано «пред.» — там бывают длинные
       // строки вроде номеров выпусков ОФЗ.
@@ -2039,8 +2050,8 @@ function calОтрисовать(сегодня){
           ' data-vname="'+esc(e.name+' · '+calДень(e.date,сегодня).toLowerCase())+'">'+
           '<b>▶</b>смотреть</button>' : '';
       const nums=есть?('<div class="nums">'+
-          '<div class="wide"><b class="'+(e.prev?'':'dim')+'">'+чис(e.prev)+'</b><s>пред.</s></div>'+
-          '<div><b class="'+(e.fact?(e.move||''):'dim')+'">'+чис(e.fact)+'</b><s>факт</s></div>'+
+          '<div class="wide"><b class="'+(e.prev?'':'dim')+длинно(e.prev)+'">'+чис(e.prev)+'</b><s>пред.</s></div>'+
+          '<div><b class="'+(e.fact?(e.move||''):'dim')+длинно(e.fact)+'">'+чис(e.fact)+'</b><s>факт</s></div>'+
         '</div>'):'';
       const открыто=false;   // раскрытие события отключено: новости в календаре не нужны
       let связ='';
