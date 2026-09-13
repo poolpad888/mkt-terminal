@@ -1912,6 +1912,69 @@ const CAL_CBR = [
   ['2026-10-23', 'Решение по ключевой ставке', 'с обновлением прогноза',    '', '', ''],
   ['2026-12-18', 'Решение по ключевой ставке', '',                          '', '', ''],
 ];
+// ── Ключевая ставка: значение забираем у Банка России ───────────────────
+// У ЦБ есть машиночитаемая выдача: KeyRateXML отдаёт пары «дата → ставка».
+// Решение объявляют в 13:30, но действовать новая ставка начинает со
+// следующего рабочего дня, поэтому факт заседания — это ставка, которая
+// стоит через несколько дней после него. Заполняем и «пред.», и «факт»
+// прямо в таблице заседаний: руками их больше вести не нужно.
+const ЦБ_СТАВКА_АДРЕС = 'https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx/KeyRateXML';
+
+function разборСтавок(xml) {
+  const out = {};
+  const re = /<DT>([\d-]{10})[^<]*<\/DT>\s*<Rate>([\d.,]+)<\/Rate>/gi;
+  let m;
+  while ((m = re.exec(String(xml || '')))) out[m[1]] = m[2].replace('.', ',');
+  return out;
+}
+
+// Ставка, действующая на дату: берём последнее известное значение не позже её.
+function ставкаНа(ряд, ymd) {
+  const дни = Object.keys(ряд).sort();
+  let знач = '';
+  for (const д of дни) { if (д > ymd) break; знач = ряд[д]; }
+  return знач;
+}
+
+async function ставкиОбойти() {
+  const с = new Date(Date.now() - 700 * 864e5).toISOString().slice(0, 10);
+  const по = new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10);
+  const xml = await fetchUrl(ЦБ_СТАВКА_АДРЕС + '?fromDate=' + с + '&ToDate=' + по);
+  const ряд = разборСтавок(xml);
+  if (!Object.keys(ряд).length) return { пусто: true };
+  let вписано = 0;
+  for (const стр of CAL_CBR) {
+    const дата = стр[0];
+    // Ставка после заседания устанавливается со следующего рабочего дня:
+    // смотрим на пятый день, чтобы выходные не помешали.
+    const после = new Date(new Date(дата + 'T12:00:00+03:00').getTime() + 5 * 864e5)
+      .toISOString().slice(0, 10);
+    const до = new Date(new Date(дата + 'T12:00:00+03:00').getTime() - 1 * 864e5)
+      .toISOString().slice(0, 10);
+    if (после > new Date().toISOString().slice(0, 10)) continue;   // заседание ещё не прошло
+    const факт = ставкаНа(ряд, после);
+    const пред = ставкаНа(ряд, до);
+    if (пред && стр[4] !== пред + '%') { стр[4] = пред + '%'; вписано++; }
+    if (факт && стр[5] !== факт + '%') { стр[5] = факт + '%'; вписано++; }
+  }
+  return { дней: Object.keys(ряд).length, вписано };
+}
+
+// Решение выходит в 13:30 по пятницам заседаний. Спрашиваем часто только в
+// этот промежуток, в остальное время — раз в шесть часов.
+let ставкиПоследний = 0;
+async function ставкиТик() {
+  const t = мскЧасти();
+  const заседание = CAL_CBR.some(с => с[0] === t.ymd);
+  const окно = заседание && t.минут >= 13 * 60 + 25 && t.минут <= 16 * 60;
+  const пауза = окно ? 30 * 1000 : 6 * 60 * 60 * 1000;
+  if (Date.now() - ставкиПоследний < пауза) return;
+  ставкиПоследний = Date.now();
+  try { await ставкиОбойти(); } catch (e) {}
+}
+setInterval(() => { ставкиТик().catch(() => {}); }, 15 * 1000);
+setTimeout(() => { ставкиТик().catch(() => {}); }, 20 * 1000);
+
 // Записи пресс-конференций на канале Банка России в RUTUBE: дата заседания →
 // код ролика. Пополняется вручную: ролик появляется через час-два после
 // эфира. Подборка целиком — на случай, если по дате ссылки ещё нет.
@@ -2610,6 +2673,16 @@ const srv = http.createServer(async (req, res) => {
         const предел = Math.min(Math.max(parseInt(u.searchParams.get('n') || '12', 10) || 12, 1), 60);
         const итог = u.searchParams.get('read') ? await ипцОбойти(предел) : null;
         return sendJson(req, res, { ok: true, итог, нед: ИПЦ_ИСТОРИЯ.нед, мес: ИПЦ_ИСТОРИЯ.мес },
+                        { 'Cache-Control': 'no-store' });
+      } catch (e) {
+        return sendJson(req, res, { ok: false, ошибка: e.message }, { 'Cache-Control': 'no-store' });
+      }
+    }
+    // Служебная: ставки из выдачи Банка России и что вписалось в заседания.
+    if (u.pathname === '/api/keyrate') {
+      try {
+        const итог = await ставкиОбойти();
+        return sendJson(req, res, { ok: true, итог, заседания: CAL_CBR },
                         { 'Cache-Control': 'no-store' });
       } catch (e) {
         return sendJson(req, res, { ok: false, ошибка: e.message }, { 'Cache-Control': 'no-store' });
