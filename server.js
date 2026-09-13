@@ -1956,13 +1956,23 @@ const CAL_CBR = [
 // следующего рабочего дня, поэтому факт заседания — это ставка, которая
 // стоит через несколько дней после него. Заполняем и «пред.», и «факт»
 // прямо в таблице заседаний: руками их больше вести не нужно.
-const ЦБ_СТАВКА_АДРЕС = 'https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx/KeyRateXML';
+// Запросы к веб-службе ЦБ обычным адресом закрыты — отвечает только страница
+// с таблицей. Границы дат передаём её же параметрами, иначе покажет месяц.
+const ЦБ_СТАВКА_АДРЕС = 'https://www.cbr.ru/hd_base/KeyRate/';
+const ддммгггг = ymd => ymd.slice(8, 10) + '.' + ymd.slice(5, 7) + '.' + ymd.slice(0, 4);
+const цбСтавкаАдрес = (с, по) => ЦБ_СТАВКА_АДРЕС + '?UniDbQuery.Posted=True' +
+  '&UniDbQuery.From=' + ддммгггг(с) + '&UniDbQuery.To=' + ддммгггг(по);
 
-function разборСтавок(xml) {
+// В таблице две ячейки в строке: дата и ставка. Разделитель дробной части —
+// запятая. Понимаем и старую выдачу службы, если она когда-нибудь оживёт.
+function разборСтавок(текст) {
   const out = {};
-  const re = /<DT>([\d-]{10})[^<]*<\/DT>\s*<Rate>([\d.,]+)<\/Rate>/gi;
+  const т = String(текст || '');
   let m;
-  while ((m = re.exec(String(xml || '')))) out[m[1]] = m[2].replace('.', ',');
+  const таб = /<td[^>]*>\s*(\d{2})\.(\d{2})\.(\d{4})\s*<\/td>\s*<td[^>]*>\s*([\d]+[.,][\d]+)\s*<\/td>/gi;
+  while ((m = таб.exec(т))) out[m[3] + '-' + m[2] + '-' + m[1]] = m[4].replace('.', ',');
+  const xml = /<DT>([\d-]{10})[^<]*<\/DT>\s*<Rate>([\d.,]+)<\/Rate>/gi;
+  while ((m = xml.exec(т))) out[m[1]] = m[2].replace('.', ',');
   return out;
 }
 
@@ -1977,8 +1987,8 @@ function ставкаНа(ряд, ymd) {
 async function ставкиОбойти() {
   const с = new Date(Date.now() - 700 * 864e5).toISOString().slice(0, 10);
   const по = new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10);
-  const xml = await fetchUrl(ЦБ_СТАВКА_АДРЕС + '?fromDate=' + с + '&ToDate=' + по);
-  const ряд = разборСтавок(xml);
+  const стр = await fetchUrl(цбСтавкаАдрес(с, по));
+  const ряд = разборСтавок(стр);
   if (!Object.keys(ряд).length) return { пусто: true };
   let вписано = 0;
   for (const стр of CAL_CBR) {
@@ -2731,17 +2741,16 @@ const srv = http.createServer(async (req, res) => {
     if (u.pathname === '/api/keyraw') {
       const с = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10);
       const по = new Date().toISOString().slice(0, 10);
-      const адреса = [
-        ЦБ_СТАВКА_АДРЕС + '?fromDate=' + с + '&ToDate=' + по,
-        'https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx/KeyRate?fromDate=' + с + '&ToDate=' + по,
-        'https://www.cbr.ru/hd_base/KeyRate/',
-      ];
+      const адреса = [цбСтавкаАдрес(с, по)];
       const out = [];
       for (const а of адреса) {
         try {
           const т = await fetchUrl(а);
-          out.push({ адрес: а, длина: т.length, найдено: Object.keys(разборСтавок(т)).length,
-                     начало: String(т).slice(0, 400) });
+          const ряд = разборСтавок(т);
+          const дни = Object.keys(ряд).sort();
+          out.push({ адрес: а, длина: т.length, найдено: дни.length,
+                     первые: дни.slice(0, 3).map(д => д + ' → ' + ряд[д]),
+                     последние: дни.slice(-3).map(д => д + ' → ' + ряд[д]) });
         } catch (e) { out.push({ адрес: а, ошибка: e.message }); }
       }
       return sendJson(req, res, { ok: true, out }, { 'Cache-Control': 'no-store' });
