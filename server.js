@@ -2727,6 +2727,25 @@ const srv = http.createServer(async (req, res) => {
         return sendJson(req, res, { ok: false, ошибка: e.message }, { 'Cache-Control': 'no-store' });
       }
     }
+    // Служебная: сырой ответ Банка России по ставке — какой из адресов отвечает.
+    if (u.pathname === '/api/keyraw') {
+      const с = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10);
+      const по = new Date().toISOString().slice(0, 10);
+      const адреса = [
+        ЦБ_СТАВКА_АДРЕС + '?fromDate=' + с + '&ToDate=' + по,
+        'https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx/KeyRate?fromDate=' + с + '&ToDate=' + по,
+        'https://www.cbr.ru/hd_base/KeyRate/',
+      ];
+      const out = [];
+      for (const а of адреса) {
+        try {
+          const т = await fetchUrl(а);
+          out.push({ адрес: а, длина: т.length, найдено: Object.keys(разборСтавок(т)).length,
+                     начало: String(т).slice(0, 400) });
+        } catch (e) { out.push({ адрес: а, ошибка: e.message }); }
+      }
+      return sendJson(req, res, { ok: true, out }, { 'Cache-Control': 'no-store' });
+    }
     // Служебная: показать, что именно сервер вычитал из документов итогов.
     if (u.pathname === '/api/ofzres') {
       const дата = (u.searchParams.get('d') || '').slice(0, 10);
