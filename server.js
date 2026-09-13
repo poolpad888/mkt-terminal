@@ -2014,8 +2014,12 @@ async function ставкаИзЗаявления(датаЗаседания) {
   if (!стр) return '';
   const док = await fetchUrl(стр);
   const т = String(док).replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;|&#\d+;/gi, ' ');
-  const m = /ключев\S*\s+ставк\S*[^.]{0,120}?(\d{1,2},\d{2})\s*%\s*годовых/i.exec(т);
-  return m ? m[1] : '';
+  // Круглое значение ЦБ пишет без дробной части: «на уровне 14% годовых».
+  // Приводим к виду таблицы, где всегда два знака: «14,00».
+  const m = /ключев\S*\s+ставк\S*[^.]{0,120}?(\d{1,2}(?:,\d{1,2})?)\s*%\s*годовых/i.exec(т);
+  if (!m) return '';
+  const [ц, др = ''] = m[1].split(',');
+  return ц + ',' + (др + '00').slice(0, 2);
 }
 
 async function ставкиОбойти() {
@@ -2783,8 +2787,7 @@ const srv = http.createServer(async (req, res) => {
                                .replace(/\s+/g, ' ');
           const i = т.search(/ключев\S*\s+ставк/i);
           кусок = i >= 0 ? т.slice(i, i + 300) : т.slice(0, 300);
-          const m = /ключев\S*\s+ставк\S*[^.]{0,120}?(\d{1,2},\d{2})\s*%\s*годовых/i.exec(т);
-          число = m ? m[1] : '';
+          число = await ставкаИзЗаявления(дата).catch(() => '');
         }
         return sendJson(req, res, { ok: true, дата, даты: Object.keys(стр), адрес, число, кусок },
                         { 'Cache-Control': 'no-store' });
