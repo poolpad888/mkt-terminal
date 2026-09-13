@@ -9,6 +9,17 @@
 <style>
 :root{--bg:#0d1117;--fg:#c9d1d9;--dim:#8b98a5;--line:#2a3441;--amber:#e3a008;--red:#c9403f;--gold:#ffcf66}
 *{box-sizing:border-box}
+
+/* Полосы прокрутки: тонкие и приглушённые, чтобы не спорили с вёрсткой.
+   Специфичность ноль — отдельные правила (например, скрытая полоса у nav)
+   по-прежнему перебивают это. */
+*{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--dim)}
+::-webkit-scrollbar-corner{background:transparent}
+
 body{margin:0;background:var(--bg);color:var(--fg);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px;line-height:1.45}
 header{padding:14px;border-bottom:1px solid var(--line)}
 h1{margin:0 0 4px;font-size:15px;font-weight:600;letter-spacing:.5px}

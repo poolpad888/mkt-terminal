@@ -20,6 +20,17 @@
   --pts: 'PT Sans', system-ui, sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
+
+/* Полосы прокрутки: тонкие и приглушённые, чтобы не спорили с вёрсткой.
+   Специфичность ноль — отдельные правила (например, скрытая полоса у nav)
+   по-прежнему перебивают это. */
+*{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--dim)}
+::-webkit-scrollbar-corner{background:transparent}
+
 body{background:var(--bg);color:var(--fg);font-size:14px;line-height:1.45;font-family:var(--mono-cur)}
 header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 12px}
 h1{font-size:13px;color:var(--amber);letter-spacing:.06em;margin-bottom:8px;text-transform:uppercase}
