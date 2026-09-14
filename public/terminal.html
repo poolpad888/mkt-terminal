@@ -1,0 +1,1791 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0d10">
+<title>FINFACTS — терминал (модель v5)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090c; --panel:#0d1117; --line:#1b232e;
+  --amber:#ffb000; --red:#ff5252; --green:#2ee06f; --blue:#4db8ff; --violet:#b48cff;
+  --tx:#c9d4e0; --dim:#5b6b7c;
+  --mono:"IBM Plex Mono","SF Mono",Consolas,Menlo,monospace;
+  --sans:"IBM Plex Sans","Segoe UI",Arial,sans-serif;
+  --hh:44px; --gap:8px; --ease:cubic-bezier(.3,.9,.3,1);
+  --glow:rgba(240,166,60,.28); --glow-soft:rgba(240,166,60,.14);
+}
+html.light{--bg:#f7f8fa;--panel:#fff;--line:#dde3ea;--amber:#b06f00;--red:#c62828;--green:#0f7a3d;--blue:#1565c0;--violet:#6a3fb5;--tx:#1c2530;--dim:#6b7a8a;--glow:rgba(200,120,20,.28);--glow-soft:rgba(200,120,20,.12)}
+*{box-sizing:border-box;margin:0;padding:0}
+*{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+html,body{height:100%}
+body{background:var(--bg);color:var(--tx);font:12.5px/1.45 var(--sans);overflow:hidden;transition:background .3s,color .3s}
+a{color:inherit;text-decoration:none}
+.up{color:var(--green)} .dn{color:var(--red)}
+button{font:inherit;cursor:pointer}
+
+/* ── загрузка ── */
+#boot{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .45s ease}
+#boot.gone{opacity:0;pointer-events:none}
+#boot .bl{font-family:var(--mono);font-weight:700;font-size:26px;letter-spacing:.22em;color:var(--amber);animation:blink 1.1s steps(1,end) infinite}
+#boot .bs{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.12em}
+#boot .bbar{width:180px;height:2px;background:var(--line);overflow:hidden;border-radius:2px}
+#boot .bbar i{display:block;height:100%;width:40%;background:var(--amber);animation:slide 1.2s ease-in-out infinite}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:.15}}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}
+
+/* ── каркас ── */
+.term{display:grid;height:100vh;grid-template-rows:var(--hh) 1fr 30px;grid-template-columns:64px 1fr;grid-template-areas:"top top" "rail work" "keys keys"}
+header{grid-area:top;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 14px;height:var(--hh);transition:background .3s}
+.logo{color:var(--amber);font-weight:700;letter-spacing:.08em;font-family:var(--mono);position:relative;top:1px;transition:text-shadow .2s}
+.logo:hover{text-shadow:0 0 12px var(--glow),0 0 2px var(--glow)}
+.live{display:flex;align-items:center;gap:6px;color:var(--green);font-size:11px;letter-spacing:.12em;font-family:var(--mono);position:relative;top:1px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:bl 1.6s infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.25}}
+.ver{font-family:var(--mono);font-size:10.5px;color:var(--dim);position:relative;top:2px}
+.sp{flex:1}
+.cmd{display:flex;align-items:center;gap:8px;height:26px;width:420px;max-width:38vw;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 10px;font-family:var(--mono);font-size:12px;transition:border-color .18s,box-shadow .18s,width .25s var(--ease)}
+.cmd:focus-within{border-color:var(--amber);box-shadow:0 0 0 1px var(--glow),0 0 10px var(--glow-soft);width:520px}
+.cmd .pr{color:var(--amber)}
+.cmd input{flex:1;background:none;border:0;color:var(--tx);font:inherit;outline:none}
+.cmd input::placeholder{color:var(--dim)}
+.cmd kbd{font-size:9.5px;color:var(--dim);border:1px solid var(--line);border-radius:3px;padding:0 4px}
+.hbtn{background:none;border:1px solid var(--line);color:var(--dim);font-size:11px;padding:0 9px;height:26px;border-radius:4px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:5px;transition:box-shadow .18s,border-color .18s,color .18s,background-color .18s}
+.hbtn:hover{box-shadow:0 0 0 1px var(--glow),0 0 10px var(--glow-soft)}
+.hbtn.on{color:var(--amber);border-color:var(--amber)}
+#clock{color:var(--dim);font-size:12px;min-width:66px;text-align:right;font-family:var(--mono)}
+.stat{font-family:var(--mono);font-size:10.5px;color:var(--dim);letter-spacing:.04em}
+.stat b{color:var(--tx);font-weight:400}
+
+/* ── левая колонка рубрик ── */
+.rail{grid-area:rail;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px;overflow-y:auto;transition:background .3s}
+.rb{width:52px;height:50px;border:1px solid transparent;border-radius:8px;background:none;color:var(--dim);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9.5px;font-family:var(--mono);letter-spacing:.04em;line-height:1;position:relative;
+  transition:color .2s,border-color .2s,background-color .2s,box-shadow .2s,transform .2s var(--ease)}
+.rb svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;transition:transform .25s var(--ease)}
+.rb:hover{color:var(--tx);border-color:var(--line);box-shadow:0 0 0 1px var(--glow),0 0 10px var(--glow-soft)}
+.rb:hover svg{transform:translateY(-1px)}
+.rb.on{color:var(--amber);border-color:var(--amber);background:color-mix(in srgb,var(--amber) 8%,transparent)}
+.rb.on::after{content:'';position:absolute;left:-1px;top:14px;bottom:14px;width:2px;background:var(--amber);border-radius:2px}
+.rb .n{position:absolute;top:4px;right:5px;font-size:8px;color:var(--red);font-weight:700}
+.rail .sep{width:32px;height:1px;background:var(--line);margin:6px 0}
+.rail .sp{flex:1}
+
+/* ── рабочий стол ── */
+.work{grid-area:work;position:relative;overflow:auto;padding:var(--gap)}
+#grid{position:relative;width:100%;height:100%}
+/* сетка-подсказка проявляется только пока тянешь */
+#grid::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;
+  background-image:linear-gradient(to right,var(--line) 1px,transparent 1px),linear-gradient(to bottom,var(--line) 1px,transparent 1px);
+  background-size:calc(100% / 12) var(--rh,60px)}
+#grid.dragging::before{opacity:.35}
+.ph{position:absolute;border:1px dashed var(--amber);border-radius:8px;background:color-mix(in srgb,var(--amber) 6%,transparent);opacity:0;pointer-events:none;transition:left .18s var(--ease),top .18s var(--ease),width .18s var(--ease),height .18s var(--ease),opacity .18s}
+.ph.on{opacity:1}
+
+/* панель — стеклянный строй боковой панели сайта */
+.pnl{position:absolute;display:flex;flex-direction:column;overflow:hidden;border-radius:8px;
+  background:color-mix(in srgb,var(--panel) 82%,transparent);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
+  border:1px solid var(--line);box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05);
+  transition:left .32s var(--ease),top .32s var(--ease),width .32s var(--ease),height .32s var(--ease),opacity .28s,transform .32s var(--ease),box-shadow .2s,border-color .2s;
+  animation:pin .32s var(--ease)}
+html.light .pnl{box-shadow:0 10px 30px rgba(30,45,70,.12),inset 0 1px 0 rgba(255,255,255,.6)}
+@keyframes pin{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+.pnl.out{opacity:0;transform:scale(.94);pointer-events:none}
+.pnl.drag{transition:none;z-index:50;box-shadow:0 24px 60px rgba(0,0,0,.6),0 0 0 1px var(--glow);cursor:grabbing;opacity:.92}
+.pnl.rsz{transition:none;z-index:50;box-shadow:0 0 0 1px var(--glow),0 0 18px var(--glow-soft)}
+.pnl.max{z-index:60}
+.pnl:hover{border-color:color-mix(in srgb,var(--dim) 60%,var(--line))}
+.pnl .sh{display:flex;align-items:center;gap:8px;padding:0 10px 0 14px;flex:none;height:38px;background:var(--panel);border-bottom:1px solid var(--line);cursor:grab;user-select:none}
+.pnl.max .sh{cursor:default}
+.pnl .sh b{font-size:12px;letter-spacing:.09em;color:var(--tx);font-weight:400}
+.pnl .sh .su{font-size:10px;color:var(--dim);font-family:var(--mono);margin-left:auto}
+.pnl .sh .sx{background:none;border:none;color:var(--dim);font-size:14px;padding:0 3px;line-height:1;transition:color .18s,text-shadow .18s}
+.pnl .sh .sx:hover{color:var(--amber);text-shadow:0 0 8px currentColor}
+.pnl .sh .sbeta{font-family:var(--mono);font-size:8px;letter-spacing:.1em;color:var(--dim);border:1px solid var(--line);border-radius:3px;padding:1px 4px}
+.pnl .sh .grip{color:var(--dim);font-size:11px;letter-spacing:-2px;opacity:.6}
+.pbody{flex:1;overflow-y:auto;min-height:0;overscroll-behavior:contain}
+.rz{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;opacity:0;transition:opacity .2s}
+.rz::after{content:'';position:absolute;right:4px;bottom:4px;width:7px;height:7px;border-right:2px solid var(--amber);border-bottom:2px solid var(--amber);border-radius:0 0 2px 0}
+.pnl:hover .rz{opacity:.7}
+.pnl.max .rz{display:none}
+
+/* ── лента ── */
+nav.chips{display:flex;align-items:center;gap:6px;padding:0 14px;height:38px;flex:none;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;background:var(--bg)}
+nav.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;background:var(--panel);border:1px solid var(--line);color:var(--dim);font-size:11.5px;padding:0 10px;border-radius:20px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;height:24px;white-space:nowrap;transition:box-shadow .18s,border-color .18s,color .18s,background-color .18s}
+.chip:hover{box-shadow:0 0 0 1px var(--glow),0 0 10px var(--glow-soft)}
+.chip-n{font-size:9.5px;opacity:.55;font-variant-numeric:tabular-nums}
+.chip.on{color:#0b0d10;background:var(--amber);border-color:var(--amber);font-weight:700}
+.chip.imp{color:color-mix(in srgb,var(--red) 78%,var(--tx));border-color:color-mix(in srgb,var(--red) 42%,var(--line));background:color-mix(in srgb,var(--red) 9%,var(--panel))}
+.chip.cbr{color:#7ba6f0;border-color:color-mix(in srgb,#1e3a8a 55%,var(--line));background:color-mix(in srgb,#1e3a8a 16%,var(--panel))}
+.chip.minfin{color:#b8c4d2;border-color:color-mix(in srgb,#3f4854 70%,var(--line));background:color-mix(in srgb,#3f4854 18%,var(--panel))}
+.feedbody{padding-left:34px}
+.row{display:grid;grid-template-columns:52px 1fr;gap:0 12px;padding:6px 14px;border-bottom:1px solid var(--line);position:relative;transition:background .3s,box-shadow .18s}
+.row .time{color:var(--dim);font-size:12px;line-height:16px;font-family:var(--mono)}
+.row .src{color:var(--blue);font-size:10.5px;letter-spacing:.04em;margin-bottom:3px;line-height:16px}
+.row .txt{word-break:break-word}
+.more{color:var(--amber);font-size:10.5px;margin-top:2px;cursor:pointer}
+.row .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;align-items:center}
+.tag{font-size:10.5px;color:var(--violet);border:1px solid #2a2440;background:#161226;padding:1px 8px;border-radius:10px;cursor:pointer;transition:text-shadow .18s}
+.tag:hover{text-shadow:0 0 8px currentColor}
+html.light .tag{border-color:#ddd0f2;background:#f4eefe}
+.tkline{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 3px}
+.tk{font-size:10.5px;color:var(--green);border:1px solid #14361f;background:#0b1a10;padding:1px 8px;border-radius:10px;font-family:var(--mono)}
+html.light .tk{border-color:#c8e6d2;background:#eef8f1}
+.tk.g{color:var(--dim);border-color:var(--line);background:var(--panel)}
+.srcs{font-size:10px;color:var(--blue);border:1px solid #16324a;background:#0a1622;padding:1px 7px;border-radius:10px;margin-left:8px;font-family:var(--mono);cursor:help}
+.lnk{font-size:10.5px;color:var(--violet);margin-left:auto;cursor:pointer}
+.share{color:var(--violet);opacity:.75;display:inline-flex;vertical-align:middle;cursor:pointer}
+.share svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.row.lvl2{border:1px solid var(--red);border-left:none;border-right:none;background:rgba(255,82,82,.07);margin-top:-1px;overflow:visible;z-index:1}
+.row.lvl2 .time{color:var(--red);font-weight:500}
+.row.lvl2 .txt{color:#ffcf66;font-weight:500}
+html.light .row.lvl2 .txt{color:#8a5600}
+.fband{position:absolute;left:-30px;top:3px;bottom:3px;width:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:7px 0;border-radius:12px;
+  background:color-mix(in srgb,var(--red) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--red) 45%,var(--line))}
+.vtxt{writing-mode:vertical-rl;transform:rotate(180deg);color:color-mix(in srgb,var(--red) 80%,var(--tx));font-size:9.5px;letter-spacing:.18em;white-space:nowrap}
+.fband .ico{font-size:13px;line-height:1;margin-top:4px}
+.row.reg{border:1px solid #2f5aa8;border-left:none;border-right:none;background:color-mix(in srgb,#1e3a8a 11%,var(--bg));margin-top:-1px;overflow:visible;z-index:1}
+.row.reg .time{color:#7fb0ff;font-weight:500}.row.reg .txt{color:#cfe0ff;font-weight:500}
+html.light .row.reg .txt{color:#123a6b}
+.regband{background:color-mix(in srgb,#1e3a8a 16%,var(--panel));border-color:color-mix(in srgb,#1e3a8a 55%,var(--line))}
+.regband .vtxt,.regband .ico{color:#7ba6f0}
+.row.reg.fin{border-color:#4a5563;background:color-mix(in srgb,#3f4854 14%,var(--bg))}
+.row.reg.fin .time{color:#aeb9c7}.row.reg.fin .txt{color:#d7dde5}
+html.light .row.reg.fin .txt{color:#242c36}
+.finband{background:color-mix(in srgb,#3f4854 18%,var(--panel));border-color:color-mix(in srgb,#3f4854 70%,var(--line))}
+.finband .vtxt,.finband .ico{color:#b8c4d2}
+.row.reg.fed{border-color:#2e4a5a;background:color-mix(in srgb,#1e3d50 16%,var(--bg))}
+.row.reg.fed .time{color:#7bb8d4}.row.reg.fed .txt{color:#c5dce8}
+.fedband{background:color-mix(in srgb,#1e3d50 20%,var(--panel));border-color:color-mix(in srgb,#1e3d50 65%,var(--line))}
+.fedband .vtxt,.fedband .ico{color:#8fc4dd}
+.row.fresh{animation:fr 2.4s ease both}
+@keyframes fr{0%{background:rgba(255,176,0,.25)}100%{background:transparent}}
+@media(hover:hover){.row:hover{background:rgba(255,255,255,.025);box-shadow:inset 2px 0 0 var(--glow)}}
+
+/* ── котировки ── */
+.smood{flex:none;height:35px;display:flex;flex-direction:column;justify-content:center;padding:0 14px;border-bottom:1px solid var(--line)}
+.mbar{display:flex;height:4px;border-radius:3px;overflow:hidden;background:var(--line)}
+.mbar i{display:block;height:100%;transition:width .5s ease}.mbar i.up{background:var(--green)}.mbar i.dn{background:var(--red)}
+.mlab{display:flex;align-items:baseline;margin-top:5px;font-family:var(--mono);font-size:9px;letter-spacing:.1em}
+.mlab .u{color:var(--green)}.mlab .m{color:var(--dim);text-transform:uppercase;margin:0 auto;letter-spacing:.14em}.mlab .d{color:var(--red);margin-left:auto}
+.qg{padding:5px 14px 1px;font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.qrow{display:flex;align-items:baseline;gap:6px;padding:2px 14px;line-height:1.3;transition:background .18s,box-shadow .18s}
+.qrow .qn{flex:1;font-size:11.5px;color:var(--tx)}
+.qrow .qp{font-family:var(--mono);font-size:11.5px;color:var(--tx);transition:text-shadow .18s}
+.qrow .qc{font-family:var(--mono);font-size:10.5px;min-width:52px;text-align:right}
+@media(hover:hover){.qrow:hover{background:rgba(255,255,255,.05);box-shadow:inset 2px 0 0 var(--glow)}.qrow:hover .qp{text-shadow:0 0 8px var(--glow)}}
+
+/* ── макро / таблицы ── */
+.tabs{display:flex;gap:6px;padding:0 14px;height:38px;align-items:center;border-bottom:1px solid var(--line);background:var(--bg);flex:none;overflow-x:auto;scrollbar-width:none}
+.kpi{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line);flex:none}
+.kpi div{padding:8px 14px;border-right:1px solid var(--line)}
+.kpi div:last-child{border-right:0}
+.kpi small{display:block;color:var(--dim);font-size:10.5px}
+.kpi b{display:block;font:500 20px/1.15 var(--mono);color:var(--tx);margin:2px 0}
+.kpi i{font:10.5px var(--mono);font-style:normal}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+td,th{padding:4px 14px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-family:var(--mono)}
+td:first-child,th:first-child{text-align:left;font-family:var(--sans);color:var(--tx)}
+th{color:var(--dim);font-weight:400;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+tr{transition:background .18s}
+@media(hover:hover){tr:hover td{background:rgba(255,255,255,.025)}}
+.spark{height:18px;width:64px;vertical-align:middle}
+.bar{display:inline-block;height:6px;border-radius:3px;background:var(--amber);vertical-align:middle;transition:width .6s var(--ease)}
+
+/* ── график ── */
+.chartbody{position:relative;padding:10px 14px;overflow:hidden}
+.chartbody svg{width:100%;height:100%}
+.chartbody .lg{position:absolute;top:10px;left:14px;font-family:var(--mono);font-size:10.5px;color:var(--dim);display:flex;gap:12px}
+.chartbody .lg b{color:var(--tx);font-weight:500}
+.chartbody .mk{position:absolute;font-family:var(--mono);font-size:9.5px;padding:1px 6px;border-radius:10px;border:1px solid;background:var(--panel)}
+
+/* ── календарь ── */
+.ev{display:grid;grid-template-columns:44px 1fr auto;gap:8px;padding:5px 14px;border-bottom:1px solid var(--line);font-size:11.5px;transition:background .18s}
+.ev .t{font-family:var(--mono);color:var(--dim);font-size:11.5px}
+.ev .c{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.04em}
+.ev.now{background:rgba(255,176,0,.07)}.ev.now .t{color:var(--amber)}
+.ev .day{grid-column:1/-1;font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);padding-top:3px}
+
+/* ── чат ── */
+.chat{display:flex;flex-direction:column;flex:1;min-height:0}
+.msgs{flex:1;overflow-y:auto;padding:8px 14px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:88%;font-size:12px;line-height:1.4}
+.msg .who{font-family:var(--mono);font-size:9.5px;color:var(--dim);letter-spacing:.06em;margin-bottom:2px}
+.msg .b{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+.msg.me{align-self:flex-end}.msg.me .b{background:color-mix(in srgb,var(--amber) 10%,var(--panel));border-color:color-mix(in srgb,var(--amber) 40%,var(--line))}
+.msg.bot .b{border-color:color-mix(in srgb,var(--violet) 40%,var(--line))}
+.msg.bot .who{color:var(--violet)}
+.cin{flex:none;display:flex;gap:6px;padding:8px 14px;border-top:1px solid var(--line)}
+.cin input{flex:1;height:26px;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--tx);font:inherit;padding:0 10px;outline:none;transition:border-color .18s,box-shadow .18s}
+.cin input:focus{border-color:var(--amber);box-shadow:0 0 0 1px var(--glow),0 0 10px var(--glow-soft)}
+
+/* ── нижняя строка ── */
+.keys{grid-area:keys;display:flex;align-items:center;gap:6px;padding:0 14px;background:var(--panel);border-top:1px solid var(--line);transition:background .3s}
+.keys .hbtn{height:20px;font-size:10.5px;padding:0 8px}
+.keys .hbtn kbd{font-family:var(--mono);font-size:9.5px;color:var(--amber)}
+.keys .st{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.04em}
+.keys .st i{font-style:normal;color:var(--green)}
+
+/* подсказка */
+.toast{position:fixed;left:50%;bottom:44px;transform:translate(-50%,10px);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:11.5px;color:var(--tx);box-shadow:0 8px 26px rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s var(--ease);z-index:100}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast b{color:var(--amber);font-family:var(--mono);font-weight:400}
+
+/* ═══════════ v2: группы слева, выезжающая подпанель, полноэкранные модули ═══════════ */
+.term{grid-template-columns:72px 1fr}
+.rail{padding:6px 0;gap:2px;overflow:visible;z-index:70}
+.rb{width:60px;height:56px;gap:4px;font-family:var(--sans);font-size:9.5px;letter-spacing:.02em}
+.rb svg{width:20px;height:20px}
+.rb.on{color:var(--amber);border-color:transparent;background:color-mix(in srgb,var(--amber) 9%,transparent)}
+.rb.open{color:var(--tx);border-color:var(--line);background:var(--bg)}
+.rb .n{font-family:var(--mono)}
+/* выезжающая подпанель рядом с колонкой */
+#fly{position:fixed;left:72px;top:var(--hh);bottom:30px;width:236px;z-index:65;
+  background:color-mix(in srgb,var(--panel) 92%,transparent);-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
+  border-right:1px solid var(--line);box-shadow:14px 0 40px rgba(0,0,0,.35);
+  transform:translateX(-12px);opacity:0;pointer-events:none;transition:transform .28s var(--ease),opacity .22s;display:flex;flex-direction:column}
+#fly.on{transform:none;opacity:1;pointer-events:auto}
+html.light #fly{box-shadow:14px 0 40px rgba(30,45,70,.12)}
+#fly .fh{height:38px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--line);font-size:12px;letter-spacing:.09em;color:var(--tx);flex:none}
+#fly .fh .k{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--dim)}
+#fly .fl{flex:1;overflow-y:auto;padding:6px}
+.fi{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:1px solid transparent;border-radius:6px;background:none;color:var(--tx);text-align:left;font-size:12px;transition:background-color .18s,border-color .18s,box-shadow .18s}
+.fi:hover{background:var(--bg);box-shadow:0 0 0 1px var(--glow),0 0 10px var(--glow-soft)}
+.fi.on{border-color:var(--amber);color:var(--amber)}
+.fi .ic{width:26px;height:26px;border-radius:6px;background:var(--bg);border:1px solid var(--line);display:grid;place-items:center;font-family:var(--mono);font-size:11px;color:var(--dim);flex:none}
+.fi.on .ic{color:var(--amber);border-color:var(--amber)}
+.fi .d{font-size:10px;color:var(--dim);display:block;margin-top:1px}
+.fi .kb{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--dim)}
+#flyBack{position:fixed;inset:var(--hh) 0 30px 72px;z-index:60;background:transparent;display:none}
+#flyBack.on{display:block}
+
+/* модули на всю страницу */
+.work{padding:0;overflow:hidden;position:relative}
+.mod{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:translateY(8px) scale(.995);pointer-events:none;transition:opacity .26s ease,transform .3s var(--ease)}
+.mod.on{opacity:1;transform:none;pointer-events:auto}
+.mod .mh{height:38px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--panel);flex:none}
+.mod .mh b{font-size:12px;letter-spacing:.09em;color:var(--tx);font-weight:400}
+.mod .mh .crumb{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.mod .mh .crumb i{font-style:normal;color:var(--dim);margin:0 6px}
+.mod .mb{flex:1;overflow:auto;min-height:0}
+#m-desk .mb{padding:var(--gap);overflow:auto}
+#m-desk #grid{height:100%}
+
+/* заглушка модуля */
+.stub{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--dim);text-align:center;padding:40px}
+.stub b{font-family:var(--mono);color:var(--tx);font-weight:400;letter-spacing:.09em;font-size:14px}
+.stub .chips-inline{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+
+/* ── модуль «Ценные бумаги» ── */
+.sec{display:grid;grid-template-columns:1fr;height:100%}
+.sec.has{grid-template-columns:340px 1fr}
+.sec .l{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;transition:width .3s var(--ease)}
+.search{padding:14px 14px 10px;flex:none}
+.search .in{display:flex;align-items:center;gap:8px;height:34px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:0 12px;transition:border-color .18s,box-shadow .18s}
+.search .in:focus-within{border-color:var(--amber);box-shadow:0 0 0 1px var(--glow),0 0 10px var(--glow-soft)}
+.search input{flex:1;background:none;border:0;color:var(--tx);font:inherit;font-size:13px;outline:none}
+.search input::placeholder{color:var(--dim)}
+.search svg{width:14px;height:14px;stroke:var(--dim);fill:none;stroke-width:1.8}
+.search .h{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:8px;letter-spacing:.04em}
+.sec.empty .l{grid-column:1/-1;border:0;align-items:center;justify-content:center}
+.sec.empty .search{width:min(560px,90%);padding-top:0}
+.sec.empty .search .in{height:44px;font-size:14px}
+.sec.empty .big{font-family:var(--mono);font-size:20px;letter-spacing:.2em;color:var(--amber);text-align:center;margin-bottom:22px}
+.sec.empty .res{width:min(560px,90%);max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:6px;margin-top:10px}
+.sec.empty .res:empty{display:none}
+.res{flex:1;overflow-y:auto;min-height:0}
+.ri{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:7px 14px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .18s,box-shadow .18s}
+.ri:hover{background:rgba(255,255,255,.04);box-shadow:inset 2px 0 0 var(--glow)}
+.ri.on{background:color-mix(in srgb,var(--amber) 8%,transparent);box-shadow:inset 2px 0 0 var(--amber)}
+.ri .nm{font-size:12px;color:var(--tx)}
+.ri .isin{font-family:var(--mono);font-size:9.5px;color:var(--dim);display:block}
+.ri .px{font-family:var(--mono);font-size:11.5px;text-align:right}
+.ri .px small{display:block;font-size:10px}
+.ri mark{background:var(--amber);color:#0b0d10;border-radius:2px;padding:0 1px}
+.card{padding:0;display:flex;flex-direction:column;min-height:0;overflow:auto}
+.ch{display:flex;align-items:flex-start;gap:14px;padding:16px 20px 12px;border-bottom:1px solid var(--line)}
+.ch h1{font:500 18px/1.2 var(--sans);color:var(--tx)}
+.ch .sub{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:4px;letter-spacing:.04em}
+.ch .pxbig{margin-left:auto;text-align:right}
+.ch .pxbig b{font:500 26px/1.1 var(--mono);color:var(--tx);display:block}
+.ch .pxbig i{font:11px var(--mono);font-style:normal}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border-bottom:1px solid var(--line)}
+.kv div{padding:9px 14px;border-right:1px solid var(--line)}
+.kv small{display:block;color:var(--dim);font-size:10px;letter-spacing:.04em}
+.kv b{display:block;font:500 15px/1.2 var(--mono);color:var(--tx);margin-top:2px}
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--line)}
+.calc>div{padding:14px 20px}
+.calc>div:first-child{border-right:1px solid var(--line)}
+.calc h3{font:400 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.f{display:grid;grid-template-columns:150px 1fr;gap:8px 12px;align-items:center;font-size:12px}
+.f label{color:var(--dim)}
+.f input{height:28px;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--tx);font:12.5px var(--mono);padding:0 10px;outline:none;width:100%;transition:border-color .18s,box-shadow .18s}
+.f input:focus{border-color:var(--amber);box-shadow:0 0 0 1px var(--glow),0 0 10px var(--glow-soft)}
+.f .o{font-family:var(--mono);font-size:13px;color:var(--tx)}
+.f .o.big{font-size:18px;color:var(--amber)}
+.f .note{grid-column:1/-1;font-size:10.5px;color:var(--dim);line-height:1.5}
+.cnews{padding:0 0 20px}
+.cnews h3{font:400 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);padding:12px 20px 6px}
+.cnews .row{padding-left:48px}
+@media(max-width:900px){.sec.has{grid-template-columns:1fr}.sec.has .l{display:none}.calc{grid-template-columns:1fr}}
+
+/* ═══════════ v3: компактнее + портфель ═══════════ */
+body{font-size:12px;line-height:1.4}
+:root{--hh:40px}
+header{padding:0 10px;gap:8px}
+.hbtn{height:24px;font-size:10.5px;padding:0 8px}
+.cmd{height:24px}
+.term{grid-template-columns:60px 1fr;grid-template-rows:var(--hh) 1fr 26px}
+.rail{padding:4px 0;gap:1px}
+.rb{width:50px;height:46px;gap:3px;font-size:9px}
+.rb svg{width:17px;height:17px}
+#fly{left:60px;width:216px;bottom:26px}
+#fly .fh{height:32px;font-size:11px}
+.fi{padding:6px 8px;font-size:11.5px;gap:8px}
+.fi .ic{width:22px;height:22px;font-size:10px}
+.fi .d{font-size:9.5px}
+#flyBack{inset:var(--hh) 0 26px 60px}
+.mod .mh{height:32px;padding:0 10px}
+.mod .mh b{font-size:11px}
+.pnl{border-radius:6px}
+.pnl .sh{height:30px;padding:0 6px 0 10px}
+.pnl .sh b{font-size:11px}
+.pnl .sh .su{font-size:9.5px}
+nav.chips,.tabs{height:32px;padding:0 10px;gap:4px}
+.chip{height:21px;font-size:10.5px;padding:0 8px}
+.row{padding:4px 10px;gap:0 8px;grid-template-columns:44px 1fr}
+.row .time{font-size:11px;line-height:15px}
+.row .src{font-size:10px;line-height:15px;margin-bottom:1px}
+.row .meta{margin-top:2px;gap:4px}
+.tkline{margin:1px 0 2px;gap:4px}
+.tag,.tk{font-size:10px;padding:0 7px}
+.feedbody{padding-left:30px}
+.fband{left:-26px;width:20px;padding:5px 0}
+.vtxt{font-size:9px}
+.qrow{padding:1px 10px}
+.qrow .qn,.qrow .qp{font-size:11px}
+.qrow .qc{font-size:10px}
+.qg{padding:4px 10px 0;font-size:8.5px}
+.smood{height:30px;padding:0 10px}
+.kpi div{padding:6px 10px}
+.kpi b{font-size:17px}
+.kpi small{font-size:10px}
+td,th{padding:3px 10px;font-size:11px}
+th{font-size:9px}
+.ev{padding:3px 10px;font-size:11px}
+.keys{padding:0 10px;gap:4px}
+.keys .hbtn{height:18px;font-size:10px;padding:0 7px}
+.keys .st{font-size:9.5px}
+.stub{gap:8px;padding:30px}
+
+/* бумаги — компактнее */
+.sec.has{grid-template-columns:300px 1fr}
+.search{padding:10px 10px 6px}
+.search .in{height:30px;padding:0 10px}
+.search input{font-size:12px}
+.search .h{font-size:9.5px;margin-top:6px}
+.sec.empty .big{font-size:18px;margin-bottom:16px}
+.sec.empty .search .in{height:38px;font-size:13px}
+.ri{padding:5px 10px;gap:8px}
+.ri .nm{font-size:11.5px}.ri .isin{font-size:9px}.ri .px{font-size:11px}.ri .px small{font-size:9.5px}
+.ch{padding:10px 14px 8px;gap:10px;align-items:center}
+.ch h1{font-size:15px}
+.ch .sub{font-size:10px;margin-top:2px}
+.ch .pxbig b{font-size:21px}
+.ch .pxbig i{font-size:10.5px}
+.ch .act{display:flex;gap:6px;margin-left:12px}
+.kv{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
+.kv div{padding:6px 10px}
+.kv small{font-size:9px}
+.kv b{font-size:13px}
+.calc>div{padding:10px 14px}
+.calc h3{font-size:10px;margin-bottom:7px}
+.f{grid-template-columns:140px 1fr;gap:5px 10px;font-size:11.5px}
+.f input{height:24px;font-size:12px;padding:0 8px}
+.f .o{font-size:12px}
+.f .o.big{font-size:16px}
+.f .note{font-size:10px}
+.cnews h3{font-size:10px;padding:10px 14px 4px}
+.cnews .row{padding-left:40px}
+
+/* ── портфель ── */
+.pf{display:flex;flex-direction:column;height:100%;min-height:0}
+.pfh{display:flex;align-items:center;gap:6px;padding:0 10px;height:34px;border-bottom:1px solid var(--line);flex:none;background:var(--bg)}
+.pfh .chip.plus{border-style:dashed}
+.pfh .sp{flex:1}
+.pfk{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));border-bottom:1px solid var(--line);flex:none}
+.pfk div{padding:7px 12px;border-right:1px solid var(--line)}
+.pfk div:last-child{border-right:0}
+.pfk small{display:block;color:var(--dim);font-size:9px;letter-spacing:.06em;text-transform:uppercase}
+.pfk b{display:block;font:500 17px/1.15 var(--mono);color:var(--tx);margin-top:2px}
+.pfk i{font:10px var(--mono);font-style:normal}
+.alloc{display:flex;height:6px;border-radius:3px;overflow:hidden;margin:8px 12px 0;background:var(--line)}
+.alloc i{display:block;height:100%;transition:width .5s var(--ease)}
+.alloc-l{display:flex;gap:12px;padding:4px 12px 6px;font-family:var(--mono);font-size:9.5px;color:var(--dim);border-bottom:1px solid var(--line);flex:none;flex-wrap:wrap}
+.alloc-l i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.pfb{flex:1;overflow:auto;min-height:0}
+.pfb table td:nth-child(2){font-family:var(--sans)}
+.pfb .del{color:var(--dim);cursor:pointer;font-family:var(--sans)}
+.pfb .del:hover{color:var(--red)}
+.pfb tr.tot td{border-top:1px solid var(--dim);font-weight:500;background:var(--panel)}
+.pfadd{display:flex;gap:6px;align-items:center;padding:6px 10px;border-top:1px solid var(--line);flex:none;background:var(--bg);position:relative}
+.pfadd input{height:24px;background:var(--panel);border:1px solid var(--line);border-radius:4px;color:var(--tx);font:11.5px var(--mono);padding:0 8px;outline:none;transition:border-color .18s,box-shadow .18s}
+.pfadd input:focus{border-color:var(--amber);box-shadow:0 0 0 1px var(--glow),0 0 10px var(--glow-soft)}
+.pfadd input.q{flex:1;font-family:var(--sans);min-width:120px}
+.pfadd input.n{width:72px}
+.pfadd .lbl{font-size:10px;color:var(--dim);white-space:nowrap}
+.pfadd .sug{position:absolute;left:10px;bottom:36px;width:min(420px,60%);max-height:220px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 26px rgba(0,0,0,.45);display:none;z-index:5}
+.pfadd .sug.on{display:block}
+.pfadd .sug .ri{padding:4px 10px}
+.pfempty{padding:40px;text-align:center;color:var(--dim);font-size:11.5px;line-height:1.6}
+.pfempty b{display:block;font-family:var(--mono);color:var(--tx);font-weight:400;letter-spacing:.09em;margin-bottom:6px}
+.w{display:inline-block;height:4px;border-radius:2px;background:var(--amber);vertical-align:middle;margin-right:5px}
+/* модальное окно — как окно обновления на сайте */
+#dlgWrap{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(4,6,9,.55);-webkit-backdrop-filter:blur(7px) saturate(115%);backdrop-filter:blur(7px) saturate(115%);opacity:0;transition:opacity .25s}
+#dlgWrap.on{display:flex}#dlgWrap.vis{opacity:1}
+#dlg{width:360px;background:var(--panel);border:1px solid rgba(240,166,60,.45);border-radius:12px;padding:16px;box-shadow:0 24px 70px rgba(0,0,0,.6);transform:translateY(12px) scale(.97);transition:transform .3s var(--ease)}
+#dlgWrap.vis #dlg{transform:none}
+#dlg h3{font:400 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--amber);margin-bottom:8px}
+#dlg input{width:100%;height:28px;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--tx);font:inherit;padding:0 10px;outline:none;margin-bottom:10px}
+#dlg input:focus{border-color:var(--amber)}
+#dlg .b{display:flex;gap:8px;justify-content:flex-end}
+#dlg button.ok{background:var(--amber);color:#1a1508;border:none;border-radius:6px;padding:6px 14px;font-weight:600}
+
+/* ═══════════ v4 ═══════════ */
+.rail{padding:2px 0;gap:0}
+.rb{width:52px;height:40px;gap:2px;font-size:8.5px;border-radius:6px}
+.rb svg{width:15px;height:15px}
+.rb .n{top:2px;right:4px}
+.rail .sep{margin:3px 0;width:28px}
+#m-desk .mh{display:none}
+.keys .hbtn.lay{border-color:transparent;color:var(--dim)}
+.keys .hbtn.lay.on{color:var(--amber);border-color:var(--amber)}
+.keys .vsep{width:1px;height:14px;background:var(--line);margin:0 4px}
+.mod .mh .tod{margin-left:auto;color:var(--amber);border-color:color-mix(in srgb,var(--amber) 45%,var(--line))}
+.mod .mh .crumb+.sp+.crumb{margin-left:0}
+.pnl.in{animation:pin .32s var(--ease)}
+.pnl.grow{box-shadow:0 0 0 1px var(--glow),0 0 18px var(--glow-soft)}
+
+/* ── котировки на весь экран ── */
+.qx{display:flex;flex-direction:column;height:100%;min-height:0}
+.qxh{display:flex;align-items:center;gap:6px;padding:0 12px;height:34px;border-bottom:1px solid var(--line);flex:none;background:var(--bg)}
+.qxh .mbar{width:140px;margin:0 8px}
+.qxh .ml{font-family:var(--mono);font-size:9.5px;color:var(--dim);letter-spacing:.06em}
+.qxb{flex:1;overflow:auto;padding:10px 12px 20px}
+.qsec{margin-bottom:14px}
+.qsec h3{display:flex;align-items:baseline;gap:10px;font:400 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim);padding:0 2px 6px}
+.qsec h3 .up,.qsec h3 .dn{letter-spacing:0;font-size:10px}
+.qsec h3 .src{margin-left:auto;font-size:9px;letter-spacing:.04em;text-transform:none}
+.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:6px}
+.qc{position:relative;background:color-mix(in srgb,var(--panel) 82%,transparent);border:1px solid var(--line);border-radius:6px;padding:8px 10px 6px;cursor:pointer;overflow:hidden;
+  transition:border-color .18s,box-shadow .18s,transform .18s var(--ease)}
+.qc:hover{border-color:color-mix(in srgb,var(--dim) 70%,var(--line));box-shadow:0 0 0 1px var(--glow),0 0 14px var(--glow-soft);transform:translateY(-1px)}
+.qc .t{display:flex;align-items:baseline;gap:6px}
+.qc .t b{font-size:11.5px;font-weight:500;color:var(--tx)}
+.qc .t small{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.04em}
+.qc .p{display:flex;align-items:baseline;gap:8px;margin-top:3px}
+.qc .p b{font:500 15px/1.1 var(--mono);color:var(--tx)}
+.qc .p i{font:10.5px var(--mono);font-style:normal;padding:1px 5px;border-radius:4px}
+.qc .p i.up{background:color-mix(in srgb,var(--green) 14%,transparent)}
+.qc .p i.dn{background:color-mix(in srgb,var(--red) 14%,transparent)}
+.qc svg{display:block;width:100%;height:34px;margin-top:5px}
+.qc .lh{display:flex;justify-content:space-between;font-family:var(--mono);font-size:8.5px;color:var(--dim);margin-top:3px}
+.qc .lh i{font-style:normal}
+.qc.big{grid-column:span 2}
+.qc.big svg{height:64px}
+.qc.big .p b{font-size:19px}
+
+/* ── мир: карта ── */
+.wm{display:grid;grid-template-columns:1fr 300px;height:100%;min-height:0}
+.wm .map{position:relative;background:#0a0e14;min-height:0}
+.wm .map .leaflet-container{background:#0a0e14;font:inherit}
+.wm .map .ov{position:absolute;left:10px;top:10px;z-index:500;display:flex;gap:4px;flex-wrap:wrap}
+.wm .map .lg{position:absolute;left:10px;bottom:10px;z-index:500;font-family:var(--mono);font-size:9.5px;color:var(--dim);background:color-mix(in srgb,var(--panel) 85%,transparent);border:1px solid var(--line);border-radius:6px;padding:5px 8px;display:flex;gap:10px}
+.wm .map .lg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px}
+.wm .side{border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.wm .side .sh2{height:32px;display:flex;align-items:center;gap:8px;padding:0 10px;border-bottom:1px solid var(--line);font-size:11px;letter-spacing:.09em;flex:none}
+.wm .side .sh2 .su{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--dim)}
+.wm .side .lst{flex:1;overflow-y:auto;min-height:0}
+.wi{padding:5px 10px;border-bottom:1px solid var(--line);cursor:pointer;display:grid;grid-template-columns:40px 1fr;gap:6px;transition:background .18s,box-shadow .18s}
+.wi:hover,.wi.on{background:rgba(255,255,255,.03);box-shadow:inset 2px 0 0 var(--glow)}
+.wi .t{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.wi .c{font-size:10px;color:var(--blue);letter-spacing:.04em;display:flex;gap:6px}
+.wi .c .rg{color:var(--dim);font-family:var(--mono);font-size:9px}
+.wi .x{font-size:11.5px;margin-top:1px}
+.wi.imp .x{color:#ffcf66;font-weight:500}
+.pin{width:10px;height:10px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 0 rgba(255,176,0,.6);animation:pp 1.8s ease-out infinite}
+.pin.imp{background:var(--red);box-shadow:0 0 0 0 rgba(255,82,82,.6);animation-name:pr}
+.pin.cb{background:var(--blue);animation:none;box-shadow:0 0 6px var(--blue)}
+@keyframes pp{0%{box-shadow:0 0 0 0 rgba(255,176,0,.6)}100%{box-shadow:0 0 0 14px rgba(255,176,0,0)}}
+@keyframes pr{0%{box-shadow:0 0 0 0 rgba(255,82,82,.6)}100%{box-shadow:0 0 0 16px rgba(255,82,82,0)}}
+.leaflet-popup-content-wrapper{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:6px;font:11.5px var(--sans);box-shadow:0 8px 26px rgba(0,0,0,.5)}
+.leaflet-popup-tip{background:var(--panel)}
+.leaflet-popup-content{margin:8px 10px}
+.leaflet-container a.leaflet-popup-close-button{color:var(--dim)}
+.leaflet-control-attribution{background:rgba(7,9,12,.7)!important;color:var(--dim)!important;font-size:9px!important}
+.leaflet-control-attribution a{color:var(--dim)!important}
+.leaflet-bar a{background:var(--panel)!important;color:var(--tx)!important;border-color:var(--line)!important}
+
+/* ── ТВ ── */
+.tv{display:grid;grid-template-columns:240px 1fr;height:100%;min-height:0}
+.tv .ch{display:block;padding:0;border-right:1px solid var(--line);overflow-y:auto}
+.tvc{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .18s,box-shadow .18s}
+.tvc:hover,.tvc.on{background:rgba(255,255,255,.03);box-shadow:inset 2px 0 0 var(--amber)}
+.tvc .lg{width:34px;height:22px;border-radius:4px;display:grid;place-items:center;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.04em;color:#0b0d10}
+.tvc .nm{font-size:11.5px}
+.tvc .d{font-size:9.5px;color:var(--dim);display:block}
+.tvc .live{font-size:8.5px}
+.tv .pl{display:flex;flex-direction:column;min-height:0}
+.tv .scr{flex:1;min-height:0;background:#000;display:grid;place-items:center;position:relative}
+.tv .scr iframe{width:100%;height:100%;border:0}
+.tv .scr .ph2{text-align:center;color:var(--dim);font-family:var(--mono);font-size:11px;letter-spacing:.12em}
+.tv .scr .ph2 b{display:block;font-size:34px;color:var(--amber);margin-bottom:10px;font-weight:400}
+.tv .scr .badge{position:absolute;top:10px;left:12px;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:#fff;background:var(--red);padding:2px 6px;border-radius:3px}
+.tv .tick{flex:none;height:30px;display:flex;align-items:center;gap:20px;padding:0 12px;border-top:1px solid var(--line);font-family:var(--mono);font-size:10.5px;color:var(--tx);white-space:nowrap;overflow:hidden}
+.tv .tick .up,.tv .tick .dn{margin-left:4px}
+.tv .tick span.n{color:var(--dim)}
+.tv .sched{flex:none;max-height:36%;overflow:auto;border-top:1px solid var(--line)}
+
+/* панели на столе: карта/тв/портфель */
+.pnl .wm{grid-template-columns:1fr}
+.pnl .wm .side{display:none}
+.pnl .tv{grid-template-columns:1fr}.pnl .tv .ch{display:none}.pnl .tv .sched{display:none}
+.pnl .qxb{padding:6px 8px}.pnl .qgrid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+.pnl .pfk b{font-size:14px}
+
+/* ═══════════ v5: вкладки, лента-профи, исследование бумаги, портфель, пульс ═══════════ */
+.term{grid-template-rows:var(--hh) 28px 1fr 26px;grid-template-areas:"top top" "tabs tabs" "rail work" "keys keys"}
+#tabsbar{grid-area:tabs;display:flex;align-items:flex-end;gap:2px;padding:0 8px 0 60px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+#tabsbar::-webkit-scrollbar{display:none}
+.tb{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border:1px solid var(--line);border-bottom:none;border-radius:6px 6px 0 0;background:var(--bg);color:var(--dim);font-size:11px;white-space:nowrap;cursor:pointer;position:relative;top:1px;transition:color .18s,background-color .18s,border-color .18s;animation:tbin .25s var(--ease)}
+@keyframes tbin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.tb:hover{color:var(--tx)}
+.tb.on{color:var(--tx);background:var(--bg);border-color:var(--line2,#26303f);box-shadow:inset 0 2px 0 var(--amber)}
+.tb .ic{font-family:var(--mono);font-size:10px;color:var(--dim)}
+.tb.on .ic{color:var(--amber)}
+.tb .x{color:var(--dim);font-size:12px;line-height:1;padding:0 0 0 2px;border-radius:3px}
+.tb .x:hover{color:var(--red)}
+.tb.pin .x{display:none}
+#tabsbar .sp{flex:1}
+#tabsbar .tbn{font-family:var(--mono);font-size:9.5px;color:var(--dim);padding:0 6px 5px;letter-spacing:.06em}
+#fly{top:calc(var(--hh) + 28px)}#flyBack{top:calc(var(--hh) + 28px)}
+/* статус-строка */
+.keys .ver2{font-family:var(--mono);font-size:9.5px;color:var(--dim);letter-spacing:.06em;margin-right:4px}
+.keys .ver2 b{color:var(--tx);font-weight:400}
+.keys .ready{font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:.14em;margin-left:10px}
+.keys .cls{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.1em}
+.keys .cls b{color:var(--amber);font-weight:400}
+
+/* заголовок секции — как в Fincept, но спокойнее */
+.st2{display:flex;align-items:center;gap:8px;font:400 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--amber);padding:6px 10px 4px}
+.st2::after{content:'';flex:1;height:1px;background:var(--line)}
+.st2 .r{color:var(--dim);letter-spacing:.04em;text-transform:none}
+
+/* ── лента-профи ── */
+.np{display:grid;grid-template-rows:auto auto 1fr 26px;grid-template-columns:1fr 360px;height:100%;min-height:0;grid-template-areas:"flash flash" "bar bar" "wire det" "tick tick"}
+.np .flash{grid-area:flash;display:flex;align-items:center;gap:10px;height:26px;padding:0 10px;background:color-mix(in srgb,var(--red) 10%,var(--bg));border-bottom:1px solid color-mix(in srgb,var(--red) 40%,var(--line));font-size:11.5px;overflow:hidden;white-space:nowrap}
+.np .flash .fl{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:#fff;background:var(--red);padding:2px 6px;border-radius:3px;flex:none}
+.np .flash b{color:#ffcf66;font-weight:500;overflow:hidden;text-overflow:ellipsis}
+.np .flash .s{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--blue);flex:none}
+.np .bar{grid-area:bar;display:flex;align-items:center;gap:4px;padding:0 10px;height:32px;border-bottom:1px solid var(--line);background:var(--bg);overflow-x:auto;scrollbar-width:none}
+.np .bar .grp{display:flex;gap:3px;padding-right:8px;margin-right:4px;border-right:1px solid var(--line)}
+.np .bar .cnt{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--dim);letter-spacing:.06em;white-space:nowrap}
+.np .bar .cnt b{color:var(--tx);font-weight:400}.np .bar .cnt i{font-style:normal;color:var(--amber)}
+.np .bar .q{height:22px;width:170px;background:var(--panel);border:1px solid var(--line);border-radius:4px;color:var(--tx);font:inherit;font-size:11px;padding:0 8px;outline:none}
+.np .bar .q:focus{border-color:var(--amber)}
+.np .wire{grid-area:wire;overflow-y:auto;min-height:0;border-right:1px solid var(--line)}
+.wr{display:grid;grid-template-columns:36px 92px 1fr auto 18px;gap:8px;align-items:center;padding:3px 10px;border-bottom:1px solid var(--line);cursor:pointer;font-size:11.5px;transition:background .15s,box-shadow .15s;position:relative}
+.wr:hover{background:rgba(255,255,255,.03);box-shadow:inset 2px 0 0 var(--glow)}
+.wr.on{background:color-mix(in srgb,var(--amber) 7%,transparent);box-shadow:inset 2px 0 0 var(--amber)}
+.wr .ag{font-family:var(--mono);font-size:10px;color:var(--dim)}
+.wr .so{font-family:var(--mono);font-size:10px;color:var(--blue);letter-spacing:.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wr .hl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tx)}
+.wr.imp .hl{color:#ffcf66;font-weight:500}
+.wr.cb .hl{color:#cfe0ff;font-weight:500}
+.wr .tks{font-family:var(--mono);font-size:10px;color:var(--green);white-space:nowrap}
+.wr .se{font-family:var(--mono);font-size:10px;text-align:center}
+.wr .mk{position:absolute;left:0;top:0;bottom:0;width:3px}
+.wr.imp .mk{background:var(--red)}.wr.cb .mk{background:#2f5aa8}.wr.fin .mk{background:#6b7684}
+.wr .dp{font-family:var(--mono);font-size:9px;color:var(--blue);border:1px solid #16324a;background:#0a1622;padding:0 4px;border-radius:8px;margin-left:4px}
+.np .det{grid-area:det;display:flex;flex-direction:column;min-height:0;background:color-mix(in srgb,var(--panel) 60%,transparent)}
+.np .det .dh{display:flex;align-items:center;height:30px;padding:0 12px;border-bottom:1px solid var(--line);font:400 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+.np .det .dh .x{margin-left:auto;color:var(--dim);cursor:pointer}
+.np .det .db{flex:1;overflow-y:auto;padding:12px}
+.np .det h2{font:500 14px/1.35 var(--sans);color:var(--tx);margin-bottom:8px}
+.np .det .bd{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.np .det .bd span{font-family:var(--mono);font-size:9px;letter-spacing:.1em;padding:2px 6px;border-radius:3px;background:var(--line);color:var(--tx)}
+.np .det .bd .i{background:var(--red);color:#fff}.np .det .bd .c{background:#1e3a8a;color:#e8f0ff}.np .det .bd .m{background:#3f4854;color:#eef2f6}
+.np .det .mt{font-family:var(--mono);font-size:10px;color:var(--blue);margin-bottom:10px}
+.np .det .mt i{font-style:normal;color:var(--dim);margin-left:8px}
+.np .det p{font-size:12px;line-height:1.55;color:var(--tx)}
+.np .det .imp2{margin:10px 0;font-family:var(--mono);font-size:10px;color:var(--dim)}
+.np .det .imp2 b{color:var(--amber);font-weight:400}
+.np .det .acts{display:flex;gap:4px;flex-wrap:wrap;margin:10px 0 14px}
+.np .det .rel .ri2{padding:4px 0;border-bottom:1px solid var(--line);font-size:11px;cursor:pointer}
+.np .det .rel .ri2:hover{color:var(--amber)}
+.np .det .rel .ri2 b{font-family:var(--mono);font-size:9.5px;color:var(--blue);font-weight:400;margin-right:6px}
+.np .det .empty{color:var(--dim);text-align:center;padding:40px 12px;font-size:11.5px;line-height:1.6}
+.np .tick{grid-area:tick;display:flex;align-items:center;gap:0;border-top:1px solid var(--line);background:var(--bg);overflow:hidden;white-space:nowrap;font-size:11px}
+.np .tick .lb{flex:none;font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:#fff;background:var(--red);padding:0 8px;height:100%;display:flex;align-items:center;z-index:1}
+.np .tick .mq{display:flex;gap:40px;padding-left:20px;animation:mq 60s linear infinite}
+.np .tick .mq span b{font-family:var(--mono);font-size:10px;color:var(--blue);font-weight:400;margin-right:6px}
+@keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(max-width:1000px){.np{grid-template-columns:1fr;grid-template-areas:"flash" "bar" "wire" "tick"}.np .det{display:none}}
+
+/* ── исследование бумаги: свечи ── */
+.rs{display:grid;grid-template-columns:1fr 240px;border-bottom:1px solid var(--line)}
+.rs .cv{padding:8px 10px 6px;position:relative;border-right:1px solid var(--line)}
+.rs .cv .pr{display:flex;gap:3px;margin-bottom:6px;align-items:center}
+.rs .cv .pr .lg{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--dim);display:flex;gap:10px}
+.rs .cv svg{width:100%;height:190px;display:block}
+.rs .side2{display:flex;flex-direction:column}
+.rs .side2 .kv{grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line)}
+.rs .side2 .kv div{padding:5px 10px}
+.rs .side2 .kv b{font-size:12.5px}
+.rs .side2 .kv:last-child{border-bottom:0}
+.rtabs{display:flex;gap:2px;padding:0 10px;height:30px;align-items:center;border-bottom:1px solid var(--line);background:var(--bg)}
+.rtabs span{padding:5px 10px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:color .18s,border-color .18s}
+.rtabs span.on{color:var(--amber);border-color:var(--amber)}
+.rtabs span:hover{color:var(--tx)}
+.rpane{display:none}.rpane.on{display:block;animation:pin .25s var(--ease)}
+
+/* ── портфель: середина ── */
+.pfmid{display:grid;grid-template-columns:200px 1fr 250px;border-bottom:1px solid var(--line);flex:none;min-height:0}
+.pfmid>div{min-width:0;border-right:1px solid var(--line)}
+.pfmid>div:last-child{border-right:0}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:6px 10px}
+.tile{padding:5px 7px;border-radius:4px;border:1px solid var(--line);cursor:pointer;transition:transform .18s var(--ease),box-shadow .18s}
+.tile:hover{transform:translateY(-1px);box-shadow:0 0 0 1px var(--glow)}
+.tile b{display:block;font-family:var(--mono);font-size:10.5px;font-weight:500;color:var(--tx)}
+.tile i{font-style:normal;font-family:var(--mono);font-size:10px}
+.tile.up{background:color-mix(in srgb,var(--green) 10%,transparent);border-color:color-mix(in srgb,var(--green) 35%,var(--line))}
+.tile.dn{background:color-mix(in srgb,var(--red) 10%,transparent);border-color:color-mix(in srgb,var(--red) 35%,var(--line))}
+.perf{padding:6px 10px;position:relative}
+.perf .pr{display:flex;gap:3px;align-items:center;margin-bottom:4px}
+.perf .pr .lg{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--dim);display:flex;gap:10px}
+.perf .pr .lg b{color:var(--tx);font-weight:400}
+.perf svg{width:100%;height:120px;display:block}
+.donut{display:grid;grid-template-columns:96px 1fr;gap:8px;padding:8px 10px;align-items:center}
+.donut svg{width:96px;height:96px}
+.donut .lg div{display:flex;align-items:center;gap:6px;font-size:10.5px;padding:2px 0}
+.donut .lg i{width:8px;height:8px;border-radius:2px;flex:none}
+.donut .lg b{margin-left:auto;font-family:var(--mono);font-weight:400;font-size:10.5px;color:var(--tx)}
+.pfb .st2{padding-top:8px}
+.pfb table td:first-child{color:var(--tx)}
+.tw{display:inline-block;width:56px;height:14px;vertical-align:middle}
+.pnl .pfmid{display:none}
+
+/* ── пульс рынка ── */
+.pulse{display:flex;flex-direction:column;height:100%;min-height:0;overflow:auto}
+.pulse .g{padding:6px 10px;border-bottom:1px solid var(--line)}
+.pulse .g h4{font:400 9px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:4px;display:flex}
+.pulse .g h4 span{margin-left:auto;color:var(--tx)}
+.pulse .fg{display:flex;align-items:center;gap:10px}
+.pulse .fg b{font:500 26px/1 var(--mono);color:var(--amber)}
+.pulse .fg .sc{flex:1}
+.pulse .fg .sc .bar2{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--red),var(--amber),var(--green));position:relative}
+.pulse .fg .sc .bar2 i{position:absolute;top:-3px;width:2px;height:12px;background:#fff;border-radius:1px}
+.pulse .fg .sc small{display:flex;justify-content:space-between;font-family:var(--mono);font-size:8.5px;color:var(--dim);margin-top:3px}
+.pulse .br{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;font-family:var(--mono);font-size:10px;padding:2px 0}
+.pulse .br .bb{height:5px;border-radius:3px;background:var(--line);overflow:hidden;display:flex}
+.pulse .br .bb i{display:block;height:100%}
+.pulse .mv{display:grid;grid-template-columns:52px 1fr auto;gap:6px;font-family:var(--mono);font-size:10.5px;padding:1.5px 0}
+.pulse .mv .n{color:var(--tx);font-family:var(--sans);font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pulse .hrs{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.pulse .hrs div{font-family:var(--mono);font-size:10px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;display:flex;justify-content:space-between}
+.pulse .hrs .op{color:var(--green)}.pulse .hrs .cl{color:var(--dim)}
+</style>
+</head>
+<body>
+
+<div id="boot"><div class="bl">FINFACTS</div><div class="bbar"><i></i></div><div class="bs">СОЕДИНЕНИЕ С ИСТОЧНИКАМИ…</div></div>
+
+<div class="term">
+
+<header>
+  <span class="logo">FINFACTS</span>
+  <span class="live"><span class="dot"></span>LIVE</span>
+  <span class="ver">терминал · модель v5</span>
+  <span class="sp"></span>
+  <div class="cmd"><span class="pr">&gt;</span><input id="cmdIn" placeholder="раздел или бумага: офз 26247 · sber · инфляция · чат" autocomplete="off"><kbd>Enter</kbd></div>
+  <span class="stat">источников <b>57</b> · за 24ч <b>1 214</b></span>
+  <span id="clock">--:--:--</span>
+  <button class="hbtn" title="Звук">♪</button>
+  <button class="hbtn" id="thBtn" title="Тема">◑</button>
+</header>
+
+<nav class="rail" id="rail"></nav>
+<div id="flyBack"></div>
+<aside id="fly"><div class="fh"><span id="flyTitle"></span><span class="k" id="flyKey"></span></div><div class="fl" id="flyList"></div></aside>
+
+<main class="work" id="work">
+
+  <!-- Стол: сетка панелей -->
+  <section class="mod" id="m-desk">
+    <div class="mh"><b>Стол</b><span class="crumb">панели можно тянуть и растягивать</span><span class="sp"></span>
+      <button class="hbtn on" data-layout="a">стол 1</button><button class="hbtn" data-layout="b">стол 2</button><button class="hbtn" data-layout="c">лента</button>
+      <button class="hbtn" id="addBtn">+ панель</button></div>
+    <div class="mb"><div id="grid"><div class="ph" id="ph"></div></div></div>
+  </section>
+
+  <!-- Ценные бумаги -->
+  <section class="mod" id="m-sec">
+    <div class="mh"><b>Ценные бумаги</b><span class="crumb" id="secCrumb">поиск по базе Мосбиржи · 5 200 инструментов</span></div>
+    <div class="mb"><div class="sec empty" id="sec">
+      <div class="l">
+        <div class="big" id="secBig">ЦЕННЫЕ БУМАГИ</div>
+        <div class="search">
+          <div class="in"><svg viewBox="0 0 16 16"><circle cx="6.6" cy="6.6" r="4.6"/><path d="M10.2 10.2 14 14"/></svg><input id="secQ" placeholder="Название, тикер или ISIN: офз 26247, сбер, RU000A…" autocomplete="off"></div>
+          <div class="h">↑↓ выбор · Enter открыть · Esc назад</div>
+        </div>
+        <div class="res" id="secRes"></div>
+      </div>
+      <div class="card" id="secCard"></div>
+    </div></div>
+  </section>
+
+  <!-- Остальные модули (заглушки одного строя) -->
+  <section class="mod" id="m-generic">
+    <div class="mh"><b id="genTitle"></b><span class="crumb" id="genCrumb"></span></div>
+    <div class="mb" id="genBody"></div>
+  </section>
+
+</main>
+
+<footer class="keys" id="keys">
+  <span class="st"><i>●</i> все источники в норме · задержка 4 с</span>
+</footer>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- содержимое панелей -->
+<template id="t-feed">
+  <nav class="chips">
+    <span class="chip on">Все <span class="chip-n">412</span></span>
+    <span class="chip imp">⚡ Важно <span class="chip-n">18</span></span>
+    <span class="chip cbr">🏛 ЦБ РФ <span class="chip-n">6</span></span>
+    <span class="chip minfin">₽ Минфин <span class="chip-n">4</span></span>
+    <span class="chip">#ставка <span class="chip-n">41</span></span><span class="chip">#нефть <span class="chip-n">33</span></span><span class="chip">#рубль <span class="chip-n">29</span></span><span class="chip">#облигации <span class="chip-n">24</span></span><span class="chip">#дивиденды <span class="chip-n">17</span></span>
+  </nav>
+  <div class="pbody feedbody" id="feedRows"></div>
+</template>
+
+<template id="t-quotes">
+  <div class="smood"><div class="mbar"><i class="up" style="width:64%"></i><i class="dn" style="width:36%"></i></div><div class="mlab"><span class="u">20 ↑</span><span class="m">настроение рынка</span><span class="d">11 ↓</span></div></div>
+  <div class="pbody" id="qRows"></div>
+</template>
+
+<template id="t-macro">
+  <div class="tabs"><span class="chip on">Обзор</span><span class="chip">Инфляция</span><span class="chip">Ставка</span><span class="chip">Рубль</span><span class="chip">ВВП</span></div>
+  <div class="kpi">
+    <div><small>Ключевая ставка</small><b>16,00%</b><i class="dn">−100 б.п. · 13.09</i></div>
+    <div><small>Инфляция, г/г</small><b>7,9%</b><i class="dn">−0,2 п.п. · авг</i></div>
+    <div><small>RUONIA</small><b>15,87%</b><i class="dn">−0,92 · 12.09</i></div>
+  </div>
+  <div class="pbody"><table>
+    <tr><th>Показатель</th><th>Значение</th><th>Пред.</th><th>Дата</th><th></th></tr>
+    <tr><td>Инфляция, неделя</td><td>0,05%</td><td>0,08%</td><td>08.09</td><td><svg class="spark" viewBox="0 0 64 18"><polyline fill="none" stroke="#2ee06f" stroke-width="1.3" points="0,4 9,6 18,8 27,7 36,11 45,12 54,14 64,15"/></svg></td></tr>
+    <tr><td>Инфл. ожидания населения</td><td>12,1%</td><td>12,6%</td><td>авг</td><td><svg class="spark" viewBox="0 0 64 18"><polyline fill="none" stroke="#2ee06f" stroke-width="1.3" points="0,3 9,5 18,4 27,8 36,9 45,9 54,12 64,13"/></svg></td></tr>
+    <tr><td>Доходность ОФЗ 10 лет</td><td>14,62%</td><td>14,80%</td><td>12.09</td><td><svg class="spark" viewBox="0 0 64 18"><polyline fill="none" stroke="#2ee06f" stroke-width="1.3" points="0,4 9,7 18,6 27,9 36,9 45,11 54,13 64,14"/></svg></td></tr>
+    <tr><td>Резервы ЦБ, $ млрд</td><td>712,4</td><td>708,1</td><td>05.09</td><td><svg class="spark" viewBox="0 0 64 18"><polyline fill="none" stroke="#2ee06f" stroke-width="1.3" points="0,14 9,12 18,13 27,9 36,8 45,6 54,5 64,3"/></svg></td></tr>
+    <tr><td>ВВП, г/г</td><td>+1,1%</td><td>+1,4%</td><td>II кв.</td><td><svg class="spark" viewBox="0 0 64 18"><polyline fill="none" stroke="#ff5252" stroke-width="1.3" points="0,3 9,5 18,4 27,7 36,8 45,10 54,11 64,13"/></svg></td></tr>
+    <tr><td>Безработица</td><td>2,2%</td><td>2,2%</td><td>июл</td><td><svg class="spark" viewBox="0 0 64 18"><polyline fill="none" stroke="#5b6b7c" stroke-width="1.3" points="0,9 9,9 18,9 27,10 36,9 45,9 54,9 64,9"/></svg></td></tr>
+  </table></div>
+</template>
+
+<template id="t-budget">
+  <div class="kpi">
+    <div><small>Доходы, янв–авг</small><b>23,1 трлн</b><i class="up">+3% г/г</i></div>
+    <div><small>Расходы, янв–авг</small><b>26,5 трлн</b><i class="up">+12% г/г</i></div>
+    <div><small>Дефицит</small><b>3,4 трлн</b><i class="dn">1,6% ВВП</i></div>
+  </div>
+  <div class="pbody"><table>
+    <tr><th>Статья</th><th>Факт</th><th>План на год</th><th>Исполнено</th></tr>
+    <tr><td>Нефтегазовые доходы</td><td>5,6 трлн</td><td>8,3 трлн</td><td><span class="bar" style="width:67px"></span> 67%</td></tr>
+    <tr><td>Ненефтегазовые доходы</td><td>17,5 трлн</td><td>27,0 трлн</td><td><span class="bar" style="width:65px"></span> 65%</td></tr>
+    <tr><td>Расходы</td><td>26,5 трлн</td><td>41,5 трлн</td><td><span class="bar" style="width:64px"></span> 64%</td></tr>
+    <tr><td>ФНБ, ликвидная часть</td><td>3,9 трлн</td><td>—</td><td><span class="bar" style="width:30px;background:var(--red)"></span></td></tr>
+    <tr><td>Внутренний долг (ОФЗ)</td><td>26,8 трлн</td><td>—</td><td></td></tr>
+    <tr><td>Размещено ОФЗ с начала года</td><td>3,9 трлн</td><td>4,8 трлн</td><td><span class="bar" style="width:81px"></span> 81%</td></tr>
+  </table></div>
+</template>
+
+<template id="t-map">
+  <div class="tabs"><span class="chip on">За день</span><span class="chip">За неделю</span><span class="chip">Всплески</span></div>
+  <div class="pbody"><table>
+    <tr><th>Тикер</th><th>Новостей</th><th>Изм. цены</th><th>Обычно</th></tr>
+    <tr><td><span class="tk">SBER</span> Сбербанк</td><td>34</td><td class="up">+2,3%</td><td>12</td></tr>
+    <tr><td><span class="tk">GAZP</span> Газпром</td><td>29</td><td class="dn">−1,2%</td><td>9</td></tr>
+    <tr><td><span class="tk">SGZH</span> Сегежа</td><td>21</td><td class="dn">−4,8%</td><td>2</td></tr>
+    <tr><td><span class="tk">NVTK</span> Новатэк</td><td>17</td><td class="dn">−2,0%</td><td>6</td></tr>
+    <tr><td><span class="tk">ROSN</span> Роснефть</td><td>15</td><td class="up">+1,4%</td><td>8</td></tr>
+    <tr><td><span class="tk">VTBR</span> ВТБ</td><td>12</td><td class="up">+2,8%</td><td>7</td></tr>
+    <tr><td><span class="tk">MOEX</span> Мосбиржа</td><td>11</td><td class="up">+1,1%</td><td>4</td></tr>
+    <tr><td><span class="tk">FLOT</span> Совкомфлот</td><td>8</td><td class="up">+0,6%</td><td>3</td></tr>
+  </table></div>
+</template>
+
+<template id="t-chart">
+  <div class="pbody chartbody">
+    <div class="lg"><b>2 897,4</b><span class="up">+51,2 (+1,8%)</span><span>откр. 2 846</span><span>макс 2 901</span></div>
+    <svg viewBox="0 0 400 150" preserveAspectRatio="none">
+      <g stroke="#1b232e"><line x1="0" y1="30" x2="400" y2="30"/><line x1="0" y1="70" x2="400" y2="70"/><line x1="0" y1="110" x2="400" y2="110"/></g>
+      <polygon fill="#2ee06f" fill-opacity=".06" points="0,118 20,116 40,120 60,112 80,114 100,108 120,110 140,104 160,106 180,98 200,100 220,95 240,97 260,92 270,70 280,60 290,52 300,48 310,50 320,44 340,42 360,38 380,36 400,34 400,150 0,150"/>
+      <polyline fill="none" stroke="#2ee06f" stroke-width="1.6" points="0,118 20,116 40,120 60,112 80,114 100,108 120,110 140,104 160,106 180,98 200,100 220,95 240,97 260,92 270,70 280,60 290,52 300,48 310,50 320,44 340,42 360,38 380,36 400,34"/>
+      <line x1="265" y1="20" x2="265" y2="150" stroke="#7fb0ff" stroke-dasharray="3 3"/>
+      <line x1="150" y1="20" x2="150" y2="150" stroke="#ff5252" stroke-dasharray="3 3"/>
+    </svg>
+    <span class="mk" style="left:calc(66% - 36px);top:30px;color:#7ba6f0;border-color:#2f5aa8">13:30 ЦБ −100 б.п.</span>
+    <span class="mk" style="left:calc(37% - 26px);top:30px;color:var(--red);border-color:var(--red)">13:12 санкции</span>
+  </div>
+</template>
+
+<template id="t-cal">
+  <div class="pbody">
+    <div class="ev"><span class="day">сегодня · пн 14.09</span></div>
+    <div class="ev now"><span class="t">15:00</span><span>Пресс-конференция Набиуллиной</span><span class="c">РФ</span></div>
+    <div class="ev"><span class="t">15:30</span><span>США — розничные продажи, авг</span><span class="c">США</span></div>
+    <div class="ev"><span class="t">19:00</span><span>Росстат — недельная инфляция</span><span class="c">РФ</span></div>
+    <div class="ev"><span class="day">ср 16.09</span></div>
+    <div class="ev"><span class="t">13:30</span><span>Минфин — аукционы ОФЗ</span><span class="c">РФ</span></div>
+    <div class="ev"><span class="t">21:00</span><span>ФРС — решение по ставке</span><span class="c">США</span></div>
+    <div class="ev"><span class="day">чт 17.09</span></div>
+    <div class="ev"><span class="t">—</span><span>Сбербанк — отчёт РСБУ за 8 мес.</span><span class="c">SBER</span></div>
+    <div class="ev"><span class="t">—</span><span>Газпром — отсечка по дивидендам</span><span class="c">GAZP</span></div>
+    <div class="ev"><span class="day">пт 18.09</span></div>
+    <div class="ev"><span class="t">10:00</span><span>Минфин — исполнение бюджета, авг</span><span class="c">РФ</span></div>
+  </div>
+</template>
+
+<template id="t-cbr">
+  <div class="kpi">
+    <div><small>Ключевая ставка</small><b>16,00%</b><i class="dn">−100 б.п.</i></div>
+    <div><small>Следующее заседание</small><b>24.10</b><i>через 40 дней</i></div>
+    <div><small>Прогноз ЦБ, ср. ставка 2027</small><b>12–13%</b><i></i></div>
+  </div>
+  <div class="pbody"><table>
+    <tr><th>Заседание</th><th>Ставка</th><th>Шаг</th><th>Сигнал</th></tr>
+    <tr><td>13.09.2026</td><td>16,00%</td><td class="dn">−100</td><td>нейтральный</td></tr>
+    <tr><td>25.07.2026</td><td>17,00%</td><td class="dn">−100</td><td>мягкий</td></tr>
+    <tr><td>06.06.2026</td><td>18,00%</td><td class="dn">−100</td><td>мягкий</td></tr>
+    <tr><td>25.04.2026</td><td>19,00%</td><td class="dn">−100</td><td>нейтральный</td></tr>
+    <tr><td>14.02.2026</td><td>20,00%</td><td>0</td><td>жёсткий</td></tr>
+  </table></div>
+</template>
+
+<template id="t-chat">
+  <div class="chat">
+    <div class="msgs">
+      <div class="msg"><div class="who">АНДРЕЙ · 13:34</div><div class="b">Ставку снизили на 100, кто ждал 50? RGBI сразу +0,6</div></div>
+      <div class="msg me"><div class="who">ВЫ · 13:35</div><div class="b">Ждал 50. Смотрю на SBER, идёт на 315</div></div>
+      <div class="msg bot"><div class="who">FINFACTS · 13:36</div><div class="b">По ставке за час 41 новость из 19 источников. Самое цитируемое — комментарий MMI о риске разгона кредитования.</div></div>
+      <div class="msg"><div class="who">ОЛЬГА · 13:38</div><div class="b">В 15:00 пресс-конференция, ставлю на «пространство для снижения сохраняется»</div></div>
+    </div>
+    <div class="cin"><input placeholder="Сообщение… (/ставка — сводка от FINFACTS)"><button class="hbtn">↑</button></div>
+  </div>
+</template>
+
+<template id="t-archive">
+  <div class="tabs"><input class="cin-in" style="flex:1;height:26px;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--tx);font:inherit;padding:0 10px;outline:none" placeholder="Поиск по архиву: слово, тикер, источник…"><span class="chip">30 дней</span><span class="chip">год</span></div>
+  <div class="pbody"><table>
+    <tr><th>Дата</th><th>Источник</th><th>Новость</th></tr>
+    <tr><td>25.07</td><td>Банк России</td><td style="text-align:left;font-family:var(--sans)">Ставка снижена до 17,00%, сигнал мягкий…</td></tr>
+    <tr><td>18.07</td><td>Минфин</td><td style="text-align:left;font-family:var(--sans)">Аукцион ОФЗ 26248: размещено 61 млрд…</td></tr>
+    <tr><td>06.06</td><td>Банк России</td><td style="text-align:left;font-family:var(--sans)">Ставка снижена до 18,00%…</td></tr>
+    <tr><td>02.06</td><td>Интерфакс</td><td style="text-align:left;font-family:var(--sans)">Сегежа объявила первый этап реструктуризации…</td></tr>
+  </table></div>
+</template>
+
+<script>
+/* ───────── данные разделов ───────── */
+const ICONS={
+  feed:'<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+  quotes:'<svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9"/></svg>',
+  map:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>',
+  macro:'<svg viewBox="0 0 24 24"><path d="M3 12c3-6 6 6 9 0s6 6 9 0"/></svg>',
+  budget:'<svg viewBox="0 0 24 24"><path d="M8 5h6a3.5 3.5 0 010 7H8V5zM8 12v7M6 15h6"/></svg>',
+  chart:'<svg viewBox="0 0 24 24"><path d="M4 20V4M4 20h16M8 15l4-6 3 3 5-7"/></svg>',
+  cal:'<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></svg>',
+  cbr:'<svg viewBox="0 0 24 24"><path d="M4 9l8-5 8 5M6 9v9M10 9v9M14 9v9M18 9v9M4 20h16"/></svg>',
+  archive:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>',
+  chat:'<svg viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H9l-5 4V6z"/></svg>',
+};
+const SECTIONS=[
+  {id:'feed',   name:'Лента',     key:'F1', sub:'обновлено 3 с назад'},
+  {id:'quotes', name:'Котировки', key:'F2', sub:'30 с', beta:1},
+  {id:'map',    name:'Карта',     key:'F3', sub:'горячие бумаги'},
+  {id:'macro',  name:'Макро',     key:'F4', sub:'ЦБ · Росстат', beta:1},
+  {id:'budget', name:'Бюджет',    key:'F5', sub:'Минфин · авг', beta:1},
+  {id:'cal',    name:'Календарь', key:'F6', sub:'МСК'},
+  {id:'chart',  name:'График',    key:'F7', sub:'IMOEX · 5 мин'},
+  {id:'cbr',    name:'ЦБ',        key:'F8', sub:'ставка · заседания'},
+  {id:'archive',name:'Архив',     key:'F9', sub:'история новостей'},
+  {id:'chat',   name:'Чат',       key:'F10',sub:'4 в сети', n:2},
+];
+/* раскладки: x,y,w,h в клетках сетки 12×12 */
+const LAYOUTS={
+  a:{feed:[0,0,5,12],macro:[5,0,4,7],quotes:[9,0,3,12],chart:[5,7,4,5],cal:[9,7,3,5]},
+  b:{feed:[0,0,4,12],chart:[4,0,5,6],quotes:[9,0,3,6],macro:[4,6,5,6],budget:[9,6,3,6]},
+  c:{feed:[0,0,9,12],quotes:[9,0,3,12]},
+};
+LAYOUTS.b.cal=undefined; // стол 2 — без календаря, но с бюджетом
+LAYOUTS.a.cal=[9,7,3,5];
+
+const COLS=12, ROWS=12;
+const grid=document.getElementById('grid'), ph=document.getElementById('ph'), work=document.getElementById('work');
+let state={}; // id -> {x,y,w,h}
+let panels={}; // id -> element
+let cell={w:0,h:0};
+let maxed=null;
+
+/* ───────── геометрия ───────── */
+function measure(){
+  const r=grid.getBoundingClientRect();
+  cell.w=r.width/COLS; cell.h=r.height/ROWS;
+  grid.style.setProperty('--rh',cell.h+'px');
+}
+function place(id){
+  const s=state[id], el=panels[id]; if(!s||!el) return;
+  if(maxed===id){el.style.left=0;el.style.top=0;el.style.width='100%';el.style.height='100%';return}
+  const g=8;
+  el.style.left=(s.x*cell.w)+'px';
+  el.style.top=(s.y*cell.h)+'px';
+  el.style.width=(s.w*cell.w-g)+'px';
+  el.style.height=(s.h*cell.h-g)+'px';
+}
+function placeAll(){measure();Object.keys(panels).forEach(place)}
+window.addEventListener('resize',placeAll);
+
+const hit=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+function collides(id,rect){return Object.keys(state).find(o=>o!==id&&hit(rect,state[o]))}
+
+/* ───────── панели ───────── */
+var makePanel=function(sec){
+  const el=document.createElement('section');
+  el.className='pnl'; el.dataset.id=sec.id;
+  el.innerHTML=`<div class="sh"><span class="grip">⋮⋮</span><b>${sec.name}</b>${sec.beta?'<span class="sbeta">БЕТА</span>':''}<span class="su">${sec.sub||''}</span><button class="sx" data-act="max" title="Развернуть">⤢</button><button class="sx" data-act="close" title="Закрыть">×</button></div>`;
+  el.appendChild(document.getElementById('t-'+sec.id).content.cloneNode(true));
+  el.insertAdjacentHTML('beforeend','<div class="rz"></div>');
+  grid.appendChild(el);
+  panels[sec.id]=el;
+  if(sec.id==='feed') fillFeed(el.querySelector('#feedRows'));
+  if(sec.id==='quotes') fillQuotes(el.querySelector('#qRows'));
+  // drag
+  el.querySelector('.sh').addEventListener('pointerdown',e=>{if(e.target.closest('.sx')||maxed) return; startDrag(sec.id,e)});
+  el.querySelector('.rz').addEventListener('pointerdown',e=>startResize(sec.id,e));
+  el.querySelector('[data-act=close]').onclick=()=>closePanel(sec.id);
+  el.querySelector('[data-act=max]').onclick=()=>toggleMax(sec.id);
+  return el;
+};
+function findSpot(w,h){
+  for(let y=0;y<=ROWS-h;y++)for(let x=0;x<=COLS-w;x++){const r={x,y,w,h};if(!collides(null,r))return r}
+  return null;
+}
+function openPanel(id,rect){
+  if(panels[id]){flash(panels[id]);return}
+  const sec=SECTIONS.find(s=>s.id===id);
+  let r=rect;
+  if(!r){r=findSpot(4,6)||findSpot(3,5)||findSpot(3,4);}
+  if(!r){toast('Нет места — закройте или уменьшите панель');return}
+  state[id]={x:r.x,y:r.y,w:r.w,h:r.h};
+  const el=makePanel(sec);
+  place(id);
+  syncRail();
+}
+var closePanel=function(id){
+  const el=panels[id]; if(!el) return;
+  if(maxed===id) maxed=null;
+  el.classList.add('out');
+  setTimeout(()=>el.remove(),300);
+  delete panels[id]; delete state[id];
+  syncRail();
+};
+function toggleMax(id){
+  const el=panels[id];
+  if(maxed===id){maxed=null;el.classList.remove('max');}
+  else{ if(maxed){panels[maxed].classList.remove('max');place(maxed)} maxed=id;el.classList.add('max'); }
+  place(id);
+}
+function flash(el){el.style.boxShadow='0 0 0 2px var(--amber)';setTimeout(()=>el.style.boxShadow='',450)}
+
+/* ───────── перетаскивание ───────── */
+function startDrag(id,e){
+  e.preventDefault();
+  const el=panels[id], s=state[id];
+  const startX=e.clientX, startY=e.clientY, ox=parseFloat(el.style.left), oy=parseFloat(el.style.top);
+  let target={...s};
+  el.classList.add('drag'); grid.classList.add('dragging');
+  ph.style.left=el.style.left;ph.style.top=el.style.top;ph.style.width=el.style.width;ph.style.height=el.style.height;ph.classList.add('on');
+  el.setPointerCapture(e.pointerId);
+  const move=ev=>{
+    el.style.left=(ox+ev.clientX-startX)+'px'; el.style.top=(oy+ev.clientY-startY)+'px';
+    const nx=Math.max(0,Math.min(COLS-s.w,Math.round((ox+ev.clientX-startX)/cell.w)));
+    const ny=Math.max(0,Math.min(ROWS-s.h,Math.round((oy+ev.clientY-startY)/cell.h)));
+    const cand={x:nx,y:ny,w:s.w,h:s.h};
+    const other=collides(id,cand);
+    if(!other){target=cand;ph.style.borderColor='var(--amber)';}
+    else{
+      // обмен местами: если чужая панель встанет на моё старое место — меняемся
+      const o=state[other]; const swapRect={x:s.x,y:s.y,w:o.w,h:o.h};
+      const okSwap=swapRect.x+o.w<=COLS&&swapRect.y+o.h<=ROWS&&!Object.keys(state).some(k=>k!==id&&k!==other&&hit(swapRect,state[k]))&&!Object.keys(state).some(k=>k!==id&&k!==other&&hit({x:o.x,y:o.y,w:s.w,h:s.h},state[k]))&&o.x+s.w<=COLS&&o.y+s.h<=ROWS;
+      if(okSwap){target={x:o.x,y:o.y,w:s.w,h:s.h,swap:other,swapTo:swapRect};ph.style.borderColor='var(--violet)';}
+      else{ph.style.borderColor='var(--red)';}
+    }
+    ph.style.left=(target.x*cell.w)+'px';ph.style.top=(target.y*cell.h)+'px';
+  };
+  const up=()=>{
+    el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);
+    el.classList.remove('drag'); grid.classList.remove('dragging'); ph.classList.remove('on');
+    if(target.swap){state[target.swap]={...state[target.swap],x:target.swapTo.x,y:target.swapTo.y};place(target.swap);toast('Панели поменялись местами');}
+    state[id]={x:target.x,y:target.y,w:s.w,h:s.h};
+    place(id);
+  };
+  el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);
+}
+function startResize(id,e){
+  e.preventDefault();e.stopPropagation();
+  const el=panels[id], s=state[id];
+  const startX=e.clientX,startY=e.clientY,ow=parseFloat(el.style.width),oh=parseFloat(el.style.height);
+  let target={...s};
+  el.classList.add('rsz');grid.classList.add('dragging');
+  ph.style.left=el.style.left;ph.style.top=el.style.top;ph.style.width=el.style.width;ph.style.height=el.style.height;ph.classList.add('on');
+  el.setPointerCapture(e.pointerId);
+  const move=ev=>{
+    const pw=Math.max(cell.w*2-8,ow+ev.clientX-startX), phh=Math.max(cell.h*2-8,oh+ev.clientY-startY);
+    el.style.width=pw+'px';el.style.height=phh+'px';
+    const nw=Math.max(2,Math.min(COLS-s.x,Math.round((pw+8)/cell.w)));
+    const nh=Math.max(2,Math.min(ROWS-s.y,Math.round((phh+8)/cell.h)));
+    const cand={x:s.x,y:s.y,w:nw,h:nh};
+    if(!collides(id,cand)){target=cand;ph.style.borderColor='var(--amber)'}else ph.style.borderColor='var(--red)';
+    ph.style.width=(target.w*cell.w-8)+'px';ph.style.height=(target.h*cell.h-8)+'px';
+  };
+  const up=()=>{
+    el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);
+    el.classList.remove('rsz');grid.classList.remove('dragging');ph.classList.remove('on');
+    state[id]=target;place(id);
+  };
+  el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);
+}
+
+/* ───────── раскладки ───────── */
+function applyLayout(key){
+  const L=LAYOUTS[key];
+  if(maxed){panels[maxed].classList.remove('max');maxed=null}
+  Object.keys(panels).forEach(id=>{if(!L[id]) closePanel(id)});
+  Object.keys(L).forEach(id=>{
+    if(!L[id]) return;
+    const [x,y,w,h]=L[id];
+    if(panels[id]){state[id]={x,y,w,h};place(id)}
+    else openPanel(id,{x,y,w,h});
+  });
+  document.querySelectorAll('[data-layout]').forEach(b=>b.classList.toggle('on',b.dataset.layout===key));
+  syncRail();
+}
+
+/* ───────── содержимое ленты и котировок ───────── */
+const SH='<span class="share"><svg viewBox="0 0 16 16"><path d="M8 13V3M4 7l4-4 4 4"/></svg></span>';
+const NEWS=[
+ {t:'13:30',cls:'reg',band:['regband','ЦБ РФ','₽'],src:'БАНК РОССИИ',n:5,tk:['RGBI','USDRUB','IMOEX'],g:['SBER','VTBR'],txt:'Банк России принял решение снизить ключевую ставку на 100 б.п., до 16,00% годовых. Текущее инфляционное давление продолжает снижаться, однако инфляционные ожидания остаются повышенными…',tags:['#ставка','#ЦБ'],fresh:1},
+ {t:'13:12',cls:'lvl2',band:['','Важно'],src:'ИНТЕРФАКС',n:3,tk:['GAZP','NVTK','GAS'],txt:'Совет ЕС согласовал 21-й пакет санкций: под ограничения попадают поставки СПГ-оборудования и ряд трейдеров…',tags:['#санкции','#газ']},
+ {t:'12:58',cls:'reg fin',band:['finband','МИНФИН','◎'],src:'МИНФИН РОССИИ',tk:['OFZ','RGBI'],txt:'Минфин разместил ОФЗ-ПД 26250 на 84,3 млрд руб. при спросе 142 млрд руб. Средневзвешенная доходность — 14,92% годовых…',tags:['#аукцион','#ОФЗ']},
+ {t:'12:41',src:'MARKETTWITS',tk:['BRENT','ROSN','LKOH'],txt:'Brent выше $71 впервые с августа на фоне данных по запасам в США и ожиданий заседания ОПЕК+…',tags:['#нефть','#ОПЕК']},
+ {t:'12:33',src:'CBONDS',tk:['SGZH'],txt:'Сегежа объявила параметры второго этапа реструктуризации: держателям четырёх выпусков предложен обмен на новые бумаги…',tags:['#облигации','#реструктуризация']},
+ {t:'12:20',src:'МОСБИРЖА',tk:['IMOEX','MOEX'],txt:'Объём торгов на фондовом рынке в августе вырос на 18% к июлю и составил 3,1 трлн руб.…',tags:['#Мосбиржа','#объёмы']},
+ {t:'12:07',cls:'reg fed',band:['fedband','ФРС','$'],src:'ТРАМП НА РУССКОМ',tk:['EURUSD','GOLD'],txt:'Пауэлл: комитет готов действовать по мере поступления данных, рынок труда охлаждается быстрее ожиданий…',tags:['#ФРС','#США']},
+ {t:'11:52',src:'FRANK MEDIA',tk:['SBER','VTBR','TCSG'],txt:'Банки начали снижать ставки по вкладам до заседания ЦБ: у топ-10 средняя максимальная ставка опустилась ниже 15%…',tags:['#банки','#вклады']},
+ {t:'11:40',src:'РОССТАТ',tk:['USDRUB'],txt:'Недельная инфляция с 2 по 8 сентября — 0,05%; годовая замедлилась до 7,9%…',tags:['#инфляция','#Росстат']},
+ {t:'11:31',src:'ДЕЛОВОЙ ПЕТЕРБУРГ',tk:['FLOT','NMTP'],txt:'Порт Усть-Луга за 8 месяцев нарастил перевалку на 6%, основной прирост — наливные грузы…',tags:['#порты','#логистика']},
+ {t:'11:18',src:'SPYDELL FINANCE',tk:['IMOEX'],txt:'Российский рынок акций отыграл половину августовского снижения; объёмы в топ-5 бумагах выше среднего за квартал…',tags:['#рынок']},
+ {t:'11:04',src:'РБК',tk:['YDEX'],txt:'Яндекс запускает собственную платёжную систему для маркетплейса, тестирование — до конца года…',tags:['#IT','#платежи']},
+];
+function fillFeed(box){
+  box.innerHTML=NEWS.map(n=>`<article class="row ${n.cls||''} ${n.fresh?'fresh':''}">
+    ${n.band?`<div class="fband ${n.band[0]}"><span class="vtxt">${n.band[1]}</span>${n.band[2]?'<span class="ico">'+n.band[2]+'</span>':''}</div>`:''}
+    <div class="time">${n.t}</div><div>
+    <div class="src">${n.src}${n.n?' <span class="srcs">×'+n.n+'</span>':''}</div>
+    <div class="tkline">${n.tk.map(t=>'<span class="tk">'+t+'</span>').join('')}${(n.g||[]).map(t=>'<span class="tk g">'+t+'</span>').join('')}</div>
+    <div class="txt">${n.txt}</div>
+    <div class="meta">${n.tags.map(t=>'<span class="tag">'+t+'</span>').join('')}<span class="lnk">первоисточник</span>${SH}</div>
+  </div></article>`).join('');
+}
+const Q=[['Сырьё',[['Brent','71,18',1.4],['Urals','59,40',1.1],['Газ','3,02',-0.8],['Золото','3 641',0.3],['Серебро','42,10',0.9]]],
+ ['Индексы',[['IMOEX','2 897,4',1.8],['RTS','1 112,6',2.1],['RGBI','117,9',0.6],['S&P 500','6 584',0.2]]],
+ ['Валюты ЦБ',[['USD/RUB','84,12',-0.4],['EUR/RUB','98,70',-0.5],['CNY/RUB','11,78',-0.3]]],
+ ['Крипта',[['BTC','115 240',0.7],['ETH','4 615',1.9]]],
+ ['Акции',[['SBER','312,4',2.3],['GAZP','131,9',-1.2],['LKOH','6 412',1.0],['ROSN','432,1',1.4],['NVTK','1 087',-2.0],['YDEX','4 190',0.8],['TCSG','3 275',1.6],['GMKN','129,4',0.5],['PLZL','1 912',0.4],['VTBR','78,5',2.8],['MOEX','203,1',1.1]]]];
+function fillQuotes(box){
+  box.innerHTML=Q.map(([g,rows])=>'<div class="qg">'+g+'</div>'+rows.map(([n,p,c])=>`<div class="qrow"><span class="qn">${n}</span><span class="qp">${p}</span><span class="qc ${c>=0?'up':'dn'}">${c>=0?'▲':'▼'} ${Math.abs(c).toFixed(1).replace('.',',')}%</span></div>`).join('')).join('');
+}
+
+
+/* ═══════════ v2: группы, подпанель, модули ═══════════ */
+const GICONS={
+  desk:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M11 10v10"/></svg>',
+  news:'<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+  sec:'<svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/></svg>',
+  mkt:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16"/></svg>',
+  macro:'<svg viewBox="0 0 24 24"><path d="M3 12c3-6 6 6 9 0s6 6 9 0"/></svg>',
+  tools:'<svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h3M13 11h3M8 15h3M13 15h3"/></svg>',
+};
+const GROUPS=[
+  {id:'desk', name:'Стол',   key:'F1', items:[{id:'desk',n:'Рабочий стол',d:'панели: лента, котировки, макро…',ic:'▦'}]},
+  {id:'news', name:'Новости',key:'F2', n:18, items:[
+    {id:'feed',n:'Лента',d:'все источники, фильтры, важное',ic:'≡',fs:1},{id:'map',n:'Карта рынков',d:'горячие бумаги по числу новостей',ic:'◫',fs:1},
+    {id:'cal',n:'Календарь',d:'события, отсечки, заседания',ic:'◷',fs:1},{id:'archive',n:'Архив',d:'поиск по истории',ic:'⌕',fs:1}]},
+  {id:'sec',  name:'Бумаги', key:'F3', items:[
+    {id:'sec',n:'Поиск бумаги',d:'акции, ОФЗ, корпоративные облигации',ic:'⌕'},{id:'sec:bonds',n:'Облигации',d:'ОФЗ, кривая, аукционы',ic:'₽'},
+    {id:'sec:stocks',n:'Акции',d:'TQBR, дивиденды, отчёты',ic:'▲'},{id:'sec:div',n:'Дивиденды',d:'календарь отсечек',ic:'◆'}]},
+  {id:'mkt',  name:'Рынки',  key:'F4', items:[
+    {id:'quotes',n:'Котировки',d:'31 инструмент, 5 групп',ic:'%',fs:1},{id:'chart',n:'График',d:'свечи, новости на графике',ic:'∿',fs:1},
+    {id:'mkt:fx',n:'Валюты',d:'курсы ЦБ и биржа',ic:'$'},{id:'mkt:cmd',n:'Сырьё',d:'фьючерсы MOEX',ic:'◉'},{id:'mkt:crypto',n:'Крипта',d:'CoinGecko',ic:'₿'}]},
+  {id:'macro',name:'Макро',  key:'F5', items:[
+    {id:'macro',n:'Обзор',d:'ставка, инфляция, ВВП',ic:'∿',fs:1},{id:'cbr',n:'Банк России',d:'заседания, сигнал, прогноз',ic:'🏛',fs:1},
+    {id:'budget',n:'Бюджет',d:'исполнение, ФНБ, ОФЗ',ic:'₽',fs:1},{id:'macro:infl',n:'Инфляция',d:'недельная, месячная, ожидания',ic:'%'},{id:'macro:stat',n:'Росстат',d:'ВВП, промпроизводство, розница',ic:'▤'}]},
+  {id:'tools',name:'Сервис', key:'F6', n:2, items:[
+    {id:'chat',n:'Чат',d:'4 в сети',ic:'◌',fs:1},{id:'tools:alerts',n:'Оповещения',d:'цена, ставка, слово в новостях',ic:'♪'},
+    {id:'tools:calc',n:'Калькулятор',d:'доходность, НКД, дюрация',ic:'='},{id:'tools:set',n:'Настройки',d:'тема, источники, раскладка',ic:'⚙'}]},
+];
+const MODS=[...document.querySelectorAll('.mod')];
+let curMod='desk', curGroup=null, curItem='desk';
+
+/* колонка групп */
+const rail=document.getElementById('rail'), keys=document.getElementById('keys');
+GROUPS.forEach(g=>{
+  const b=document.createElement('button');b.className='rb';b.dataset.g=g.id;b.title=g.name+' · '+g.key;
+  b.innerHTML=GICONS[g.id]+'<span>'+g.name+'</span>'+(g.n?'<span class="n">'+g.n+'</span>':'');
+  b.onclick=()=>clickGroup(g.id);
+  rail.appendChild(b);
+  const k=document.createElement('button');k.className='hbtn';k.dataset.g=g.id;k.innerHTML='<kbd>'+g.key+'</kbd>'+g.name.toLowerCase();
+  k.onclick=()=>clickGroup(g.id);keys.insertBefore(k,keys.querySelector('.st'));
+});
+function clickGroup(gid){
+  const g=GROUPS.find(x=>x.id===gid);
+  if(g.items.length===1){closeFly();openItem(g.items[0].id);return}
+  if(curGroup===gid){closeFly();return}
+  openFly(gid);
+}
+const fly=document.getElementById('fly'),flyBack=document.getElementById('flyBack');
+function openFly(gid){
+  const g=GROUPS.find(x=>x.id===gid);curGroup=gid;
+  document.getElementById('flyTitle').textContent=g.name;document.getElementById('flyKey').textContent=g.key;
+  document.getElementById('flyList').innerHTML=g.items.map(it=>`<button class="fi ${curItem===it.id?'on':''}" data-id="${it.id}"><span class="ic">${it.ic}</span><span><span>${it.n}</span><span class="d">${it.d}</span></span></button>`).join('');
+  document.querySelectorAll('#flyList .fi').forEach(b=>b.onclick=()=>{openItem(b.dataset.id);closeFly()});
+  fly.classList.add('on');flyBack.classList.add('on');
+  document.querySelectorAll('.rb').forEach(b=>b.classList.toggle('open',b.dataset.g===gid));
+}
+function closeFly(){curGroup=null;fly.classList.remove('on');flyBack.classList.remove('on');document.querySelectorAll('.rb').forEach(b=>b.classList.remove('open'))}
+flyBack.onclick=closeFly;
+function groupOf(itemId){return GROUPS.find(g=>g.items.some(i=>i.id===itemId))}
+function showMod(id){
+  curMod=id;MODS.forEach(m=>m.classList.toggle('on',m.id==='m-'+id));
+}
+function syncRail(){
+  const g=groupOf(curItem);
+  document.querySelectorAll('.rb,.keys .hbtn[data-g]').forEach(b=>b.classList.toggle('on',g&&b.dataset.g===g.id));
+}
+/* открыть пункт: стол / бумаги / полноэкранная версия панели / заглушка */
+var openItem=function(id){
+  if(curMod==='desk'&&addMode&&SECTIONS.some(s=>s.id===id)){addMode=false;openPanel(id);syncRail();return}
+  addMode=false;curItem=id;
+  if(id==='desk'){showMod('desk');placeAll();}
+  else if(id==='sec'||id.startsWith('sec:')){showMod('sec');
+    const q={'sec:bonds':'офз','sec:stocks':'акции','sec:div':'дивиденды'}[id];
+    if(q){secQ.value=q;secSearch(q)} else {secQ.value='';secSearch('')}
+    setTimeout(()=>secQ.focus(),300);}
+  else{
+    const it=GROUPS.flatMap(g=>g.items).find(i=>i.id===id);
+    const g=groupOf(id);
+    document.getElementById('genTitle').textContent=it.n;
+    document.getElementById('genCrumb').innerHTML=g.name+'<i>›</i>'+it.n;
+    const body=document.getElementById('genBody');body.innerHTML='';
+    const sec=SECTIONS.find(s=>s.id===id);
+    if(sec){ // полноэкранная версия панели со стола
+      body.appendChild(document.getElementById('t-'+id).content.cloneNode(true));
+      if(id==='feed') fillFeed(body.querySelector('#feedRows'));
+      if(id==='quotes') fillQuotes(body.querySelector('#qRows'));
+      body.querySelectorAll('.pbody').forEach(p=>{p.style.height='calc(100vh - 44px - 38px - 38px - 30px - 40px)'});
+      const fb=body.querySelector('.feedbody');if(fb){fb.style.maxWidth='860px';fb.style.margin='0 auto'}
+    } else {
+      body.innerHTML=`<div class="stub"><b>${it.n.toUpperCase()}</b><span>${it.d}</span><span style="max-width:420px">Раздел в модели пока не наполнен. По строю он повторит соседние: шапка с крошками, слева фильтры, справа таблица или график, внизу связанные новости из ленты.</span><div class="chips-inline"><span class="chip">данные: ${g.id==='macro'?'ЦБ · Росстат · Минфин':g.id==='mkt'?'MOEX ISS · ЦБ · CoinGecko':'FINFACTS'}</span></div></div>`;
+    }
+    showMod('generic');
+  }
+  syncRail();
+};
+
+/* ═══════════ база бумаг (демо) и калькулятор ═══════════ */
+const DB=[
+ {t:'SU26247RMFS5',n:'ОФЗ-ПД 26247',s:'ОФЗ 26247',isin:'RU000A108EA7',type:'bond',cpn:12.25,freq:2,mat:'2039-05-11',last:'2026-05-13',px:98.42,ch:0.31,nom:1000},
+ {t:'SU26248RMFS3',n:'ОФЗ-ПД 26248',s:'ОФЗ 26248',isin:'RU000A108EH4',type:'bond',cpn:12.25,freq:2,mat:'2040-05-16',last:'2026-05-18',px:98.10,ch:0.28,nom:1000},
+ {t:'SU26246RMFS7',n:'ОФЗ-ПД 26246',s:'ОФЗ 26246',isin:'RU000A108DZ5',type:'bond',cpn:12.00,freq:2,mat:'2036-03-12',last:'2026-09-09',px:97.65,ch:0.22,nom:1000},
+ {t:'SU26245RMFS9',n:'ОФЗ-ПД 26245',s:'ОФЗ 26245',isin:'RU000A108CZ8',type:'bond',cpn:12.00,freq:2,mat:'2035-09-26',last:'2026-03-27',px:97.90,ch:0.19,nom:1000},
+ {t:'SU26244RMFS2',n:'ОФЗ-ПД 26244',s:'ОФЗ 26244',isin:'RU000A1078V0',type:'bond',cpn:11.25,freq:2,mat:'2034-03-15',last:'2026-03-19',px:94.30,ch:0.35,nom:1000},
+ {t:'SU26243RMFS4',n:'ОФЗ-ПД 26243',s:'ОФЗ 26243',isin:'RU000A106E90',type:'bond',cpn:9.80,freq:2,mat:'2038-05-19',last:'2026-05-21',px:83.15,ch:0.41,nom:1000},
+ {t:'SU26238RMFS4',n:'ОФЗ-ПД 26238',s:'ОФЗ 26238',isin:'RU000A1038V6',type:'bond',cpn:7.10,freq:2,mat:'2041-05-15',last:'2026-05-21',px:62.80,ch:0.52,nom:1000},
+ {t:'SU26240RMFS0',n:'ОФЗ-ПД 26240',s:'ОФЗ 26240',isin:'RU000A103BR0',type:'bond',cpn:7.00,freq:2,mat:'2036-07-30',last:'2026-08-06',px:68.40,ch:0.38,nom:1000},
+ {t:'SU26239RMFS2',n:'ОФЗ-ПД 26239',s:'ОФЗ 26239',isin:'RU000A103901',type:'bond',cpn:6.90,freq:2,mat:'2031-07-23',last:'2026-07-30',px:81.20,ch:0.24,nom:1000},
+ {t:'RU000A108G70',n:'Сбербанк 001Р-SBER48',s:'Сбер облигации',isin:'RU000A108G70',type:'bond',cpn:13.90,freq:4,mat:'2028-11-14',last:'2026-08-14',px:101.20,ch:0.05,nom:1000},
+ {t:'SBER',n:'Сбербанк, ао',s:'Сбер',isin:'RU0009029540',type:'stock',px:312.4,ch:2.3,div:34.84,lot:10},
+ {t:'SBERP',n:'Сбербанк, ап',s:'Сбер преф',isin:'RU0009029557',type:'stock',px:311.1,ch:2.1,div:34.84,lot:10},
+ {t:'GAZP',n:'Газпром, ао',s:'Газпром',isin:'RU0007661625',type:'stock',px:131.9,ch:-1.2,div:0,lot:10},
+ {t:'LKOH',n:'Лукойл, ао',s:'Лукойл',isin:'RU0009024277',type:'stock',px:6412,ch:1.0,div:1010,lot:1},
+ {t:'ROSN',n:'Роснефть, ао',s:'Роснефть',isin:'RU000A0J2Q06',type:'stock',px:432.1,ch:1.4,div:51.15,lot:1},
+ {t:'NVTK',n:'Новатэк, ао',s:'Новатэк',isin:'RU000A0DKVS5',type:'stock',px:1087,ch:-2.0,div:79.4,lot:1},
+ {t:'VTBR',n:'ВТБ, ао',s:'ВТБ',isin:'RU000A0JP5V6',type:'stock',px:78.5,ch:2.8,div:25.58,lot:1},
+ {t:'MOEX',n:'Московская биржа, ао',s:'Мосбиржа',isin:'RU000A0JR4A1',type:'stock',px:203.1,ch:1.1,div:26.11,lot:10},
+ {t:'YDEX',n:'Яндекс, ао',s:'Яндекс',isin:'RU000A107T19',type:'stock',px:4190,ch:0.8,div:80,lot:1},
+ {t:'PLZL',n:'Полюс, ао',s:'Полюс',isin:'RU000A0JNAA8',type:'stock',px:1912,ch:0.4,div:73,lot:1},
+];
+const secQ=document.getElementById('secQ'),secRes=document.getElementById('secRes'),secCard=document.getElementById('secCard'),secEl=document.getElementById('sec');
+let secSel=null, secHi=0, secList=[];
+const norm=s=>s.toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9]/g,'');
+function secSearch(q){
+  const nq=norm(q);
+  if(q==='акции') secList=DB.filter(x=>x.type==='stock');
+  else if(q==='офз'||q==='облигации') secList=DB.filter(x=>x.type==='bond');
+  else if(q==='дивиденды') secList=DB.filter(x=>x.type==='stock'&&x.div>0).sort((a,b)=>b.div/b.px-a.div/a.px);
+  else if(!nq) secList=[];
+  else secList=DB.filter(x=>[x.t,x.n,x.s,x.isin].some(f=>norm(f).includes(nq)));
+  secHi=0;renderRes(q);
+}
+function hl(s,q){if(!q)return s;const i=norm(s).indexOf(norm(q));return s}
+function renderRes(q){
+  secRes.innerHTML=secList.map((x,i)=>`<div class="ri ${i===secHi?'on':''} ${secSel===x?'on':''}" data-i="${i}">
+    <span class="tk ${x.type==='bond'?'':''}" style="${x.type==='bond'?'color:var(--blue);border-color:#16324a;background:#0a1622':''}">${x.type==='bond'?'ОФЗ':x.t}</span>
+    <span><span class="nm">${x.n}</span><span class="isin">${x.isin}${x.type==='bond'?' · купон '+x.cpn.toFixed(2)+'% · до '+fmtD(x.mat):' · лот '+x.lot}</span></span>
+    <span class="px">${x.type==='bond'?x.px.toFixed(2)+'%':fmtN(x.px)}<small class="${x.ch>=0?'up':'dn'}">${x.ch>=0?'▲':'▼'} ${Math.abs(x.ch).toFixed(2)}%</small></span></div>`).join('')
+    ||(q?'<div class="stub" style="padding:22px"><span>Ничего не нашлось по «'+q+'»</span></div>':'');
+  secRes.querySelectorAll('.ri').forEach(r=>r.onclick=()=>openSec(secList[+r.dataset.i]));
+}
+secQ.addEventListener('input',()=>secSearch(secQ.value.trim()));
+secQ.addEventListener('keydown',e=>{
+  if(e.key==='ArrowDown'){secHi=Math.min(secList.length-1,secHi+1);renderRes(secQ.value)}
+  if(e.key==='ArrowUp'){secHi=Math.max(0,secHi-1);renderRes(secQ.value)}
+  if(e.key==='Enter'&&secList[secHi]) openSec(secList[secHi]);
+  if(e.key==='Escape'){if(secSel){secSel=null;secEl.classList.remove('has');secEl.classList.add('empty');secCard.innerHTML='';renderRes(secQ.value)}else openItem('desk')}
+});
+const fmtN=n=>n.toLocaleString('ru-RU',{maximumFractionDigits:2});
+const fmtD=s=>{const[y,m,d]=s.split('-');return d+'.'+m+'.'+y};
+const days=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5);
+const TODAY='2026-09-14';
+/* облигационная математика: цена ↔ доходность к погашению, НКД, дюрация */
+function bondCF(x){const cf=[];const per=12/x.freq;let d=new Date(x.last);while(true){d=new Date(d);d.setMonth(d.getMonth()+per);const s=d.toISOString().slice(0,10);if(s>x.mat){break}cf.push({d:s,c:x.nom*x.cpn/100/x.freq});if(s===x.mat)break}if(!cf.length||cf[cf.length-1].d!==x.mat)cf.push({d:x.mat,c:x.nom*x.cpn/100/x.freq});cf[cf.length-1].c+=x.nom;return cf}
+function nkd(x){const per=365/x.freq;const dd=days(x.last,TODAY);return x.nom*x.cpn/100/x.freq*Math.min(1,dd/per)}
+function pvAt(x,y){const cf=bondCF(x);return cf.reduce((s,c)=>s+c.c/Math.pow(1+y/100,days(TODAY,c.d)/365),0)}
+function ytm(x,pxPct){const dirty=x.nom*pxPct/100+nkd(x);let lo=0,hi=60;for(let i=0;i<60;i++){const m=(lo+hi)/2;pvAt(x,m)>dirty?lo=m:hi=m}return (lo+hi)/2}
+function priceAt(x,y){return (pvAt(x,y)-nkd(x))/x.nom*100}
+function duration(x,y){const cf=bondCF(x);const pv=pvAt(x,y);const mac=cf.reduce((s,c)=>{const t=days(TODAY,c.d)/365;return s+t*c.c/Math.pow(1+y/100,t)},0)/pv;return {mac,mod:mac/(1+y/100)}}
+var openSec=function(x){
+  secSel=x;secEl.classList.remove('empty');secEl.classList.add('has');renderRes(secQ.value);
+  document.getElementById('secCrumb').innerHTML='Бумаги<i>›</i>'+(x.type==='bond'?'Облигации':'Акции')+'<i>›</i>'+x.t;
+  const news=NEWS.filter(n=>n.tk.some(t=>t===x.t||(x.type==='bond'&&['OFZ','RGBI'].includes(t)))).slice(0,3);
+  const newsHtml='<div class="cnews"><h3>Новости по бумаге</h3>'+(news.length?news.map(n=>`<article class="row"><div class="time">${n.t}</div><div><div class="src">${n.src}</div><div class="txt">${n.txt}</div><div class="meta">${n.tags.map(t=>'<span class="tag">'+t+'</span>').join('')}<span class="lnk">первоисточник</span></div></div></article>`).join(''):'<div class="stub" style="padding:14px"><span>За сутки новостей по бумаге не было</span></div>')+'</div>';
+  if(x.type==='bond'){
+    const y=ytm(x,x.px),d=duration(x,y),a=nkd(x),cf=bondCF(x);
+    secCard.innerHTML=`<div class="ch"><div><h1>${x.n}</h1><div class="sub">${x.isin} · ${x.t} · TQOB · номинал ${fmtN(x.nom)} ₽</div></div>
+      <div class="pxbig"><b>${x.px.toFixed(2)}%</b><i class="${x.ch>=0?'up':'dn'}">${x.ch>=0?'▲':'▼'} ${Math.abs(x.ch).toFixed(2)}% за день</i></div></div>
+    <div class="kv"><div><small>ДОХОДНОСТЬ К ПОГАШЕНИЮ</small><b class="up">${y.toFixed(2)}%</b></div><div><small>КУПОН</small><b>${x.cpn.toFixed(2)}% · ${(x.nom*x.cpn/100/x.freq).toFixed(2)} ₽</b></div><div><small>ПОГАШЕНИЕ</small><b>${fmtD(x.mat)}</b></div><div><small>ДО ПОГАШЕНИЯ</small><b>${(days(TODAY,x.mat)/365).toFixed(1)} лет</b></div><div><small>НКД</small><b>${a.toFixed(2)} ₽</b></div><div><small>ДЮРАЦИЯ МОД.</small><b>${d.mod.toFixed(2)}</b></div><div><small>СЛЕД. КУПОН</small><b>${fmtD(cf[0].d)}</b></div><div><small>ВЫПЛАТ</small><b>${x.freq} в год · ${cf.length} осталось</b></div></div>
+    <div class="calc">
+      <div><h3>Цена → доходность</h3><div class="f">
+        <label>Цена, % номинала</label><input id="cPx" value="${x.px.toFixed(2)}">
+        <label>Доходность к погашению</label><span class="o big" id="cY">${y.toFixed(2)}%</span>
+        <label>Текущая доходность</label><span class="o" id="cCur">${(x.cpn/x.px*100).toFixed(2)}%</span>
+        <label>Простая к погашению</label><span class="o" id="cSimple">—</span>
+        <span class="note">Доходность эффективная, к погашению, по фактическим датам купонов; без комиссий и налога.</span></div></div>
+      <div><h3>Сделка</h3><div class="f">
+        <label>Количество, шт</label><input id="cN" value="100">
+        <label>Целевая доходность, %</label><input id="cTy" value="${y.toFixed(2)}">
+        <label>Цена при такой доходности</label><span class="o" id="cPxAt">${x.px.toFixed(2)}%</span>
+        <label>Чистая стоимость</label><span class="o" id="cClean">—</span>
+        <label>НКД к уплате</label><span class="o" id="cNkd">—</span>
+        <label>Итого к оплате</label><span class="o big" id="cTotal">—</span>
+        <label>Купонов до погашения</label><span class="o" id="cCpns">—</span>
+        <label>Изм. цены при ±1 п.п. ставки</label><span class="o" id="cDv">≈ ∓${(d.mod*x.px/100).toFixed(2)} п.п.</span></div></div>
+    </div>${newsHtml}`;
+    const rc=()=>{const p=parseFloat(cPx.value.replace(',','.'))||x.px;const yy=ytm(x,p);cY.textContent=yy.toFixed(2)+'%';cCur.textContent=(x.cpn/p*100).toFixed(2)+'%';
+      const T=days(TODAY,x.mat)/365,cpnTot=cf.reduce((s,c)=>s+c.c,0)-x.nom;cSimple.textContent=(((x.nom+cpnTot)-(x.nom*p/100+a))/(x.nom*p/100+a)/T*100).toFixed(2)+'%';
+      const n=parseInt(cN.value)||0,ty=parseFloat(cTy.value.replace(',','.'))||yy;const pa=priceAt(x,ty);cPxAt.textContent=pa.toFixed(2)+'%';
+      const clean=n*x.nom*pa/100,nk=n*a;cClean.textContent=fmtN(Math.round(clean))+' ₽';cNkd.textContent=fmtN(Math.round(nk))+' ₽';cTotal.textContent=fmtN(Math.round(clean+nk))+' ₽';cCpns.textContent=fmtN(Math.round(n*cpnTot))+' ₽ · '+cf.length+' выплат'};
+    ['cPx','cN','cTy'].forEach(id=>document.getElementById(id).addEventListener('input',rc));rc();
+  } else {
+    secCard.innerHTML=`<div class="ch"><div><h1>${x.n}</h1><div class="sub">${x.isin} · ${x.t} · TQBR · лот ${x.lot}</div></div>
+      <div class="pxbig"><b>${fmtN(x.px)} ₽</b><i class="${x.ch>=0?'up':'dn'}">${x.ch>=0?'▲':'▼'} ${Math.abs(x.ch).toFixed(2)}% за день</i></div></div>
+    <div class="kv"><div><small>ДИВИДЕНД ЗА ГОД</small><b>${x.div?fmtN(x.div)+' ₽':'не платит'}</b></div><div><small>ДИВ. ДОХОДНОСТЬ</small><b class="${x.div?'up':''}">${x.div?(x.div/x.px*100).toFixed(2)+'%':'—'}</b></div><div><small>ЛОТ</small><b>${x.lot} шт · ${fmtN(x.px*x.lot)} ₽</b></div><div><small>НОВОСТЕЙ ЗА ДЕНЬ</small><b>${news.length||'—'}</b></div></div>
+    <div class="calc"><div><h3>Сделка</h3><div class="f">
+        <label>Количество лотов</label><input id="sL" value="10">
+        <label>Цена</label><input id="sP" value="${x.px}">
+        <label>Акций</label><span class="o" id="sN">—</span>
+        <label>Сумма</label><span class="o big" id="sT">—</span>
+        <label>Дивидендов в год</label><span class="o" id="sD">—</span></div></div>
+      <div><h3>Цель</h3><div class="f">
+        <label>Целевая цена</label><input id="sTp" value="${Math.round(x.px*1.1)}">
+        <label>Потенциал</label><span class="o big" id="sUp">—</span>
+        <label>Результат по позиции</label><span class="o" id="sRes">—</span>
+        <span class="note">Не является инвестиционной рекомендацией.</span></div></div></div>${newsHtml}`;
+    const rc=()=>{const l=parseInt(sL.value)||0,p=parseFloat(sP.value.replace(',','.'))||x.px,tp=parseFloat(sTp.value.replace(',','.'))||p;const n=l*x.lot;sN.textContent=n+' шт';sT.textContent=fmtN(Math.round(n*p))+' ₽';sD.textContent=x.div?fmtN(Math.round(n*x.div))+' ₽':'—';
+      const u=(tp/p-1)*100;sUp.textContent=(u>=0?'+':'')+u.toFixed(1)+'%';sUp.className='o big '+(u>=0?'up':'dn');sRes.textContent=(u>=0?'+':'')+fmtN(Math.round(n*(tp-p)))+' ₽'};
+    ['sL','sP','sTp'].forEach(id=>document.getElementById(id).addEventListener('input',rc));rc();
+  }
+  secCard.scrollTop=0;
+};
+
+/* ═══════════ командная строка и клавиши ═══════════ */
+const ALIAS={стол:'desk',лента:'feed',новости:'feed',карта:'map',календарь:'cal',архив:'archive',котировки:'quotes',график:'chart',валюты:'mkt:fx',сырье:'mkt:cmd',крипта:'mkt:crypto',макро:'macro',ставка:'cbr',цб:'cbr',бюджет:'budget',инфляция:'macro:infl',росстат:'macro:stat',чат:'chat',оповещения:'tools:alerts',калькулятор:'tools:calc',настройки:'tools:set',бумаги:'sec',облигации:'sec:bonds',офз:'sec:bonds',акции:'sec:stocks',дивиденды:'sec:div'};
+document.getElementById('cmdIn').addEventListener('keydown',e=>{
+  if(e.key!=='Enter') return;
+  const q=e.target.value.trim(); if(!q) return; const lq=norm(q);
+  const key=Object.keys(ALIAS).find(k=>norm(k)===lq)||Object.keys(ALIAS).find(k=>norm(k).startsWith(lq));
+  const hit=DB.find(x=>[x.t,x.n,x.s,x.isin].some(f=>norm(f)===lq))||DB.find(x=>[x.t,x.n,x.s,x.isin].some(f=>norm(f).includes(lq)&&lq.length>=3));
+  if(hit){openItem('sec');secQ.value=q;secSearch(q);openSec(hit);toast('Открыта бумага <b>'+hit.t+'</b>')}
+  else if(key){openItem(ALIAS[key]);toast('Раздел <b>'+key+'</b>')}
+  else toast('Не понял. Примеры: <b>офз 26247</b>, <b>сбер</b>, <b>инфляция</b>');
+  e.target.value='';closeFly();
+});
+document.addEventListener('keydown',e=>{
+  const g=GROUPS.find(x=>x.key===e.key);
+  if(g){e.preventDefault();clickGroup(g.id);return}
+  if(e.key==='Escape'){if(curGroup)closeFly();else if(maxed)toggleMax(maxed);else if(document.activeElement!==secQ&&curMod!=='desk')openItem('desk')}
+  if(e.key==='/'&&document.activeElement.tagName!=='INPUT'){e.preventDefault();document.getElementById('cmdIn').focus()}
+});
+let tt;function toast(html){const t=document.getElementById('toast');t.innerHTML=html;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
+let addMode=false;document.getElementById('addBtn').onclick=()=>{addMode=true;openFly('news');toast('Выберите панель для стола (Новости / Рынки / Макро)')};
+flyBack.addEventListener('click',()=>addMode=false);
+document.querySelectorAll('[data-layout]').forEach(b=>b.onclick=()=>applyLayout(b.dataset.layout));
+
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('ru-RU')},1000);
+document.getElementById('thBtn').onclick=()=>document.documentElement.classList.toggle('light');
+
+/* ═══════════ v3: портфель ═══════════ */
+GROUPS.splice(3,0,{id:'pf',name:'Портфель',key:'F4',items:[{id:'pf',n:'Портфели',d:'позиции, результат, структура',ic:'◈'}]});
+GROUPS.find(g=>g.id==='mkt').key='F5';GROUPS.find(g=>g.id==='macro').key='F6';GROUPS.find(g=>g.id==='tools').key='F7';
+GICONS.pf='<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 019 9h-9V3z"/><path d="M10 5.3A9 9 0 1019 14"/></svg>';
+/* пересобрать колонку и клавиши */
+rail.innerHTML='';keys.querySelectorAll('.hbtn[data-g]').forEach(b=>b.remove());
+GROUPS.forEach(g=>{
+  const b=document.createElement('button');b.className='rb';b.dataset.g=g.id;b.title=g.name+' · '+g.key;
+  b.innerHTML=GICONS[g.id]+'<span>'+g.name+'</span>'+(g.n?'<span class="n">'+g.n+'</span>':'');
+  b.onclick=()=>clickGroup(g.id);rail.appendChild(b);
+  const k=document.createElement('button');k.className='hbtn';k.dataset.g=g.id;k.innerHTML='<kbd>'+g.key+'</kbd>'+g.name.toLowerCase();
+  k.onclick=()=>clickGroup(g.id);keys.insertBefore(k,keys.querySelector('.st'));
+});
+/* модуль */
+const pfMod=document.createElement('section');pfMod.className='mod';pfMod.id='m-pf';
+pfMod.innerHTML=`<div class="mh"><b>Портфель</b><span class="crumb" id="pfCrumb"></span><span class="sp"></span><span class="crumb">цены — последние из базы · демо</span></div>
+<div class="mb"><div class="pf">
+  <div class="pfh" id="pfTabs"></div>
+  <div class="pfk" id="pfK"></div>
+  <div class="alloc" id="pfAlloc"></div><div class="alloc-l" id="pfAllocL"></div>
+  <div class="pfb" id="pfBody"></div>
+  <div class="pfadd"><div class="sug" id="pfSug"></div><span class="lbl">Добавить</span><input class="q" id="pfQ" placeholder="бумага: офз 26247, сбер…" autocomplete="off"><span class="lbl">шт</span><input class="n" id="pfN" value="10"><span class="lbl">цена</span><input class="n" id="pfP" placeholder="тек."><button class="hbtn on" id="pfAddBtn">+ в портфель</button></div>
+</div></div>`;
+document.getElementById('work').appendChild(pfMod);MODS.push(pfMod);
+ALIAS['портфель']='pf';
+const _openItem=openItem;
+openItem=function(id){if(id==='pf'){addMode=false;curItem='pf';showMod('pf');renderPf();syncRail();return}return _openItem(id)};
+
+let PF=[{name:'Основной',pos:[{t:'SU26247RMFS5',q:150,p:96.80},{t:'SU26238RMFS4',q:300,p:58.40},{t:'SBER',q:200,p:284.5},{t:'LKOH',q:5,p:6120},{t:'MOEX',q:100,p:189.0}]},
+        {name:'Облигации',pos:[{t:'SU26248RMFS3',q:100,p:97.20},{t:'SU26244RMFS2',q:100,p:92.10},{t:'RU000A108G70',q:50,p:100.6}]}];
+let pfCur=0, pfSel=null;
+const pfById=t=>DB.find(x=>x.t===t);
+const val=(x,q,p)=>x.type==='bond'?q*x.nom*p/100:q*p;
+function pfCalc(pf){
+  let cost=0,cur=0,day=0,inc=0;const byType={};
+  const rows=pf.pos.map(pos=>{const x=pfById(pos.t);const c=val(x,pos.q,pos.p),v=val(x,pos.q,x.px);cost+=c;cur+=v;day+=v-v/(1+x.ch/100);
+    const y=x.type==='bond'?pos.q*x.nom*x.cpn/100:pos.q*(x.div||0);inc+=y;
+    const k=x.type==='bond'?(x.t.startsWith('SU')?'ОФЗ':'Корп. облигации'):'Акции';byType[k]=(byType[k]||0)+v;
+    return {x,pos,c,v,y}});
+  return {rows,cost,cur,day,inc,byType};
+}
+var renderPf=function(){
+  const pf=PF[pfCur];
+  document.getElementById('pfTabs').innerHTML=PF.map((p,i)=>`<span class="chip ${i===pfCur?'on':''}" data-i="${i}">${p.name} <span class="chip-n">${p.pos.length}</span></span>`).join('')+`<span class="chip plus" id="pfNew">+ новый</span><span class="sp"></span><span class="chip" id="pfRename">переименовать</span><span class="chip" id="pfDel">удалить</span>`;
+  document.querySelectorAll('#pfTabs .chip[data-i]').forEach(c=>c.onclick=()=>{pfCur=+c.dataset.i;renderPf()});
+  document.getElementById('pfNew').onclick=()=>dlg('Новый портфель','Название',v=>{PF.push({name:v||'Портфель '+(PF.length+1),pos:[]});pfCur=PF.length-1;renderPf()});
+  document.getElementById('pfRename').onclick=()=>dlg('Переименовать','Название',v=>{if(v)pf.name=v;renderPf()},pf.name);
+  document.getElementById('pfDel').onclick=()=>{if(PF.length>1){PF.splice(pfCur,1);pfCur=0;renderPf();toast('Портфель удалён')}else toast('Нельзя удалить единственный портфель')};
+  document.getElementById('pfCrumb').innerHTML='Портфель<i>›</i>'+pf.name;
+  const s=pfCalc(pf);const pl=s.cur-s.cost,plp=s.cost?pl/s.cost*100:0,dp=s.cur?s.day/(s.cur-s.day)*100:0;
+  const sg=v=>(v>=0?'+':'−')+fmtN(Math.abs(Math.round(v)));
+  document.getElementById('pfK').innerHTML=`<div><small>Стоимость</small><b>${fmtN(Math.round(s.cur))} ₽</b><i class="${s.day>=0?'up':'dn'}">${sg(s.day)} ₽ · ${dp>=0?'+':''}${dp.toFixed(2)}% за день</i></div>
+    <div><small>Результат</small><b class="${pl>=0?'up':'dn'}">${sg(pl)} ₽</b><i class="${pl>=0?'up':'dn'}">${plp>=0?'+':''}${plp.toFixed(2)}%</i></div>
+    <div><small>Вложено</small><b>${fmtN(Math.round(s.cost))} ₽</b><i>${pf.pos.length} позиций</i></div>
+    <div><small>Купоны и дивиденды, год</small><b>${fmtN(Math.round(s.inc))} ₽</b><i class="up">${s.cur?(s.inc/s.cur*100).toFixed(2):'0'}% к стоимости</i></div>`;
+  const cols={'ОФЗ':'var(--blue)','Корп. облигации':'#7ba6f0','Акции':'var(--green)'};
+  const tot=Object.values(s.byType).reduce((a,b)=>a+b,0)||1;
+  document.getElementById('pfAlloc').innerHTML=Object.entries(s.byType).map(([k,v])=>`<i style="width:${v/tot*100}%;background:${cols[k]}"></i>`).join('');
+  document.getElementById('pfAllocL').innerHTML=Object.entries(s.byType).map(([k,v])=>`<span><i style="background:${cols[k]}"></i>${k} ${(v/tot*100).toFixed(0)}%</span>`).join('')||'<span>структура появится после первой позиции</span>';
+  const body=document.getElementById('pfBody');
+  if(!pf.pos.length){body.innerHTML='<div class="pfempty"><b>ПОРТФЕЛЬ ПУСТ</b>Добавьте бумагу в строке ниже — или откройте карточку бумаги в разделе «Бумаги» и нажмите «в портфель».</div>';return}
+  body.innerHTML=`<table><tr><th>Тикер</th><th>Бумага</th><th>Кол-во</th><th>Средняя</th><th>Цена</th><th>Стоимость</th><th>Результат</th><th>%</th><th>За день</th><th>Доля</th><th>Доход/год</th><th></th></tr>`+
+    s.rows.map((r,i)=>{const pl=r.v-r.c,plp=pl/r.c*100,w=r.v/s.cur*100;return `<tr>
+      <td><span class="tk" style="${r.x.type==='bond'?'color:var(--blue);border-color:#16324a;background:#0a1622':''}">${r.x.type==='bond'?r.x.s.replace('ОФЗ ','ОФЗ '):r.x.t}</span></td>
+      <td style="text-align:left;color:var(--tx)">${r.x.n}</td><td>${fmtN(r.pos.q)}</td>
+      <td>${r.x.type==='bond'?r.pos.p.toFixed(2)+'%':fmtN(r.pos.p)}</td><td>${r.x.type==='bond'?r.x.px.toFixed(2)+'%':fmtN(r.x.px)}</td>
+      <td>${fmtN(Math.round(r.v))}</td><td class="${pl>=0?'up':'dn'}">${sg(pl)}</td><td class="${pl>=0?'up':'dn'}">${plp>=0?'+':''}${plp.toFixed(1)}%</td>
+      <td class="${r.x.ch>=0?'up':'dn'}">${r.x.ch>=0?'+':''}${r.x.ch.toFixed(1)}%</td><td><span class="w" style="width:${Math.max(4,w*0.8)}px"></span>${w.toFixed(1)}%</td><td>${fmtN(Math.round(r.y))}</td>
+      <td><span class="del" data-i="${i}" title="Убрать">×</span></td></tr>`}).join('')+
+    `<tr class="tot"><td></td><td style="text-align:left">Итого</td><td></td><td></td><td></td><td>${fmtN(Math.round(s.cur))}</td><td class="${pl>=0?'up':'dn'}">${sg(pl)}</td><td class="${pl>=0?'up':'dn'}">${plp>=0?'+':''}${plp.toFixed(1)}%</td><td class="${s.day>=0?'up':'dn'}">${dp>=0?'+':''}${dp.toFixed(1)}%</td><td>100%</td><td>${fmtN(Math.round(s.inc))}</td><td></td></tr></table>`;
+  body.querySelectorAll('.del').forEach(d=>d.onclick=()=>{pf.pos.splice(+d.dataset.i,1);renderPf()});
+};
+/* добавление позиции: строка поиска с подсказками */
+const pfQ=document.getElementById('pfQ'),pfSug=document.getElementById('pfSug'),pfN=document.getElementById('pfN'),pfP=document.getElementById('pfP');
+pfQ.addEventListener('input',()=>{const q=norm(pfQ.value);pfSel=null;
+  const l=q?DB.filter(x=>[x.t,x.n,x.s,x.isin].some(f=>norm(f).includes(q))).slice(0,8):[];
+  pfSug.innerHTML=l.map((x,i)=>`<div class="ri" data-t="${x.t}"><span class="tk">${x.type==='bond'?'ОФЗ':x.t}</span><span><span class="nm">${x.n}</span></span><span class="px">${x.type==='bond'?x.px.toFixed(2)+'%':fmtN(x.px)}</span></div>`).join('');
+  pfSug.classList.toggle('on',l.length>0);
+  pfSug.querySelectorAll('.ri').forEach(r=>r.onclick=()=>{pfSel=pfById(r.dataset.t);pfQ.value=pfSel.n;pfP.value=pfSel.type==='bond'?pfSel.px.toFixed(2):pfSel.px;pfSug.classList.remove('on');pfN.focus()});
+});
+pfQ.addEventListener('keydown',e=>{if(e.key==='Enter'){const f=pfSug.querySelector('.ri');if(f)f.click()}if(e.key==='Escape')pfSug.classList.remove('on')});
+function pfAdd(x,q,p){
+  const pf=PF[pfCur];const ex=pf.pos.find(o=>o.t===x.t);
+  if(ex){ex.p=(ex.p*ex.q+p*q)/(ex.q+q);ex.q+=q}else pf.pos.push({t:x.t,q,p});
+  renderPf();toast('<b>'+x.t+'</b> — '+q+' шт в «'+pf.name+'»');
+}
+document.getElementById('pfAddBtn').onclick=()=>{const x=pfSel||DB.find(v=>norm(v.n)===norm(pfQ.value));if(!x){toast('Выберите бумагу из подсказки');pfQ.focus();return}
+  const q=parseFloat(pfN.value)||0,p=parseFloat(pfP.value.replace(',','.'))||(x.type==='bond'?x.px:x.px);if(q<=0){toast('Укажите количество');return}
+  pfAdd(x,q,p);pfQ.value='';pfSel=null;pfP.value=''};
+/* кнопка «в портфель» в карточке бумаги */
+const _openSec=openSec;
+openSec=function(x){_openSec(x);const ch=secCard.querySelector('.ch');const a=document.createElement('div');a.className='act';
+  a.innerHTML=`<button class="hbtn on">◈ в портфель</button>`;ch.appendChild(a);
+  a.querySelector('button').onclick=()=>dlg('В портфель «'+PF[pfCur].name+'»','Количество, шт',v=>{const q=parseFloat(v);if(q>0){pfAdd(x,q,x.px);}},x.type==='bond'?'100':String(x.lot*10));
+};
+/* диалог */
+const dw=document.createElement('div');dw.id='dlgWrap';dw.innerHTML='<div id="dlg"><h3 id="dlgT"></h3><input id="dlgI"><div class="b"><button class="hbtn" id="dlgC">отмена</button><button class="ok" id="dlgOk">готово</button></div></div>';document.body.appendChild(dw);
+function dlg(title,ph,cb,val){document.getElementById('dlgT').textContent=title;const i=document.getElementById('dlgI');i.placeholder=ph;i.value=val||'';dw.classList.add('on');requestAnimationFrame(()=>dw.classList.add('vis'));setTimeout(()=>{i.focus();i.select()},60);
+  const close=()=>{dw.classList.remove('vis');setTimeout(()=>dw.classList.remove('on'),250)};
+  document.getElementById('dlgOk').onclick=()=>{cb(i.value.trim());close()};document.getElementById('dlgC').onclick=close;
+  i.onkeydown=e=>{if(e.key==='Enter')document.getElementById('dlgOk').click();if(e.key==='Escape')close()}}
+syncRail();
+
+
+/* ═══════════ v4 ═══════════ */
+/* группы: + «Мир», клавиши заново */
+GROUPS.splice(2,0,{id:'world',name:'Мир',key:'F3',n:3,items:[
+  {id:'world',n:'Живая карта',d:'события по миру на карте',ic:'◍'},
+  {id:'tv',n:'ТВ',d:'деловые телеканалы в эфире',ic:'▶'},
+  {id:'wnews',n:'Мировые новости',d:'Reuters · Bloomberg · FT · Nikkei',ic:'≡'}]});
+['desk','news','world','sec','pf','mkt','macro','tools'].forEach((id,i)=>{GROUPS.find(g=>g.id===id).key='F'+(i+1)});
+GICONS.world='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16"/></svg>';
+GICONS.mkt='<svg viewBox="0 0 24 24"><path d="M4 18l4-5 4 3 4-7 4 3"/><path d="M4 21h16"/></svg>';
+function buildRail(){
+  rail.innerHTML='';keys.querySelectorAll('.hbtn[data-g],.vsep').forEach(b=>b.remove());
+  GROUPS.forEach((g,i)=>{
+    const b=document.createElement('button');b.className='rb';b.dataset.g=g.id;b.title=g.name+' · '+g.key;
+    b.innerHTML=GICONS[g.id]+'<span>'+g.name+'</span>'+(g.n?'<span class="n">'+g.n+'</span>':'');
+    b.onclick=()=>clickGroup(g.id);rail.appendChild(b);
+    if(i===0||i===2||i===4){const s=document.createElement('div');s.className='sep';rail.appendChild(s)}
+    const k=document.createElement('button');k.className='hbtn';k.dataset.g=g.id;k.innerHTML='<kbd>'+g.key+'</kbd>'+g.name.toLowerCase();
+    k.onclick=()=>clickGroup(g.id);keys.insertBefore(k,keys.querySelector('.st'));
+  });
+  /* раскладки и «+ панель» — вниз, из шапки стола */
+  const st=keys.querySelector('.st');
+  const vs=document.createElement('span');vs.className='vsep';keys.insertBefore(vs,st);
+  document.querySelectorAll('#m-desk .mh [data-layout]').forEach(b=>{b.classList.add('lay');keys.insertBefore(b,st)});
+  const ab=document.getElementById('addBtn');ab.textContent='+ панель';keys.insertBefore(ab,st);
+  document.querySelectorAll('.keys [data-layout]').forEach(b=>b.onclick=()=>{if(curMod!=='desk')openItem('desk');applyLayout(b.dataset.layout)});
+  ab.onclick=()=>{if(curMod!=='desk')openItem('desk');addMode=true;openFly('news');toast('Выберите панель для стола — Новости, Мир, Рынки или Макро')};
+}
+buildRail();
+
+/* ── автозаполнение стола после закрытия панели ── */
+function fillGaps(){
+  let changed=true,guard=0;const grown=new Set();
+  while(changed&&guard++<60){changed=false;
+    for(const id of Object.keys(state)){const s=state[id];
+      if(s.x+s.w<COLS&&!collides(id,{x:s.x,y:s.y,w:s.w+1,h:s.h})){s.w++;changed=true;grown.add(id);continue}
+      if(s.y+s.h<ROWS&&!collides(id,{x:s.x,y:s.y,w:s.w,h:s.h+1})){s.h++;changed=true;grown.add(id);continue}
+      if(s.x>0&&!collides(id,{x:s.x-1,y:s.y,w:s.w+1,h:s.h})){s.x--;s.w++;changed=true;grown.add(id);continue}
+      if(s.y>0&&!collides(id,{x:s.x,y:s.y-1,w:s.w,h:s.h+1})){s.y--;s.h++;changed=true;grown.add(id);continue}
+    }}
+  grown.forEach(id=>{place(id);panels[id].classList.add('grow');setTimeout(()=>panels[id]&&panels[id].classList.remove('grow'),500)});
+}
+const _closePanel=closePanel;
+closePanel=function(id,byUser){_closePanel(id);if(byUser)setTimeout(fillGaps,60)};
+/* крестик и колонка — «пользовательское» закрытие */
+const _makePanel=makePanel;
+makePanel=function(sec){const el=_makePanel(sec);el.querySelector('[data-act=close]').onclick=()=>closePanel(sec.id,true);return el};
+
+/* ── отправить любой раздел на стол ── */
+const TOD={feed:'feed',map:'map',cal:'cal',archive:'archive',quotes:'quotes',chart:'chart',macro:'macro',cbr:'cbr',budget:'budget',chat:'chat',world:'world',tv:'tv',wnews:'wnews',pf:'pf',sec:'sec','sec:bonds':'sec','sec:stocks':'sec','sec:div':'sec'};
+SECTIONS.push({id:'world',name:'Живая карта',sub:'события по миру'},{id:'tv',name:'ТВ',sub:'прямой эфир'},{id:'wnews',name:'Мировые новости',sub:'Reuters · Bloomberg · FT'},{id:'pf',name:'Портфель',sub:''},{id:'sec',name:'Бумага',sub:''},{id:'quotesx',name:'Котировки',sub:'графики'});
+const RENDER={};
+function sendToDesk(){
+  let id=TOD[curItem];if(!id){toast('Этот раздел на стол пока не отправить');return}
+  if(id==='quotes')id='quotesx';
+  if(panels[id]){openItem('desk');flash(panels[id]);return}
+  openItem('desk');setTimeout(()=>{openPanel(id);if(!panels[id])return;toast('<b>'+SECTIONS.find(s=>s.id===id).name+'</b> добавлена на стол')},120);
+}
+document.querySelectorAll('.mod:not(#m-desk) .mh').forEach(h=>{const b=document.createElement('button');b.className='hbtn tod';b.textContent='◫ на стол';b.onclick=sendToDesk;h.appendChild(b)});
+/* панели без шаблона строятся функцией */
+const _mp2=makePanel;
+makePanel=function(sec){
+  const tpl=document.getElementById('t-'+sec.id);
+  if(tpl) return _mp2(sec);
+  const el=document.createElement('section');el.className='pnl';el.dataset.id=sec.id;
+  el.innerHTML=`<div class="sh"><span class="grip">⋮⋮</span><b>${sec.name}</b><span class="su">${sec.sub||''}</span><button class="sx" data-act="max" title="Развернуть">⤢</button><button class="sx" data-act="close" title="Закрыть">×</button></div><div class="pbody"></div><div class="rz"></div>`;
+  grid.appendChild(el);panels[sec.id]=el;
+  RENDER[sec.id](el.querySelector('.pbody'),true);
+  el.querySelector('.sh').addEventListener('pointerdown',e=>{if(e.target.closest('.sx')||maxed)return;startDrag(sec.id,e)});
+  el.querySelector('.rz').addEventListener('pointerdown',e=>startResize(sec.id,e));
+  el.querySelector('[data-act=close]').onclick=()=>closePanel(sec.id,true);
+  el.querySelector('[data-act=max]').onclick=()=>toggleMax(sec.id);
+  return el;
+};
+
+/* ═══════════ котировки на весь экран ═══════════ */
+function rnd(seed){let s=seed*9301+49297;return()=>{s=(s*9301+49297)%233280;return s/233280}}
+function spark(seed,ch,n=40){const r=rnd(seed);const a=[];let v=100;for(let i=0;i<n;i++){v+=(r()-0.5)*2.2;a.push(v)}const drift=(100*(1+ch/100)-a[n-1])/n;return a.map((x,i)=>x+drift*i)}
+function sparkSvg(seed,ch,big){const d=spark(seed,ch,big?60:40);const mn=Math.min(...d),mx=Math.max(...d);const W=100,H=big?64:34;const pts=d.map((v,i)=>[i/(d.length-1)*W,H-2-(v-mn)/(mx-mn||1)*(H-6)]);const p=pts.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');const col=ch>=0?'#2ee06f':'#ff5252';const g='g'+seed;
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".28"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs><polygon fill="url(#${g})" points="0,${H} ${p} ${W},${H}"/><polyline fill="none" stroke="${col}" stroke-width="1.4" vector-effect="non-scaling-stroke" points="${p}"/><circle cx="${pts[pts.length-1][0]}" cy="${pts[pts.length-1][1]}" r="1.6" fill="${col}"/></svg>`}
+const QX=[
+ ['Главное','',[['IMOEX','Индекс Мосбиржи','2 897,4',1.8,'2 846','2 901',1],['USD/RUB','курс ЦБ на завтра','84,12',-0.4,'83,90','84,60',1],['Brent','ICE, $/барр.','71,18',1.4,'70,02','71,40',1],['Ключевая ставка','Банк России','16,00%',-1.0,'16,00','17,00',1]]],
+ ['Индексы','MOEX ISS · мировые — с задержкой',[['RTS','долларовый','1 112,6',2.1,'1 088','1 115'],['RGBI','гособлигации','117,9',0.6,'117,1','118,0'],['MOEXBC','голубые фишки','1 934',1.7,'1 900','1 939'],['S&P 500','США','6 584',0.2,'6 561','6 590'],['Nasdaq 100','США','22 141',-0.1,'22 080','22 210'],['DAX','Германия','23 410',0.4,'23 300','23 450'],['Nikkei 225','Япония','44 768',0.9,'44 400','44 800'],['Hang Seng','Гонконг','26 388',-0.6,'26 300','26 560'],['Shanghai Comp.','Китай','3 870',0.3,'3 851','3 878']]],
+ ['Валюты','курсы ЦБ · Forex',[['EUR/RUB','курс ЦБ','98,70',-0.5,'98,40','99,30'],['CNY/RUB','курс ЦБ','11,78',-0.3,'11,74','11,84'],['EUR/USD','','1,1732',-0.1,'1,1710','1,1750'],['DXY','индекс доллара','97,64',0.2,'97,40','97,75'],['USD/JPY','','147,2',0.3,'146,6','147,4'],['USD/CNY','','7,121',0.0,'7,115','7,128'],['GBP/USD','','1,3568',-0.2,'1,3550','1,3600'],['USDT/RUB','Garantex-free, биржа','84,30',-0.3,'84,05','84,80']]],
+ ['Сырьё','фьючерсы MOEX · ICE · COMEX',[['Urals','ЦДУ ТЭК, $/барр.','59,40',1.1,'58,60','59,50'],['WTI','NYMEX','67,05',1.2,'66,10','67,20'],['Газ TTF','€/МВт·ч','33,2',-0.8,'33,0','33,7'],['Золото','$/унц.','3 641',0.3,'3 622','3 650'],['Серебро','$/унц.','42,10',0.9,'41,60','42,20'],['Платина','$/унц.','1 392',0.6,'1 380','1 398'],['Палладий','$/унц.','1 174',-0.4,'1 168','1 185'],['Медь','$/т','10 120',0.5,'10 040','10 150'],['Никель','$/т','15 210',-0.7,'15 150','15 380'],['Алюминий','$/т','2 684',0.2,'2 670','2 692'],['Пшеница','$/буш.','5,21',-0.3,'5,18','5,25']]],
+ ['Ставки и долг','Банк России · MOEX',[['RUONIA','овернайт','15,87%',-0.9,'15,80','16,80'],['ОФЗ 2 года','доходность','14,10%',-0.4,'14,05','14,55'],['ОФЗ 10 лет','доходность','14,62%',-0.2,'14,58','14,85'],['UST 10Y','США','4,04%',-0.1,'4,02','4,08'],['Bund 10Y','Германия','2,66%',0.0,'2,64','2,68'],['Ставка ФРС','верхняя граница','4,25%',0.0,'4,25','4,25']]],
+ ['Акции','TQBR · задержка 15 мин',[['SBER','Сбербанк','312,4',2.3,'304,1','313,0'],['GAZP','Газпром','131,9',-1.2,'131,2','133,8'],['LKOH','Лукойл','6 412',1.0,'6 340','6 420'],['ROSN','Роснефть','432,1',1.4,'425,0','433,5'],['NVTK','Новатэк','1 087',-2.0,'1 082','1 112'],['GMKN','Норникель','129,4',0.5,'128,4','130,0'],['YDEX','Яндекс','4 190',0.8,'4 150','4 205'],['TCSG','Т-Технологии','3 275',1.6,'3 220','3 280'],['PLZL','Полюс','1 912',0.4,'1 900','1 920'],['VTBR','ВТБ','78,5',2.8,'76,1','78,9'],['MOEX','Мосбиржа','203,1',1.1,'200,6','203,8'],['MGNT','Магнит','3 840',-0.5,'3 830','3 880']]],
+ ['Крипта','CoinGecko',[['BTC','Bitcoin, $','115 240',0.7,'114 100','115 600'],['ETH','Ethereum, $','4 615',1.9,'4 520','4 630'],['SOL','Solana, $','241',2.4,'234','243'],['TON','Toncoin, $','3,18',-1.1,'3,15','3,24'],['BNB','$','912',0.5,'905','918'],['XRP','$','3,02',-0.8,'3,00','3,06']]],
+];
+const qxMod=document.createElement('section');qxMod.className='mod';qxMod.id='m-quotes';
+qxMod.innerHTML=`<div class="mh"><b>Котировки</b><span class="crumb">Рынки<i>›</i>Котировки</span><span class="crumb" style="margin-left:14px">обновление 30 с</span></div>
+<div class="mb"><div class="qx"><div class="qxh" id="qxTabs"></div><div class="qxb" id="qxBody"></div></div></div>`;
+document.getElementById('work').appendChild(qxMod);MODS.push(qxMod);
+{const b=document.createElement('button');b.className='hbtn tod';b.textContent='◫ на стол';b.onclick=sendToDesk;qxMod.querySelector('.mh').appendChild(b)}
+let qxFilter='all';
+function renderQx(box,compact){
+  let seed=11;
+  box.innerHTML=QX.filter(([g])=>qxFilter==='all'||g===qxFilter).map(([g,src,rows])=>{
+    const ups=rows.filter(r=>r[3]>0).length;
+    return `<div class="qsec"><h3>${g}<span class="up">${ups}↑</span><span class="dn">${rows.length-ups}↓</span><span class="src">${src}</span></h3><div class="qgrid">`+
+      rows.map(r=>{seed+=7;const big=r[6]&&!compact;return `<div class="qc ${big?'big':''}" data-q="${r[0]}"><div class="t"><b>${r[0]}</b><small>${r[1]}</small></div><div class="p"><b>${r[2]}</b><i class="${r[3]>=0?'up':'dn'}">${r[3]>=0?'▲':'▼'} ${Math.abs(r[3]).toFixed(1)}%</i></div>${sparkSvg(seed,r[3],big)}<div class="lh"><span>мин <i>${r[4]}</i></span><span>макс <i>${r[5]}</i></span></div></div>`}).join('')+'</div></div>'}).join('');
+  box.querySelectorAll('.qc').forEach(c=>c.onclick=()=>{const t=c.dataset.q;const x=DB.find(v=>v.t===t||v.s===t);if(x){openItem('sec');secQ.value=t;secSearch(t);openSec(x)}else{openItem('chart');toast('График <b>'+t+'</b>')}});
+}
+function renderQxTabs(){const all=QX.map(q=>q[0]);const ups=QX.flatMap(q=>q[2]).filter(r=>r[3]>0).length,tot=QX.flatMap(q=>q[2]).length;
+  document.getElementById('qxTabs').innerHTML=`<span class="ml">НАСТРОЕНИЕ</span><div class="mbar"><i class="up" style="width:${ups/tot*100}%"></i><i class="dn" style="width:${100-ups/tot*100}%"></i></div><span class="ml"><span class="up">${ups}↑</span> <span class="dn">${tot-ups}↓</span></span><span class="sp"></span>`+
+    ['all',...all].map(g=>`<span class="chip ${qxFilter===g?'on':''}" data-f="${g}">${g==='all'?'Все':g}</span>`).join('');
+  document.querySelectorAll('#qxTabs .chip').forEach(c=>c.onclick=()=>{qxFilter=c.dataset.f;renderQxTabs();renderQx(document.getElementById('qxBody'))})}
+RENDER.quotesx=(box)=>{box.innerHTML='<div class="qxb"></div>';renderQx(box.firstChild,true)};
+
+/* ═══════════ мир: живая карта ═══════════ */
+const WN=[
+ {t:'13:30',c:'Банк России',rg:'Москва',ll:[55.75,37.62],x:'Ключевая ставка снижена до 16,00%',k:'cb'},
+ {t:'13:12',c:'Reuters',rg:'Брюссель',ll:[50.85,4.35],x:'ЕС согласовал 21-й пакет санкций',k:'imp'},
+ {t:'12:55',c:'Bloomberg',rg:'Вашингтон',ll:[38.9,-77.04],x:'Минфин США расширил список SDN на 14 компаний',k:'imp'},
+ {t:'12:40',c:'OPEC',rg:'Вена',ll:[48.21,16.37],x:'ОПЕК+ соберётся в воскресенье, обсуждается пауза в наращивании добычи'},
+ {t:'12:20',c:'Nikkei',rg:'Токио',ll:[35.68,139.69],x:'Банк Японии сохранил ставку, иена слабеет'},
+ {t:'12:05',c:'FT',rg:'Лондон',ll:[51.5,-0.12],x:'Британская инфляция 3,8% — выше прогноза'},
+ {t:'11:48',c:'Xinhua',rg:'Пекин',ll:[39.9,116.4],x:'Китай: экспорт в августе +4,4%, импорт +1,3%'},
+ {t:'11:30',c:'Reuters',rg:'Эр-Рияд',ll:[24.71,46.68],x:'Saudi Aramco повысила цены на нефть для Азии'},
+ {t:'11:10',c:'Bloomberg',rg:'Нью-Йорк',ll:[40.71,-74.0],x:'Фьючерсы на S&P слегка в плюсе перед ФРС'},
+ {t:'10:52',c:'Bloomberg',rg:'Франкфурт',ll:[50.11,8.68],x:'ЕЦБ: Лагард — снижение ставок завершено «на ближайшее время»'},
+ {t:'10:30',c:'ТАСС',rg:'Астана',ll:[51.17,71.43],x:'Казахстан повысил ставку до 18%',k:'cb'},
+ {t:'10:05',c:'Reuters',rg:'Стамбул',ll:[41.01,28.98],x:'ЦБ Турции снизил ставку до 40,5%',k:'cb'},
+ {t:'09:40',c:'Reuters',rg:'Сингапур',ll:[1.35,103.82],x:'Азиатские рынки закрылись разнонаправленно'},
+ {t:'09:15',c:'Bloomberg',rg:'Сан-Паулу',ll:[-23.55,-46.63],x:'Petrobras увеличила дивиденды'},
+ {t:'08:50',c:'Reuters',rg:'Йоханнесбург',ll:[-26.2,28.04],x:'ЮАР: рост ВВП II кв. 0,8%'},
+ {t:'08:30',c:'Reuters',rg:'Мумбаи',ll:[19.08,72.88],x:'RBI не изменил ставку 5,5%',k:'cb'},
+];
+const wmMod=document.createElement('section');wmMod.className='mod';wmMod.id='m-world';
+wmMod.innerHTML=`<div class="mh"><b>Живая карта</b><span class="crumb">Мир<i>›</i>Живая карта</span></div><div class="mb" id="wmBody"></div>`;
+document.getElementById('work').appendChild(wmMod);MODS.push(wmMod);
+{const b=document.createElement('button');b.className='hbtn tod';b.textContent='◫ на стол';b.onclick=sendToDesk;wmMod.querySelector('.mh').appendChild(b)}
+let wmInit=false;
+function renderWorld(box,compact){
+  box.innerHTML=`<div class="wm"><div class="map"><div class="ov"><span class="chip on">Все</span><span class="chip imp">⚡ Важно</span><span class="chip cbr">🏛 ЦБ</span><span class="chip">Санкции</span><span class="chip">Нефть</span></div><div class="lg"><span><i style="background:var(--amber)"></i>событие</span><span><i style="background:var(--red)"></i>важное</span><span><i style="background:var(--blue)"></i>центробанк</span></div><div class="lf" style="position:absolute;inset:0"></div></div>
+    <div class="side"><div class="sh2">Лента мира<span class="su">${WN.length} за сутки</span></div><div class="lst">${WN.map((n,i)=>`<div class="wi ${n.k==='imp'?'imp':''}" data-i="${i}"><span class="t">${n.t}</span><div><div class="c">${n.c}<span class="rg">${n.rg}</span></div><div class="x">${n.x}</div></div></div>`).join('')}</div></div></div>`;
+  const el=box.querySelector('.lf');
+  if(!window.L){el.innerHTML='<div class="stub"><b>КАРТА</b><span>Для карты нужен интернет: подложка загружается с CARTO/OpenStreetMap</span></div>';return}
+  const map=L.map(el,{zoomControl:!compact,attributionControl:!compact,worldCopyJump:true}).setView([35,40],compact?1:2);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap · © CARTO',subdomains:'abcd',maxZoom:12}).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:12,opacity:.7}).addTo(map);
+  const mk=WN.map(n=>L.marker(n.ll,{icon:L.divIcon({className:'',html:`<div class="pin ${n.k||''}"></div>`,iconSize:[10,10],iconAnchor:[5,5]})}).addTo(map).bindPopup(`<b style="color:var(--blue);font-size:10px;letter-spacing:.04em">${n.c} · ${n.rg}</b><br>${n.x}<br><span style="color:var(--dim);font-family:var(--mono);font-size:10px">${n.t}</span>`));
+  box.querySelectorAll('.wi').forEach(w=>w.onclick=()=>{const i=+w.dataset.i;box.querySelectorAll('.wi').forEach(v=>v.classList.remove('on'));w.classList.add('on');map.flyTo(WN[i].ll,4,{duration:.8});mk[i].openPopup()});
+  setTimeout(()=>map.invalidateSize(),350);
+  const ro=new ResizeObserver(()=>map.invalidateSize());ro.observe(el);
+}
+RENDER.world=(box)=>renderWorld(box,true);
+
+/* ═══════════ ТВ ═══════════ */
+const TV=[['РБК','РБК ТВ','деловой эфир 24/7','#2c5cff','#fff'],['BBG','Bloomberg TV','рынки США и Европы','#000','#ffb000'],['CNBC','CNBC','Уолл-стрит live','#005594','#fff'],['EN','Euronews','новости Европы','#0b3d91','#fff'],['AJ','Al Jazeera English','Ближний Восток','#f6a01a','#111'],['SKY','Sky News','Британия','#c8102e','#fff'],['NHK','NHK World','Азия','#111','#fff'],['CGTN','CGTN','Китай','#b71c1c','#fff'],['ТАСС','ТАСС ТВ','официальные заявления','#0d1117','#ffb000']];
+const tvMod=document.createElement('section');tvMod.className='mod';tvMod.id='m-tv';
+tvMod.innerHTML=`<div class="mh"><b>ТВ</b><span class="crumb">Мир<i>›</i>ТВ</span></div><div class="mb" id="tvBody"></div>`;
+document.getElementById('work').appendChild(tvMod);MODS.push(tvMod);
+{const b=document.createElement('button');b.className='hbtn tod';b.textContent='◫ на стол';b.onclick=sendToDesk;tvMod.querySelector('.mh').appendChild(b)}
+function renderTv(box,compact){
+  let cur=0;
+  box.innerHTML=`<div class="tv"><div class="ch">${TV.map((c,i)=>`<div class="tvc ${i===0?'on':''}" data-i="${i}"><span class="lg" style="background:${c[3]};color:${c[4]}">${c[0]}</span><span><span class="nm">${c[1]}</span><span class="d">${c[2]}</span></span><span class="live"><span class="dot"></span></span></div>`).join('')}</div>
+    <div class="pl"><div class="scr"><span class="badge">● LIVE</span><div class="ph2"><b>▶</b><span id="tvName">${TV[0][1]}</span><br><span style="font-size:9.5px;opacity:.7">плеер канала встраивается официальным кодом вещателя</span></div></div>
+    <div class="tick">${QX[0][2].map(r=>`<span><span class="n">${r[0]}</span> ${r[2]}<span class="${r[3]>=0?'up':'dn'}">${r[3]>=0?'▲':'▼'}${Math.abs(r[3]).toFixed(1)}%</span></span>`).join('')}<span><span class="n">RTS</span> 1 112,6<span class="up">▲2,1%</span></span><span><span class="n">RGBI</span> 117,9<span class="up">▲0,6%</span></span></div>
+    <div class="sched"><table><tr><th>Время</th><th style="text-align:left">Эфир</th><th>Канал</th></tr><tr><td>15:00</td><td style="text-align:left;font-family:var(--sans)">Пресс-конференция Набиуллиной — прямая трансляция</td><td>РБК</td></tr><tr><td>15:30</td><td style="text-align:left;font-family:var(--sans)">Розничные продажи США — реакция рынка</td><td>CNBC</td></tr><tr><td>18:00</td><td style="text-align:left;font-family:var(--sans)">Bloomberg Markets: Europe Close</td><td>BBG</td></tr><tr><td>21:00</td><td style="text-align:left;font-family:var(--sans)">Решение ФРС и пресс-конференция Пауэлла</td><td>BBG</td></tr></table></div></div></div>`;
+  box.querySelectorAll('.tvc').forEach(c=>c.onclick=()=>{box.querySelectorAll('.tvc').forEach(v=>v.classList.remove('on'));c.classList.add('on');box.querySelector('#tvName').textContent=TV[+c.dataset.i][1]});
+}
+RENDER.tv=(box)=>renderTv(box,true);
+
+/* ═══════════ мировые новости ═══════════ */
+RENDER.wnews=(box)=>{box.innerHTML='<div class="feedbody" style="padding-left:10px">'+WN.map(n=>`<article class="row ${n.k==='imp'?'lvl2':''}"><div class="time">${n.t}</div><div><div class="src">${n.c} <span class="srcs">${n.rg}</span></div><div class="txt">${n.x}</div></div></article>`).join('')+'</div>'};
+RENDER.pf=(box)=>{const s=pfCalc(PF[pfCur]);const pl=s.cur-s.cost;box.innerHTML=`<div class="pfk"><div><small>${PF[pfCur].name}</small><b>${fmtN(Math.round(s.cur))} ₽</b><i class="${pl>=0?'up':'dn'}">${(pl>=0?'+':'−')+fmtN(Math.abs(Math.round(pl)))} ₽ · ${(pl/s.cost*100).toFixed(1)}%</i></div><div><small>За день</small><b class="${s.day>=0?'up':'dn'}">${(s.day>=0?'+':'−')+fmtN(Math.abs(Math.round(s.day)))} ₽</b><i>${s.cur?(s.day/(s.cur-s.day)*100).toFixed(2):0}%</i></div></div><table>${s.rows.map(r=>`<tr><td>${r.x.type==='bond'?r.x.s:r.x.t}</td><td>${fmtN(r.pos.q)}</td><td>${fmtN(Math.round(r.v))}</td><td class="${r.v-r.c>=0?'up':'dn'}">${((r.v/r.c-1)*100).toFixed(1)}%</td></tr>`).join('')}</table>`};
+RENDER.sec=(box)=>{if(secSel){box.innerHTML=secCard.innerHTML;box.querySelectorAll('.act,.cnews,.calc,.rtabs,.rpane').forEach(e=>e.remove())}else box.innerHTML='<div class="stub"><b>БУМАГА</b><span>Откройте бумагу в разделе «Бумаги» и отправьте её на стол</span></div>'};
+
+/* ── маршрутизация новых модулей ── */
+const _oi4=openItem;
+openItem=function(id){
+  if(id==='quotes'){addMode=false;curItem='quotes';showMod('quotes');renderQxTabs();renderQx(document.getElementById('qxBody'));syncRail();return}
+  if(id==='world'){addMode=false;curItem='world';showMod('world');if(!wmInit){wmInit=true;renderWorld(document.getElementById('wmBody'))}syncRail();return}
+  if(id==='tv'){addMode=false;curItem='tv';showMod('tv');if(!document.getElementById('tvBody').children.length)renderTv(document.getElementById('tvBody'));syncRail();return}
+  if(id==='wnews'){addMode=false;curItem='wnews';document.getElementById('genTitle').textContent='Мировые новости';document.getElementById('genCrumb').innerHTML='Мир<i>›</i>Мировые новости';RENDER.wnews(document.getElementById('genBody'));showMod('generic');syncRail();return}
+  return _oi4(id);
+};
+Object.assign(ALIAS,{мир:'world',карта:'world','карта рынков':'map',тв:'tv',эфир:'tv','мировые новости':'wnews',reuters:'wnews'});
+/* «+ панель» с подпанели: пункты Мир/Рынки тоже кладутся на стол */
+const _oi5=openItem;
+openItem=function(id){if(curMod==='desk'&&addMode&&TOD[id]){addMode=false;const s=TOD[id]==='quotes'?'quotesx':TOD[id];if(panels[s]){flash(panels[s]);return}openPanel(s);syncRail();return}return _oi5(id)};
+/* стол 2 — с картой мира вместо бюджета */
+LAYOUTS.b={feed:[0,0,4,12],world:[4,0,5,7],quotesx:[9,0,3,12],macro:[4,7,5,5]};
+syncRail();
+
+
+/* ═══════════ v5 ═══════════ */
+/* ── вкладки открытых разделов ── */
+const tabsbar=document.createElement('div');tabsbar.id='tabsbar';document.querySelector('.term').insertBefore(tabsbar,document.getElementById('rail'));
+let TABS=[{id:'desk',pin:1}];let tabSilent=false;
+const ITEM=id=>GROUPS.flatMap(g=>g.items).find(i=>i.id===id)||{n:id};
+const TABID=id=>id.startsWith('sec')?'sec':id;
+function renderTabs(){
+  tabsbar.innerHTML=TABS.map(t=>{const it=ITEM(t.id);const g=groupOf(t.id);return `<div class="tb ${TABID(curItem)===t.id?'on':''} ${t.pin?'pin':''}" data-id="${t.id}"><span class="ic">${g?g.name.slice(0,3).toUpperCase():''}</span>${it.n||t.id}<span class="x" title="Закрыть">×</span></div>`}).join('')+`<span class="sp"></span><span class="tbn">${TABS.length} откр.</span>`;
+  tabsbar.querySelectorAll('.tb').forEach(t=>{t.onclick=e=>{if(e.target.classList.contains('x'))return;tabSilent=true;openItem(t.dataset.id);tabSilent=false};
+    t.querySelector('.x').onclick=()=>closeTab(t.dataset.id)});
+}
+function closeTab(id){const i=TABS.findIndex(t=>t.id===id);if(i<0||TABS[i].pin)return;TABS.splice(i,1);if(TABID(curItem)===id){tabSilent=true;openItem(TABS[Math.max(0,i-1)].id);tabSilent=false}renderTabs()}
+const _oi6=openItem;
+openItem=function(id){const r=_oi6(id);const tid=TABID(curItem);if(!TABS.some(t=>t.id===tid)&&!(curMod==='desk'&&tid!=='desk'))TABS.push({id:tid});renderTabs();return r};
+document.addEventListener('keydown',e=>{if(e.key==='w'&&(e.ctrlKey||e.metaKey)){e.preventDefault();closeTab(TABID(curItem))}});
+
+/* ── статус-строка ── */
+{const st=keys.querySelector('.st');const v=document.createElement('span');v.className='ver2';v.innerHTML='<b>FINFACTS</b> v0.5 · <span class="cls"><b>EQ</b> FX FI CM CR</span>';keys.insertBefore(v,keys.firstChild);
+ st.innerHTML='<i>●</i> 57/57 источников · задержка 4 с · сессия 00:14:22<span class="ready">READY</span>'}
+
+/* ── лента-профи ── */
+const npMod=document.createElement('section');npMod.className='mod';npMod.id='m-newspro';
+npMod.innerHTML=`<div class="mh"><b>Лента</b><span class="crumb">Новости<i>›</i>Лента</span></div><div class="mb" id="npBody"></div>`;
+document.getElementById('work').appendChild(npMod);MODS.push(npMod);
+{const b=document.createElement('button');b.className='hbtn tod';b.textContent='◫ на стол';b.onclick=sendToDesk;npMod.querySelector('.mh').appendChild(b)}
+const AGE=['3с','12с','48с','2м','4м','7м','11м','16м','23м','31м','40м','55м'];
+let npSel=null,npF='all';
+function renderNp(box){
+  const list=NEWS.filter(n=>npF==='all'||(npF==='imp'&&n.cls==='lvl2')||(npF==='cb'&&(n.cls||'').startsWith('reg'))||n.tags.includes(npF));
+  box.innerHTML=`<div class="np">
+    <div class="flash"><span class="fl">МОЛНИЯ</span><b>${NEWS[1].txt}</b><span class="s">${NEWS[1].src} · ${NEWS[1].t}</span></div>
+    <div class="bar"><div class="grp"><span class="chip ${npF==='all'?'on':''}" data-f="all">Все</span><span class="chip imp ${npF==='imp'?'on':''}" data-f="imp">⚡ Важно</span><span class="chip cbr ${npF==='cb'?'on':''}" data-f="cb">🏛 Ведомства</span></div>
+      <div class="grp">${['#ставка','#нефть','#санкции','#облигации','#банки','#инфляция'].map(t=>`<span class="chip ${npF===t?'on':''}" data-f="${t}">${t}</span>`).join('')}</div>
+      <div class="grp"><span class="chip on">24ч</span><span class="chip">6ч</span><span class="chip">1ч</span></div>
+      <input class="q" placeholder="поиск по ленте…"><span class="cnt"><b>${list.length}</b> из 412 · источников <b>57</b> · новых <i>18</i></span></div>
+    <div class="wire">${list.map((n,i)=>{const c=n.cls==='lvl2'?'imp':(n.cls||'').includes('fin')?'fin':(n.cls||'').startsWith('reg')?'cb':'';const se=/сниз|упал|санкц|дефиц|реструк/i.test(n.txt)?'<span class="se dn">▼</span>':/выро|повыс|рекорд|прибыл/i.test(n.txt)?'<span class="se up">▲</span>':'<span class="se" style="color:var(--dim)">–</span>';
+      return `<div class="wr ${c} ${npSel===n?'on':''}" data-i="${NEWS.indexOf(n)}"><i class="mk"></i><span class="ag">${AGE[i]||n.t}</span><span class="so">${n.src}${n.n?'<span class="dp">×'+n.n+'</span>':''}</span><span class="hl">${n.txt}</span><span class="tks">${n.tk.slice(0,3).join(' ')}</span>${se}</div>`}).join('')}</div>
+    <div class="det"><div class="dh">Новость<span class="x">×</span></div><div class="db" id="npDet"></div></div>
+    <div class="tick"><span class="lb">BREAKING</span><div class="mq">${[...NEWS.slice(0,6),...NEWS.slice(0,6)].map(n=>`<span><b>${n.src}</b>${n.txt.slice(0,90)}…</span>`).join('')}</div></div></div>`;
+  box.querySelectorAll('.bar .chip[data-f]').forEach(c=>c.onclick=()=>{npF=c.dataset.f;renderNp(box)});
+  box.querySelectorAll('.wr').forEach(w=>w.onclick=()=>{npSel=NEWS[+w.dataset.i];box.querySelectorAll('.wr').forEach(v=>v.classList.remove('on'));w.classList.add('on');renderDet(box.querySelector('#npDet'))});
+  box.querySelector('.det .x').onclick=()=>{npSel=null;renderDet(box.querySelector('#npDet'));box.querySelectorAll('.wr').forEach(v=>v.classList.remove('on'))};
+  renderDet(box.querySelector('#npDet'));
+}
+function renderDet(d){
+  if(!npSel){d.innerHTML='<div class="empty">Выберите новость в ленте —<br>здесь появится карточка с текстом,<br>тикерами и связанными сообщениями.</div>';return}
+  const n=npSel;const rel=NEWS.filter(m=>m!==n&&m.tk.some(t=>n.tk.includes(t))).slice(0,5);
+  d.innerHTML=`<h2>${n.txt}</h2><div class="bd">${n.cls==='lvl2'?'<span class="i">ВАЖНО</span>':''}${(n.cls||'').startsWith('reg')?(n.cls.includes('fin')?'<span class="m">МИНФИН</span>':n.cls.includes('fed')?'<span class="m">ФРС</span>':'<span class="c">ЦБ РФ</span>'):''}${n.tags.map(t=>'<span>'+t.replace('#','').toUpperCase()+'</span>').join('')}</div>
+    <div class="mt">${n.src}<i>${n.t} МСК</i>${n.n?'<i>'+n.n+' источников</i>':''}</div>
+    <p>${n.txt} ${n.txt.length<140?'Подробности — у первоисточника: агрегатор показывает заголовок и короткий фрагмент.':''}</p>
+    <div class="imp2">Влияние: <b>${n.cls==='lvl2'?'ВЫСОКОЕ':(n.cls||'').startsWith('reg')?'СРЕДНЕЕ':'ОБЫЧНОЕ'}</b> · тикеры: ${n.tk.join(', ')}</div>
+    <div class="tkline">${n.tk.map(t=>'<span class="tk">'+t+'</span>').join('')}</div>
+    <div class="acts"><button class="hbtn on">первоисточник ↗</button><button class="hbtn">копировать</button><button class="hbtn">поделиться</button><button class="hbtn" data-sec="${n.tk[0]}">бумага ${n.tk[0]}</button><button class="hbtn">график</button></div>
+    <div class="st2">Связанные<span class="r">${rel.length}</span></div><div class="rel">${rel.map(m=>`<div class="ri2" data-i="${NEWS.indexOf(m)}"><b>${m.src}</b>${m.txt.slice(0,80)}…</div>`).join('')||'<div class="empty" style="padding:10px">нет</div>'}</div>`;
+  d.querySelectorAll('.ri2').forEach(r=>r.onclick=()=>{npSel=NEWS[+r.dataset.i];renderNp(document.getElementById('npBody'))});
+  const bs=d.querySelector('[data-sec]');if(bs)bs.onclick=()=>{const t=bs.dataset.sec;const x=DB.find(v=>v.t===t);if(x){openItem('sec');secQ.value=t;secSearch(t);openSec(x)}else toast('Бумага <b>'+t+'</b> не в демо-базе')};
+}
+const _oi7=openItem;
+openItem=function(id){if(id==='feed'){addMode=false;curItem='feed';showMod('newspro');renderNp(document.getElementById('npBody'));syncRail();const tid='feed';if(!TABS.some(t=>t.id===tid))TABS.push({id:tid});renderTabs();return}return _oi7(id)};
+/* «+ панель» на столе для ленты остаётся прежней панелью */
+const _oi8=openItem;
+openItem=function(id){if(id==='feed'&&curMod==='desk'&&addMode){addMode=false;if(panels.feed){flash(panels.feed);return}openPanel('feed');syncRail();return}return _oi8(id)};
+
+/* ── исследование бумаги: свечи + вкладки ── */
+function candles(seed,n,base){const r=rnd(seed);const out=[];let c=base;for(let i=0;i<n;i++){const o=c;const m=(r()-0.48)*0.03*base;c=o+m;const h=Math.max(o,c)+r()*0.012*base,l=Math.min(o,c)-r()*0.012*base;out.push([o,h,l,c,Math.round(200+r()*800)])}return out}
+function candleSvg(seed,base,W=600,H=190){const d=candles(seed,64,base);const mn=Math.min(...d.map(x=>x[2])),mx=Math.max(...d.map(x=>x[1]));const vmax=Math.max(...d.map(x=>x[4]));const cw=W/d.length;const y=v=>8+(mx-v)/(mx-mn||1)*(H-40);
+  let s=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;
+  for(let i=1;i<5;i++){const yy=8+(H-40)*i/5;s+=`<line x1="0" x2="${W}" y1="${yy}" y2="${yy}" stroke="#1b232e"/><text x="${W-4}" y="${yy-2}" fill="#5b6b7c" font-size="8" font-family="IBM Plex Mono" text-anchor="end">${(mx-(mx-mn)*i/5).toFixed(2)}</text>`}
+  d.forEach((c,i)=>{const x=i*cw+cw/2;const up=c[3]>=c[0];const col=up?'#2ee06f':'#ff5252';s+=`<rect x="${(i*cw+1).toFixed(1)}" y="${H-24}" width="${(cw-2).toFixed(1)}" height="${(c[4]/vmax*20).toFixed(1)}" fill="${col}" opacity=".18"/><line x1="${x}" x2="${x}" y1="${y(c[1])}" y2="${y(c[2])}" stroke="${col}" stroke-width="1"/><rect x="${(i*cw+1.5).toFixed(1)}" y="${y(Math.max(c[0],c[3]))}" width="${(cw-3).toFixed(1)}" height="${Math.max(1,Math.abs(y(c[0])-y(c[3]))).toFixed(1)}" fill="${col}"/>`});
+  const last=d[d.length-1][3];s+=`<line x1="0" x2="${W}" y1="${y(last)}" y2="${y(last)}" stroke="#ffb000" stroke-dasharray="3 3" opacity=".7"/><rect x="${W-46}" y="${y(last)-7}" width="46" height="14" fill="#ffb000"/><text x="${W-4}" y="${y(last)+4}" fill="#0b0d10" font-size="9" font-family="IBM Plex Mono" text-anchor="end" font-weight="600">${last.toFixed(2)}</text></svg>`;return s}
+const _openSec2=openSec;
+openSec=function(x){_openSec2(x);
+  const kv=secCard.querySelector('.kv');const seed=[...x.t].reduce((a,c)=>a+c.charCodeAt(0),0);
+  const rs=document.createElement('div');rs.className='rs';
+  rs.innerHTML=`<div class="cv"><div class="pr"><span class="chip">1Д</span><span class="chip">1Н</span><span class="chip on">1М</span><span class="chip">3М</span><span class="chip">1Г</span><span class="chip">Все</span><span class="lg"><span>объём <b style="color:var(--tx)">${x.type==='bond'?'412 млн ₽':'6,8 млрд ₽'}</b></span><span>новости на графике <b style="color:var(--amber)">вкл</b></span></span></div>${candleSvg(seed,x.px)}</div>
+    <div class="side2">${x.type==='bond'?`<div class="kv"><div><small>ДЮРАЦИЯ, ЛЕТ</small><b>${duration(x,ytm(x,x.px)).mac.toFixed(2)}</b></div><div><small>СПРЕД К КБД</small><b>+12 б.п.</b></div><div><small>ОБЪЁМ В ОБРАЩЕНИИ</small><b>${x.t.startsWith('SU')?'750 млрд':'50 млрд'}</b></div><div><small>РЕЙТИНГ</small><b>${x.t.startsWith('SU')?'—':'AAA(RU)'}</b></div><div><small>52 НЕД. МИН</small><b class="dn">${(x.px*0.92).toFixed(2)}</b></div><div><small>52 НЕД. МАКС</small><b class="up">${(x.px*1.04).toFixed(2)}</b></div></div>`:
+    `<div class="kv"><div><small>P/E</small><b>${(4+seed%6).toFixed(1)}</b></div><div><small>P/B</small><b>${(0.6+seed%9/10).toFixed(2)}</b></div><div><small>КАПИТАЛИЗАЦИЯ</small><b>${fmtN(Math.round(x.px*(seed%20+5)*10)/10)} млрд</b></div><div><small>FREE FLOAT</small><b>${20+seed%40}%</b></div><div><small>52 НЕД. МИН</small><b class="dn">${fmtN(Math.round(x.px*0.78))}</b></div><div><small>52 НЕД. МАКС</small><b class="up">${fmtN(Math.round(x.px*1.12))}</b></div><div><small>БЕТА К IMOEX</small><b>${(0.7+seed%7/10).toFixed(2)}</b></div><div><small>КОНСЕНСУС</small><b class="up">${['ПОКУПАТЬ','ДЕРЖАТЬ','ПОКУПАТЬ'][seed%3]}</b></div></div>`}</div>`;
+  kv.after(rs);
+  const tabs=document.createElement('div');tabs.className='rtabs';tabs.innerHTML='<span class="on" data-p="calc">Расчёт</span><span data-p="fin">'+(x.type==='bond'?'Купоны':'Финансы')+'</span><span data-p="news">Новости</span><span data-p="pf">В портфеле</span>';
+  rs.after(tabs);
+  const calc=secCard.querySelector('.calc'),news=secCard.querySelector('.cnews');calc.classList.add('rpane','on');news.classList.add('rpane');
+  const fin=document.createElement('div');fin.className='rpane';const pfp=document.createElement('div');pfp.className='rpane';
+  if(x.type==='bond'){const cf=bondCF(x);fin.innerHTML='<table><tr><th>Дата</th><th>Купон, ₽</th><th>Погашение</th><th>Итого</th></tr>'+cf.slice(0,12).map(c=>`<tr><td>${fmtD(c.d)}</td><td>${(x.nom*x.cpn/100/x.freq).toFixed(2)}</td><td>${c.d===x.mat?fmtN(x.nom):'—'}</td><td>${c.c.toFixed(2)}</td></tr>`).join('')+(cf.length>12?`<tr><td colspan="4" style="text-align:center;color:var(--dim)">… ещё ${cf.length-12} выплат</td></tr>`:'')+'</table>'}
+  else{fin.innerHTML='<table><tr><th>Показатель</th><th>2024</th><th>2025</th><th>1П 2026</th></tr>'+[['Выручка, млрд ₽',1.0,1.12,0.6],['EBITDA, млрд ₽',0.42,0.47,0.25],['Чистая прибыль, млрд ₽',0.26,0.29,0.16],['Дивиденд на акцию, ₽',x.div*0.9,x.div,x.div*0.5],['Чистый долг / EBITDA',1.2,1.0,0.9]].map(r=>`<tr><td>${r[0]}</td><td>${fmtN(+(r[1]*(seed%9+5)*10).toFixed(1))}</td><td>${fmtN(+(r[2]*(seed%9+5)*10).toFixed(1))}</td><td>${fmtN(+(r[3]*(seed%9+5)*10).toFixed(1))}</td></tr>`).join('')+'</table><div class="f note" style="padding:8px 14px;color:var(--dim);font-size:10px">Демо-данные. В живой версии — отчётность МСФО с сайта эмитента и e-disclosure.</div>'}
+  const pos=PF.flatMap((p,i)=>p.pos.filter(o=>o.t===x.t).map(o=>({p,o})));pfp.innerHTML=pos.length?'<table><tr><th>Портфель</th><th>Кол-во</th><th>Средняя</th><th>Стоимость</th><th>Результат</th></tr>'+pos.map(({p,o})=>{const c=val(x,o.q,o.p),v=val(x,o.q,x.px);return `<tr><td>${p.name}</td><td>${fmtN(o.q)}</td><td>${x.type==='bond'?o.p.toFixed(2)+'%':fmtN(o.p)}</td><td>${fmtN(Math.round(v))}</td><td class="${v>=c?'up':'dn'}">${((v/c-1)*100).toFixed(1)}%</td></tr>`}).join('')+'</table>':'<div class="stub" style="padding:20px"><span>Этой бумаги нет ни в одном портфеле</span></div>';
+  calc.after(fin);fin.after(pfp);
+  const panes={calc,fin,news,pf:pfp};
+  tabs.querySelectorAll('span').forEach(s=>s.onclick=()=>{tabs.querySelectorAll('span').forEach(v=>v.classList.remove('on'));s.classList.add('on');Object.values(panes).forEach(p=>p.classList.remove('on'));panes[s.dataset.p].classList.add('on')});
+  secCard.querySelectorAll('.cnews h3').forEach(h=>h.remove());
+};
+
+/* ── портфель: тайлы, график, структура, история ── */
+const _renderPf=renderPf;
+renderPf=function(){_renderPf();document.querySelectorAll('#m-pf .pfmid').forEach(e=>e.remove());
+  const pf=PF[pfCur];const s=pfCalc(pf);if(!pf.pos.length)return;
+  const body=document.getElementById('pfBody');
+  const mid=document.createElement('div');mid.className='pfmid';
+  const seed=pfCur*13+pf.pos.length;const perf=spark(seed+5,(s.cur/s.cost-1)*100,60);const mn=Math.min(...perf),mx=Math.max(...perf);const W=400,H=120;
+  const pts=perf.map((v,i)=>[i/(perf.length-1)*W,H-14-(v-mn)/(mx-mn||1)*(H-28)]);const pl=s.cur-s.cost;const col=pl>=0?'#2ee06f':'#ff5252';
+  const base=H-14-(100-mn)/(mx-mn||1)*(H-28);
+  const cols={'ОФЗ':'#4db8ff','Корп. облигации':'#7ba6f0','Акции':'#2ee06f'};const tot=Object.values(s.byType).reduce((a,b)=>a+b,0);
+  let ang=-Math.PI/2;const arcs=Object.entries(s.byType).map(([k,v])=>{const a2=ang+v/tot*Math.PI*2;const x1=48+40*Math.cos(ang),y1=48+40*Math.sin(ang),x2=48+40*Math.cos(a2),y2=48+40*Math.sin(a2);const big=v/tot>0.5?1:0;const p=`<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A40,40 0 ${big},1 ${x2.toFixed(1)},${y2.toFixed(1)}" fill="none" stroke="${cols[k]}" stroke-width="12"/>`;ang=a2;return p}).join('');
+  mid.innerHTML=`<div><div class="st2">Позиции</div><div class="tiles">${s.rows.map(r=>{const p=(r.v/r.c-1)*100;return `<div class="tile ${p>=0?'up':'dn'}" data-t="${r.x.t}"><b>${r.x.type==='bond'?r.x.s.replace('ОФЗ ','ОФЗ '):r.x.t}</b><i class="${p>=0?'up':'dn'}">${p>=0?'+':''}${p.toFixed(1)}%</i></div>`}).join('')}</div></div>
+    <div class="perf"><div class="pr"><span class="chip">1Д</span><span class="chip">1Н</span><span class="chip on">1М</span><span class="chip">3М</span><span class="chip">Все</span><span class="lg"><span>стоимость <b>${fmtN(Math.round(s.cur))} ₽</b></span><span>вложено <b>${fmtN(Math.round(s.cost))} ₽</b></span><span class="${pl>=0?'up':'dn'}">${pl>=0?'+':''}${((s.cur/s.cost-1)*100).toFixed(2)}%</span></span></div>
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="pfg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".25"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs><line x1="0" x2="${W}" y1="${base.toFixed(1)}" y2="${base.toFixed(1)}" stroke="#5b6b7c" stroke-dasharray="3 3"/><polygon fill="url(#pfg)" points="0,${H} ${pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')} ${W},${H}"/><polyline fill="none" stroke="${col}" stroke-width="1.6" vector-effect="non-scaling-stroke" points="${pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}"/></svg></div>
+    <div><div class="st2">Структура</div><div class="donut"><svg viewBox="0 0 96 96">${arcs}<text x="48" y="52" text-anchor="middle" fill="#c9d4e0" font-size="11" font-family="IBM Plex Mono">${Object.keys(s.byType).length} кл.</text></svg><div class="lg">${Object.entries(s.byType).map(([k,v])=>`<div><i style="background:${cols[k]}"></i>${k}<b>${(v/tot*100).toFixed(0)}%</b></div>`).join('')}<div><i style="background:var(--amber)"></i>доход/год<b>${(s.inc/s.cur*100).toFixed(1)}%</b></div></div></div></div>`;
+  body.parentNode.insertBefore(mid,body);
+  mid.querySelectorAll('.tile').forEach(t=>t.onclick=()=>{const x=pfById(t.dataset.t);openItem('sec');secQ.value=x.n;secSearch(x.n);openSec(x)});
+  /* история сделок и тренд в таблице */
+  const tbl=body.querySelector('table');
+  if(tbl){tbl.querySelectorAll('tr').forEach((tr,i)=>{if(i===0){const th=document.createElement('th');th.textContent='Тренд';tr.insertBefore(th,tr.lastElementChild)}else if(!tr.classList.contains('tot')){const td=document.createElement('td');const r=s.rows[i-1];if(r){const sp=spark(seed+i*3,r.x.ch*3,20);const mn2=Math.min(...sp),mx2=Math.max(...sp);td.innerHTML=`<svg class="tw" viewBox="0 0 56 14"><polyline fill="none" stroke="${r.x.ch>=0?'#2ee06f':'#ff5252'}" stroke-width="1.2" points="${sp.map((v,j)=>(j/19*56).toFixed(1)+','+(12-(v-mn2)/(mx2-mn2||1)*10).toFixed(1)).join(' ')}"/></svg>`}tr.insertBefore(td,tr.lastElementChild)}else{const td=document.createElement('td');tr.insertBefore(td,tr.lastElementChild)}})}
+  const hist=document.createElement('div');hist.innerHTML='<div class="st2">История сделок<span class="r">'+pf.pos.length+' операций</span></div><table><tr><th>Дата</th><th>Тип</th><th>Бумага</th><th>Кол-во</th><th>Цена</th><th>Сумма</th><th>Комментарий</th></tr>'+pf.pos.map((o,i)=>{const x=pfById(o.t);return `<tr><td>${['02.09.2026','28.08.2026','21.08.2026','14.08.2026','07.08.2026'][i%5]}</td><td class="up">ПОКУПКА</td><td style="text-align:left;font-family:var(--sans);color:var(--tx)">${x.n}</td><td>${fmtN(o.q)}</td><td>${x.type==='bond'?o.p.toFixed(2)+'%':fmtN(o.p)}</td><td>${fmtN(Math.round(val(x,o.q,o.p)))}</td><td style="text-align:left;font-family:var(--sans);color:var(--dim)">${x.type==='bond'?'аукцион Минфина':'по рынку'}</td></tr>`}).join('')+'</table>';
+  body.appendChild(hist);
+};
+
+/* ── пульс рынка ── */
+RENDER.pulse=(box)=>{const stocks=QX.find(q=>q[0]==='Акции')[2].slice().sort((a,b)=>b[3]-a[3]);const all=QX.flatMap(q=>q[2]);const ups=all.filter(r=>r[3]>0).length;
+  box.innerHTML=`<div class="pulse">
+  <div class="g"><h4>Настроение рынка<span>${Math.round(ups/all.length*100)}</span></h4><div class="fg"><b>${Math.round(ups/all.length*100)}</b><div class="sc"><div class="bar2"><i style="left:${ups/all.length*100}%"></i></div><small><span>страх</span><span>нейтрально</span><span>жадность</span></small></div></div></div>
+  <div class="g"><h4>Ширина рынка</h4>${[['MOEX',ups,all.length-ups],['TQBR',stocks.filter(s=>s[3]>0).length,stocks.filter(s=>s[3]<=0).length],['Облигации',5,1],['Валюты',2,6]].map(r=>`<div class="br"><span style="color:var(--dim)">${r[0]}</span><div class="bb"><i class="up" style="width:${r[1]/(r[1]+r[2])*100}%;background:var(--green)"></i><i style="width:${r[2]/(r[1]+r[2])*100}%;background:var(--red)"></i></div><span><span class="up">${r[1]}</span> / <span class="dn">${r[2]}</span></span></div>`).join('')}</div>
+  <div class="g"><h4>Лидеры роста</h4>${stocks.slice(0,4).map(s=>`<div class="mv"><span class="tk" style="padding:0 5px">${s[0]}</span><span class="n">${s[1]}</span><span class="up">▲ ${s[3].toFixed(1)}%</span></div>`).join('')}</div>
+  <div class="g"><h4>Лидеры падения</h4>${stocks.slice(-4).reverse().map(s=>`<div class="mv"><span class="tk" style="padding:0 5px;color:var(--red);border-color:#3a1a1a;background:#1a0b0b">${s[0]}</span><span class="n">${s[1]}</span><span class="dn">▼ ${Math.abs(s[3]).toFixed(1)}%</span></div>`).join('')}</div>
+  <div class="g"><h4>Торговые сессии<span>МСК</span></h4><div class="hrs"><div><span>MOEX</span><span class="op">● открыта</span></div><div><span>СПБ</span><span class="op">● открыта</span></div><div><span>NYSE</span><span class="cl">○ 16:30</span></div><div><span>LSE</span><span class="op">● открыта</span></div><div><span>HKEX</span><span class="cl">○ закрыта</span></div><div><span>Крипта</span><span class="op">● 24/7</span></div></div></div>
+  <div class="g"><h4>Сегодня</h4><div class="mv"><span style="color:var(--amber)">15:00</span><span class="n">Пресс-конференция Набиуллиной</span><span></span></div><div class="mv"><span style="color:var(--dim)">15:30</span><span class="n">США — розничные продажи</span><span></span></div><div class="mv"><span style="color:var(--dim)">19:00</span><span class="n">Росстат — инфляция</span><span></span></div></div></div>`};
+SECTIONS.push({id:'pulse',name:'Пульс рынка',sub:'ширина · лидеры · сессии'});
+GROUPS.find(g=>g.id==='mkt').items.splice(1,0,{id:'pulse',n:'Пульс рынка',d:'настроение, ширина, лидеры',ic:'◔'});
+TOD.pulse='pulse';
+const _oi9=openItem;
+openItem=function(id){if(id==='pulse'&&!(curMod==='desk'&&addMode)){addMode=false;curItem='pulse';document.getElementById('genTitle').textContent='Пульс рынка';document.getElementById('genCrumb').innerHTML='Рынки<i>›</i>Пульс рынка';const b=document.getElementById('genBody');b.innerHTML='';RENDER.pulse(b);b.querySelector('.pulse').style.maxWidth='520px';showMod('generic');syncRail();if(!TABS.some(t=>t.id==='pulse'))TABS.push({id:'pulse'});renderTabs();return}return _oi9(id)};
+LAYOUTS.a={feed:[0,0,5,12],macro:[5,0,4,7],quotes:[9,0,3,7],chart:[5,7,4,5],pulse:[9,7,3,5]};
+LAYOUTS.c={feed:[0,0,9,12],quotes:[9,0,3,7],pulse:[9,7,3,5]};
+renderTabs();
+
+showMod('desk');measure();applyLayout('a');syncRail();
+setTimeout(()=>{document.getElementById('boot').classList.add('gone');toast('Слева — разделы (<b>F1–F8</b>), подпанель открывает подразделы · попробуйте <b>офз 26247</b> в строке сверху')},900);
+</script>
+</body>
+</html>
