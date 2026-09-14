@@ -2927,6 +2927,36 @@ const srv = http.createServer(async (req, res) => {
       }
     }
     // Служебная: сырой ответ Банка России по ставке — какой из адресов отвечает.
+    // Проверка сырья: что реально отдаёт площадка xyz биржи HyperLiquid.
+    // Показываем цену, оборот за сутки и цену закрытия прошлых суток —
+    // по нулевому обороту сразу видно, что инструмент заглох.
+    if (u.pathname === '/api/hl') {
+      const декс = u.searchParams.get('dex') === '' ? '' : (u.searchParams.get('dex') || 'xyz');
+      try {
+        const t0 = Date.now();
+        const resp = await hlInfo(декс ? { type: 'metaAndAssetCtxs', dex: декс } : { type: 'metaAndAssetCtxs' });
+        const uni = (resp && resp[0] && resp[0].universe) || [];
+        const ctx = (resp && resp[1]) || [];
+        const строки = uni.map((u2, i) => {
+          const c = ctx[i] || {};
+          return {
+            тикер: String(u2.name).split(':').pop(),
+            цена: c.markPx, серёдка: c.midPx, вчера: c.prevDayPx, оборот: c.dayNtlVlm,
+          };
+        });
+        const нужны = ['BRENTOIL', 'CL', 'NATGAS', 'GOLD', 'SILVER', 'PLATINUM', 'PALLADIUM', 'COPPER', 'SP500', 'EUR'];
+        return sendJson(req, res, {
+          ok: true, площадка: декс || 'основная', мс: Date.now() - t0,
+          всего: строки.length,
+          наши: строки.filter(r => нужны.includes(r.тикер)),
+          пропали: нужны.filter(t => !строки.some(r => r.тикер === t)),
+          первые: строки.slice(0, 10),
+        }, 200, 'no-store');
+      } catch (e) {
+        return sendJson(req, res, { ok: false, ошибка: String(e && e.message || e) }, 200, 'no-store');
+      }
+    }
+
     if (u.pathname === '/api/keyraw') {
       const с = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10);
       const по = new Date().toISOString().slice(0, 10);
